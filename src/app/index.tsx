@@ -1,98 +1,103 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
+import { FEED, type FeedEvent } from '@/data/catalog';
+import { useTheme } from '@/hooks/use-theme';
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
+export default function FeedScreen() {
+  const theme = useTheme();
+  const drop = FEED.find((e) => e.kind === 'drop');
+  const rest = FEED.filter((e) => e.kind !== 'drop');
+
   return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
+    <ThemedView style={styles.screen}>
+      <ScrollView contentContainerStyle={styles.content}>
+        {drop && (
+          <View style={[styles.dropCard, { borderColor: '#378ADD', backgroundColor: theme.backgroundElement }]}>
+            <View style={styles.dropHeader}>
+              <Ionicons name="radio" size={16} color="#378ADD" />
+              <ThemedText type="small" style={{ color: '#378ADD' }}>
+                Daily drop · 2h left
+              </ThemedText>
+            </View>
+            <View style={styles.dropBody}>
+              <View style={[styles.playArt, { backgroundColor: theme.backgroundSelected }]}>
+                <Ionicons name="play" size={18} color={theme.text} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <ThemedText type="smallBold">{drop.user} {drop.title}</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {drop.subtitle}
+                </ThemedText>
+              </View>
+            </View>
+          </View>
+        )}
 
-export default function HomeScreen() {
-  return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
-
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
-
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
-
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
+        {rest.map((event) => (
+          <FeedRow key={event.id} event={event} theme={theme} />
+        ))}
+      </ScrollView>
     </ThemedView>
   );
 }
 
+function FeedRow({ event, theme }: { event: FeedEvent; theme: ReturnType<typeof useTheme> }) {
+  return (
+    <View style={[styles.feedRow, { borderBottomColor: theme.backgroundElement }]}>
+      <View style={[styles.avatar, { backgroundColor: theme.backgroundSelected }]}>
+        <ThemedText type="smallBold">{event.initials}</ThemedText>
+      </View>
+      <View style={{ flex: 1 }}>
+        <ThemedText type="small">
+          <ThemedText type="smallBold">{event.user}</ThemedText> {event.title}
+        </ThemedText>
+        {(event.score != null || event.subtitle) && (
+          <View style={styles.metaRow}>
+            {event.score != null && (
+              <ThemedText type="smallBold" style={{ color: '#1D9E75' }}>
+                {event.score.toFixed(1)}
+              </ThemedText>
+            )}
+            {event.subtitle && (
+              <ThemedText type="small" themeColor="textSecondary" style={{ flex: 1 }}>
+                {event.subtitle}
+              </ThemedText>
+            )}
+          </View>
+        )}
+        <View style={styles.actions}>
+          <View style={styles.action}>
+            <Ionicons name="heart-outline" size={15} color={theme.textSecondary} />
+            <ThemedText type="small" themeColor="textSecondary">
+              {event.likes}
+            </ThemedText>
+          </View>
+          <View style={styles.action}>
+            <Ionicons name="chatbubble-outline" size={15} color={theme.textSecondary} />
+            <ThemedText type="small" themeColor="textSecondary">
+              {event.comments}
+            </ThemedText>
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
-  },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
-  },
-  title: {
-    textAlign: 'center',
-  },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
-  },
+  screen: { flex: 1 },
+  content: { padding: Spacing.three, gap: Spacing.three },
+  dropCard: { borderWidth: 1, borderRadius: 12, padding: Spacing.three, gap: Spacing.two },
+  dropHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  dropBody: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  playArt: { width: 40, height: 40, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  feedRow: { flexDirection: 'row', gap: Spacing.three, paddingBottom: Spacing.three, borderBottomWidth: 1 },
+  avatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, marginVertical: 3 },
+  actions: { flexDirection: 'row', gap: Spacing.four, marginTop: Spacing.one },
+  action: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
 });
