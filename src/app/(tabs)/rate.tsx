@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { AlbumCover } from '@/components/album-cover';
+import { EmptyState } from '@/components/empty-state';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -61,7 +62,18 @@ export default function RateSearchScreen() {
         keyExtractor={(a) => a.id}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.list}
-        ListEmptyComponent={<EmptyState query={query} loading={loading} theme={theme} />}
+        ListEmptyComponent={
+          loading ? (
+            <View style={styles.empty}>
+              <ActivityIndicator />
+            </View>
+          ) : (
+            <EmptyState
+              icon={query ? 'sad-outline' : 'search'}
+              message={query ? `No albums found for “${query.trim()}”` : 'Find an album to rate.'}
+            />
+          )
+        }
         ListHeaderComponent={
           loading && results.length > 0 ? (
             <ActivityIndicator style={{ marginBottom: Spacing.two }} />
@@ -104,32 +116,6 @@ export default function RateSearchScreen() {
   );
 }
 
-function EmptyState({
-  query,
-  loading,
-  theme,
-}: {
-  query: string;
-  loading: boolean;
-  theme: ReturnType<typeof useTheme>;
-}) {
-  if (loading) {
-    return (
-      <View style={styles.empty}>
-        <ActivityIndicator />
-      </View>
-    );
-  }
-  return (
-    <View style={styles.empty}>
-      <Ionicons name={query ? 'sad-outline' : 'search'} size={32} color={theme.textSecondary} />
-      <ThemedText type="small" themeColor="textSecondary" style={styles.center}>
-        {query ? `No albums found for “${query.trim()}”` : 'Find an album to rate.'}
-      </ThemedText>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   searchBar: {
@@ -160,5 +146,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   empty: { alignItems: 'center', gap: Spacing.two, paddingTop: Spacing.six },
-  center: { textAlign: 'center' },
 });

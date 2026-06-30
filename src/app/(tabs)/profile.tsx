@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AlbumCover } from '@/components/album-cover';
+import { EmptyState } from '@/components/empty-state';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -92,6 +93,14 @@ export default function ProfileScreen() {
         <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
           ALL RANKED
         </ThemedText>
+        {ranked.length === 0 && (
+          <EmptyState
+            icon="disc-outline"
+            message="Nothing rated yet."
+            ctaLabel="Rate your first album"
+            onPressCta={() => router.push('/(tabs)/rate')}
+          />
+        )}
         {ranked.map((r, i) => (
           <Pressable
             key={r.item.id}
