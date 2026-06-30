@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useState } from 'react';
-import { View, type ViewStyle } from 'react-native';
+import { StyleSheet, View, type ViewStyle } from 'react-native';
 
+import { Skeleton } from '@/components/skeleton';
 import { useTheme } from '@/hooks/use-theme';
 
 type Props = {
@@ -19,6 +20,7 @@ type Props = {
 export function AlbumCover({ uri, size = 56, fill = false, radius = 8, style }: Props) {
   const theme = useTheme();
   const [failed, setFailed] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const showImage = !!uri && !failed;
 
   const box: ViewStyle = fill
@@ -39,13 +41,17 @@ export function AlbumCover({ uri, size = 56, fill = false, radius = 8, style }: 
         style,
       ]}>
       {showImage ? (
-        <Image
-          source={{ uri }}
-          style={{ width: '100%', height: '100%' }}
-          contentFit="cover"
-          transition={150}
-          onError={() => setFailed(true)}
-        />
+        <>
+          <Image
+            source={{ uri }}
+            style={{ width: '100%', height: '100%' }}
+            contentFit="cover"
+            transition={150}
+            onLoad={() => setLoaded(true)}
+            onError={() => setFailed(true)}
+          />
+          {!loaded && <Skeleton style={StyleSheet.absoluteFill} radius={0} />}
+        </>
       ) : (
         <Ionicons name="disc-outline" size={fill ? 48 : size * 0.42} color={theme.textSecondary} />
       )}

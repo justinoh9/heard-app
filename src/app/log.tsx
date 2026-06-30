@@ -1,23 +1,35 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Pressable, StyleSheet, View } from 'react-native';
 
 import { AlbumCover } from '@/components/album-cover';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useRatings } from '@/data/store';
+import { useHaptics } from '@/hooks/use-haptics';
 import { useTheme } from '@/hooks/use-theme';
 import { coverArtUrl } from '@/music';
 import { sortRanked, type Placement } from '@/ranking/engine';
 import type { Comparison, Item } from '@/ranking/types';
+
+/** Fades content in on mount and whenever `stepKey` changes, masking the instant step cut. */
+function useStepFade(stepKey: string) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    opacity.setValue(0);
+    Animated.timing(opacity, { toValue: 1, duration: 180, useNativeDriver: true }).start();
+  }, [stepKey, opacity]);
+  return opacity;
+}
 
 type Step = 'score' | 'compare' | 'done';
 
 export default function LogModal() {
   const theme = useTheme();
   const router = useRouter();
+  const haptics = useHaptics();
   const params = useLocalSearchParams<{ id: string; title: string; artist: string; year?: string }>();
   const { engine, ranked, ratingFor, commitPlacement } = useRatings();
 
@@ -36,9 +48,11 @@ export default function LogModal() {
   const [score, setScore] = useState(existing?.score ?? 7.5);
   const [comparison, setComparison] = useState<Comparison | null>(null);
   const [result, setResult] = useState<{ rank: number; total: number } | null>(null);
+  const [pendingChoice, setPendingChoice] = useState<'new' | 'existing' | null>(null);
   const placement = useRef<Placement | null>(null);
 
   function adjust(delta: number) {
+    haptics.selection();
     setScore((s) => Math.min(10, Math.max(0, Math.round((s + delta) * 10) / 10)));
   }
 
@@ -49,6 +63,7 @@ export default function LogModal() {
   }
 
   function confirmScore() {
+    haptics.success();
     // Re-rating replaces the old entry: place against the list without it.
     const base = ranked.filter((r) => r.item.id !== album.id);
     placement.current = engine.startPlacement(base, album, score);
@@ -57,8 +72,15 @@ export default function LogModal() {
   }
 
   function choose(winner: 'new' | 'existing') {
-    placement.current!.choose(winner);
-    advance();
+    if (pendingChoice) return;
+    haptics.success();
+    setPendingChoice(winner);
+    // Brief highlight on the winning card before the next comparison appears.
+    setTimeout(() => {
+      placement.current!.choose(winner);
+      advance();
+      setPendingChoice(null);
+    }, 220);
   }
 
   function finish() {
@@ -69,6 +91,9 @@ export default function LogModal() {
     setResult({ rank: idx + 1, total: sorted.length });
     setStep('done');
   }
+
+  const stepKey = step === 'compare' && comparison ? `compare-${comparison.against.id}` : step;
+  const fade = useStepFade(stepKey);
 
   return (
     <ThemedView style={styles.screen}>
@@ -81,7 +106,7 @@ export default function LogModal() {
       </View>
 
       {step === 'score' && (
-        <View style={styles.body}>
+        <Animated.View style={[styles.body, { opacity: fade }]}>
           <AlbumCover uri={album.artUrl} size={160} radius={12} />
           <ThemedText type="subtitle" style={styles.center}>
             {album.title}
@@ -93,7 +118,7 @@ export default function LogModal() {
 
           <ThemedText style={styles.bigScore}>{score.toFixed(1)}</ThemedText>
           <View style={styles.stepperRow}>
-            {[-1, -0.5, 0.5, 1].map((d) => (
+            {[-1, -0.1, 0.1, 1].map((d) => (
               <StepButton
                 key={d}
                 testID={`step-${d}`}
@@ -112,11 +137,11 @@ export default function LogModal() {
               {isUpdate ? `Update to ${score.toFixed(1)}` : `Rate ${score.toFixed(1)}`}
             </ThemedText>
           </Pressable>
-        </View>
+        </Animated.View>
       )}
 
       {step === 'compare' && comparison && (
-        <View style={styles.body}>
+        <Animated.View style={[styles.body, { opacity: fade }]}>
           <ThemedText type="smallBold" themeColor="textSecondary">
             SAME SCORE — WHICH IS BETTER?
           </ThemedText>
@@ -127,6 +152,7 @@ export default function LogModal() {
               tag="new"
               onPress={() => choose('new')}
               theme={theme}
+              state={pendingChoice === null ? 'idle' : pendingChoice === 'new' ? 'won' : 'lost'}
             />
             <ThemedText type="small" themeColor="textSecondary">
               vs
@@ -136,13 +162,14 @@ export default function LogModal() {
               item={comparison.against}
               onPress={() => choose('existing')}
               theme={theme}
+              state={pendingChoice === null ? 'idle' : pendingChoice === 'existing' ? 'won' : 'lost'}
             />
           </View>
-        </View>
+        </Animated.View>
       )}
 
       {step === 'done' && result && (
-        <View style={styles.body}>
+        <Animated.View style={[styles.body, { opacity: fade }]}>
           <AlbumCover uri={album.artUrl} size={140} radius={12} />
           <Ionicons name="checkmark-circle" size={44} color="#1D9E75" />
           <ThemedText type="subtitle" style={styles.center}>
@@ -159,7 +186,7 @@ export default function LogModal() {
               Done
             </ThemedText>
           </Pressable>
-        </View>
+        </Animated.View>
       )}
     </ThemedView>
   );
@@ -189,40 +216,67 @@ function StepButton({
   );
 }
 
+type CompareCardState = 'idle' | 'won' | 'lost';
+
 function CompareCard({
   item,
   tag,
   onPress,
   theme,
   testID,
+  state,
 }: {
   item: Item;
   tag?: string;
   onPress: () => void;
   theme: ReturnType<typeof useTheme>;
   testID?: string;
+  state: CompareCardState;
 }) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const fade = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    Animated.timing(scale, {
+      toValue: state === 'won' ? 1.05 : 1,
+      duration: 180,
+      useNativeDriver: true,
+    }).start();
+    Animated.timing(fade, {
+      toValue: state === 'lost' ? 0.35 : 1,
+      duration: 180,
+      useNativeDriver: true,
+    }).start();
+  }, [state, scale, fade]);
+
   return (
-    <Pressable
-      testID={testID}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.compareCard,
-        { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.6 : 1 },
-      ]}>
-      <AlbumCover uri={item.artUrl} fill radius={8} />
-      <ThemedText type="smallBold" style={styles.center} numberOfLines={1}>
-        {item.title}
-      </ThemedText>
-      <ThemedText type="small" themeColor="textSecondary" style={styles.center} numberOfLines={1}>
-        {item.artist}
-      </ThemedText>
-      {tag && (
-        <ThemedText type="small" themeColor="textSecondary">
-          ({tag})
+    <Animated.View style={{ transform: [{ scale }], opacity: fade }}>
+      <Pressable
+        testID={testID}
+        disabled={state !== 'idle'}
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.compareCard,
+          {
+            backgroundColor: theme.backgroundElement,
+            opacity: pressed ? 0.6 : 1,
+            borderColor: state === 'won' ? '#1D9E75' : 'transparent',
+          },
+        ]}>
+        <AlbumCover uri={item.artUrl} fill radius={8} />
+        <ThemedText type="smallBold" style={styles.center} numberOfLines={1}>
+          {item.title}
         </ThemedText>
-      )}
-    </Pressable>
+        <ThemedText type="small" themeColor="textSecondary" style={styles.center} numberOfLines={1}>
+          {item.artist}
+        </ThemedText>
+        {tag && (
+          <ThemedText type="small" themeColor="textSecondary">
+            ({tag})
+          </ThemedText>
+        )}
+      </Pressable>
+    </Animated.View>
   );
 }
 
@@ -253,5 +307,14 @@ const styles = StyleSheet.create({
     marginTop: Spacing.two,
   },
   versus: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
-  compareCard: { width: 130, padding: Spacing.three, borderRadius: 12, alignItems: 'center', gap: 4 },
+  compareCard: {
+    width: 130,
+    padding: Spacing.three,
+    borderRadius: 12,
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 2,
+    boxShadow: '0px 2px 6px rgba(0,0,0,0.08)',
+    elevation: 2,
+  },
 });
