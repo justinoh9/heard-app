@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AlbumCover } from '@/components/album-cover';
 import { ThemedText } from '@/components/themed-text';
@@ -10,14 +11,32 @@ import { useTheme } from '@/hooks/use-theme';
 
 export default function FeedScreen() {
   const theme = useTheme();
+  const router = useRouter();
   const drop = FEED.find((e) => e.kind === 'drop');
   const rest = FEED.filter((e) => e.kind !== 'drop');
+
+  function openItem(event: FeedEvent) {
+    if (!event.itemId || !event.itemType) return;
+    router.push({
+      pathname: '/item/[id]',
+      params: {
+        id: event.itemId,
+        type: event.itemType,
+        title: event.title,
+        artist: event.artist ?? '',
+        artUrl: event.coverUrl ?? '',
+      },
+    });
+  }
 
   return (
     <ThemedView style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
         {drop && (
-          <View style={[styles.dropCard, { borderColor: '#378ADD', backgroundColor: theme.backgroundElement }]}>
+          <Pressable
+            testID="feed-drop"
+            onPress={() => openItem(drop)}
+            style={[styles.dropCard, { borderColor: '#378ADD', backgroundColor: theme.backgroundElement }]}>
             <View style={styles.dropHeader}>
               <Ionicons name="radio" size={16} color="#378ADD" />
               <ThemedText type="small" style={{ color: '#378ADD' }}>
@@ -34,21 +53,33 @@ export default function FeedScreen() {
                 </ThemedText>
               </View>
             </View>
-          </View>
+          </Pressable>
         )}
 
         {rest.map((event) => (
-          <FeedRow key={event.id} event={event} theme={theme} />
+          <FeedRow key={event.id} event={event} theme={theme} onPress={() => openItem(event)} />
         ))}
       </ScrollView>
     </ThemedView>
   );
 }
 
-function FeedRow({ event, theme }: { event: FeedEvent; theme: ReturnType<typeof useTheme> }) {
+function FeedRow({
+  event,
+  theme,
+  onPress,
+}: {
+  event: FeedEvent;
+  theme: ReturnType<typeof useTheme>;
+  onPress: () => void;
+}) {
   const isRated = event.kind === 'rated';
+  const Container = event.itemId ? Pressable : View;
   return (
-    <View style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
+    <Container
+      testID={event.itemId ? `feed-item-${event.id}` : undefined}
+      onPress={event.itemId ? onPress : undefined}
+      style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
       <View style={styles.cardHeader}>
         <View style={[styles.avatar, { backgroundColor: theme.backgroundSelected }]}>
           <ThemedText type="smallBold">{event.initials}</ThemedText>
@@ -100,7 +131,7 @@ function FeedRow({ event, theme }: { event: FeedEvent; theme: ReturnType<typeof 
           </ThemedText>
         </View>
       </View>
-    </View>
+    </Container>
   );
 }
 

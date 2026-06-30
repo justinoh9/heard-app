@@ -6,5 +6,5 @@
 
 export { musicCatalog } from './provider';
 export { coverArtUrl } from './musicbrainz';
-export { useAlbumSearch, type AlbumSearchState } from './useAlbumSearch';
+export { useMusicSearch, type MusicSearchKind, type MusicSearchState } from './useMusicSearch';
 export * from './types';
