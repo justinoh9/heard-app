@@ -42,7 +42,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "test": "tsx --test src/ranking/engine.test.ts"
+    "test": "tsx --test src/ranking/engine.test.ts src/music/musicbrainz.test.ts"
   },
   "private": true
 }
