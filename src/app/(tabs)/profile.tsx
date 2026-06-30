@@ -1,35 +1,61 @@
 import { Ionicons } from '@expo/vector-icons';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { PROFILE } from '@/data/catalog';
+import { useAuth } from '@/auth/store';
 import { useRatings } from '@/data/store';
 import { useTheme } from '@/hooks/use-theme';
 
 const BADGE_TINTS = ['#993556', '#854F0B', '#185FA5'];
 
+function initialsFrom(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  return (parts[0][0] + (parts[1]?.[0] ?? '')).toUpperCase();
+}
+
 export default function ProfileScreen() {
   const theme = useTheme();
   const { ranked } = useRatings();
+  const { user, signOut } = useAuth();
+
+  const displayName = user?.displayName ?? PROFILE.username;
+  const initials = user ? initialsFrom(user.displayName) : PROFILE.initials;
 
   return (
     <ThemedView style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <View style={[styles.avatar, { backgroundColor: theme.backgroundSelected }]}>
-            <ThemedText type="smallBold">{PROFILE.initials}</ThemedText>
+            <ThemedText type="smallBold">{initials}</ThemedText>
           </View>
           <View style={{ flex: 1 }}>
             <ThemedText type="smallBold" style={{ fontSize: 18 }}>
-              {PROFILE.username}
+              {displayName}
             </ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
               {PROFILE.tags} · {ranked.length} rated
             </ThemedText>
           </View>
+          <Pressable
+            onPress={signOut}
+            accessibilityLabel="Sign out"
+            style={({ pressed }) => [
+              styles.signOut,
+              { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.6 : 1 },
+            ]}>
+            <Ionicons name="log-out-outline" size={18} color={theme.textSecondary} />
+          </Pressable>
         </View>
+
+        {user && (
+          <ThemedText type="small" themeColor="textSecondary" style={{ marginTop: -Spacing.one }}>
+            {user.email}
+          </ThemedText>
+        )}
 
         <View style={styles.stats}>
           <Stat value={String(ranked.length)} label="rated" theme={theme} />
@@ -102,6 +128,7 @@ const styles = StyleSheet.create({
   content: { padding: Spacing.three, gap: Spacing.three },
   header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   avatar: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
+  signOut: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   stats: { flexDirection: 'row', gap: Spacing.two },
   stat: { flex: 1, alignItems: 'center', paddingVertical: Spacing.three, borderRadius: 10, gap: 2 },
   sectionLabel: { marginTop: Spacing.two },
