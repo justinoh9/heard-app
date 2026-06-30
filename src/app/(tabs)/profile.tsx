@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { AlbumCover } from '@/components/album-cover';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -8,6 +10,7 @@ import { PROFILE } from '@/data/catalog';
 import { useAuth } from '@/auth/store';
 import { useRatings } from '@/data/store';
 import { useTheme } from '@/hooks/use-theme';
+import type { RankedItem } from '@/ranking/types';
 
 const BADGE_TINTS = ['#993556', '#854F0B', '#185FA5'];
 
@@ -19,11 +22,19 @@ function initialsFrom(name: string): string {
 
 export default function ProfileScreen() {
   const theme = useTheme();
+  const router = useRouter();
   const { ranked } = useRatings();
   const { user, signOut } = useAuth();
 
   const displayName = user?.displayName ?? PROFILE.username;
   const initials = user ? initialsFrom(user.displayName) : PROFILE.initials;
+
+  function reRate(r: RankedItem) {
+    router.push({
+      pathname: '/log',
+      params: { id: r.item.id, title: r.item.title, artist: r.item.artist, year: '' },
+    });
+  }
 
   return (
     <ThemedView style={styles.screen}>
@@ -51,37 +62,60 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
 
-        {user && (
-          <ThemedText type="small" themeColor="textSecondary" style={{ marginTop: -Spacing.one }}>
-            {user.email}
-          </ThemedText>
-        )}
-
         <View style={styles.stats}>
           <Stat value={String(ranked.length)} label="rated" theme={theme} />
           <Stat value={String(PROFILE.shows)} label="shows" theme={theme} />
           <Stat value={`${PROFILE.streak}🔥`} label="streak" theme={theme} />
         </View>
 
+        {ranked.length > 0 && (
+          <>
+            <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
+              FAVORITES
+            </ThemedText>
+            <View style={styles.favorites}>
+              {ranked.slice(0, 3).map((r) => (
+                <Pressable key={r.item.id} style={styles.favorite} onPress={() => reRate(r)}>
+                  <AlbumCover uri={r.item.artUrl} fill radius={10} />
+                  <ThemedText type="small" numberOfLines={1} style={styles.favTitle}>
+                    {r.item.title}
+                  </ThemedText>
+                  <ThemedText type="smallBold" style={{ color: '#1D9E75' }}>
+                    {r.score.toFixed(1)}
+                  </ThemedText>
+                </Pressable>
+              ))}
+            </View>
+          </>
+        )}
+
         <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
-          TOP RANKED
+          ALL RANKED
         </ThemedText>
-        {ranked.slice(0, 5).map((r, i) => (
-          <View key={r.item.id} style={[styles.rankRow, { backgroundColor: theme.backgroundElement }]}>
+        {ranked.map((r, i) => (
+          <Pressable
+            key={r.item.id}
+            onPress={() => reRate(r)}
+            style={({ pressed }) => [
+              styles.rankRow,
+              { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.6 : 1 },
+            ]}>
             <ThemedText type="smallBold" themeColor="textSecondary" style={styles.rankNum}>
               {i + 1}
             </ThemedText>
-            <Ionicons name="musical-notes" size={16} color={theme.textSecondary} />
+            <AlbumCover uri={r.item.artUrl} size={44} radius={6} />
             <View style={{ flex: 1 }}>
-              <ThemedText type="small">{r.item.title}</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
+              <ThemedText type="small" numberOfLines={1}>
+                {r.item.title}
+              </ThemedText>
+              <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
                 {r.item.artist}
               </ThemedText>
             </View>
             <ThemedText type="smallBold" style={{ color: '#1D9E75' }}>
               {r.score.toFixed(1)}
             </ThemedText>
-          </View>
+          </Pressable>
         ))}
 
         <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
@@ -132,8 +166,11 @@ const styles = StyleSheet.create({
   stats: { flexDirection: 'row', gap: Spacing.two },
   stat: { flex: 1, alignItems: 'center', paddingVertical: Spacing.three, borderRadius: 10, gap: 2 },
   sectionLabel: { marginTop: Spacing.two },
-  rankRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, padding: Spacing.three, borderRadius: 10 },
-  rankNum: { width: 16 },
+  favorites: { flexDirection: 'row', gap: Spacing.two },
+  favorite: { flex: 1, gap: 4 },
+  favTitle: { marginTop: 2 },
+  rankRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, padding: Spacing.two, borderRadius: 10 },
+  rankNum: { width: 16, textAlign: 'center' },
   badges: { flexDirection: 'row', gap: Spacing.two },
   badge: { flex: 1, alignItems: 'center', paddingVertical: Spacing.three, borderRadius: 12 },
 });

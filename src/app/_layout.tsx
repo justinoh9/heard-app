@@ -52,6 +52,7 @@ function RootNavigator() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="(auth)" />
+      <Stack.Screen name="log" options={{ presentation: 'modal' }} />
     </Stack>
   );
 }

@@ -1,13 +1,10 @@
 /**
- * Public entry for the music catalog. Phase 4 UI imports `musicCatalog` and
- * the types from here — swapping the provider later is a one-line change.
+ * Public entry for the music catalog. Phase 4 UI imports `musicCatalog`, the
+ * search hook, and the types from here — swapping the provider later is a
+ * one-line change in provider.ts.
  */
 
-import { MusicBrainzCatalog } from './musicbrainz';
-import type { MusicCatalog } from './types';
-
-/** The active catalog. Swap for a SpotifyCatalog later (same interface). */
-export const musicCatalog: MusicCatalog = new MusicBrainzCatalog();
-
+export { musicCatalog } from './provider';
 export { coverArtUrl } from './musicbrainz';
+export { useAlbumSearch, type AlbumSearchState } from './useAlbumSearch';
 export * from './types';

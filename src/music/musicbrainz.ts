@@ -73,8 +73,12 @@ export function parseAlbumResults(json: MBSearchResponse): AlbumSearchResult[] {
 export class MusicBrainzCatalog implements MusicCatalog {
   readonly provider = 'musicbrainz' as const;
 
-  /** fetch is injectable so tests don't hit the network. */
-  constructor(private fetchImpl: typeof fetch = fetch) {}
+  /**
+   * fetch is injectable so tests don't hit the network. Bound to globalThis
+   * because the browser's fetch throws "Illegal invocation" if called with any
+   * other `this` (e.g. as a property of this instance).
+   */
+  constructor(private fetchImpl: typeof fetch = fetch.bind(globalThis)) {}
 
   async searchAlbums(query: string, opts: SearchOptions = {}): Promise<AlbumSearchResult[]> {
     const q = query.trim();

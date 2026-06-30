@@ -32,7 +32,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="rate"
         options={{
-          title: 'Rate a song',
+          title: 'Rate an album',
           tabBarLabel: 'Rate',
           tabBarIcon: ({ color, size }) => <Ionicons name="add-circle" size={size} color={color} />,
         }}
