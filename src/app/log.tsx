@@ -93,7 +93,7 @@ export default function LogModal() {
 
           <ThemedText style={styles.bigScore}>{score.toFixed(1)}</ThemedText>
           <View style={styles.stepperRow}>
-            {[-1, -0.5, 0.5, 1].map((d) => (
+            {[-1, -0.1, 0.1, 1].map((d) => (
               <StepButton
                 key={d}
                 testID={`step-${d}`}

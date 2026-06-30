@@ -85,6 +85,12 @@ export class MusicBrainzCatalog implements MusicCatalog {
     if (!q) return [];
 
     const limit = opts.limit ?? 20;
+    // NOTE (deferred to SpotifyCatalog): two known search gaps can't be fixed
+    // here. (1) Artist-name searches surface unrelated releases that merely
+    // share the title; (2) results can't be ranked by popularity because
+    // MusicBrainz has no popularity signal (relevance scores tie at 100 and
+    // order is arbitrary, so bootlegs/unreleased editions float to the top).
+    // Spotify's search solves both natively — see SPEC §7.
     const url = `${API}/release-group?query=${encodeURIComponent(q)}&fmt=json&limit=${limit}`;
 
     const res = await this.fetchImpl(url, {
