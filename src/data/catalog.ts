@@ -5,7 +5,7 @@
  */
 
 import { coverArtUrl } from '@/music';
-import type { Item, RankedItem } from '@/ranking/types';
+import type { Item, ItemType, RankedItem } from '@/ranking/types';
 
 /** Build an album Item from a real MusicBrainz release-group id (with cover). */
 const album = (mbid: string, title: string, artist: string): Item => ({
@@ -45,6 +45,9 @@ export interface FeedEvent {
   review?: string;
   likes: number;
   comments: number;
+  /** Set for 'rated'/'drop' events — links the card to /item/[id]. */
+  itemId?: string;
+  itemType?: ItemType;
 }
 
 export const FEED: FeedEvent[] = [
@@ -58,6 +61,8 @@ export const FEED: FeedEvent[] = [
     artist: 'Tame Impala',
     likes: 4,
     comments: 0,
+    itemId: CURRENTS.id,
+    itemType: CURRENTS.type,
   },
   {
     id: 'f1',
@@ -71,6 +76,8 @@ export const FEED: FeedEvent[] = [
     review: 'party album of the year, no notes',
     likes: 12,
     comments: 3,
+    itemId: SOS.id,
+    itemType: SOS.type,
   },
   {
     id: 'f2',
@@ -84,6 +91,8 @@ export const FEED: FeedEvent[] = [
     review: 'grew on me so much',
     likes: 7,
     comments: 2,
+    itemId: IGOR.id,
+    itemType: IGOR.type,
   },
   {
     id: 'f3',

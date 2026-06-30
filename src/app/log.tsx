@@ -3,16 +3,18 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, View } from 'react-native';
 
+import { useAuth } from '@/auth/store';
 import { AlbumCover } from '@/components/album-cover';
+import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { postComment } from '@/comments';
 import { Spacing } from '@/constants/theme';
 import { useRatings } from '@/data/store';
 import { useHaptics } from '@/hooks/use-haptics';
 import { useTheme } from '@/hooks/use-theme';
-import { coverArtUrl } from '@/music';
 import { sortRanked, type Placement } from '@/ranking/engine';
-import type { Comparison, Item } from '@/ranking/types';
+import type { Comparison, Item, ItemType } from '@/ranking/types';
 
 /** Fades content in on mount and whenever `stepKey` changes, masking the instant step cut. */
 function useStepFade(stepKey: string) {
@@ -24,21 +26,29 @@ function useStepFade(stepKey: string) {
   return opacity;
 }
 
-type Step = 'score' | 'compare' | 'done';
+type Step = 'score' | 'compare' | 'review' | 'done';
 
 export default function LogModal() {
   const theme = useTheme();
   const router = useRouter();
   const haptics = useHaptics();
-  const params = useLocalSearchParams<{ id: string; title: string; artist: string; year?: string }>();
+  const { user } = useAuth();
+  const params = useLocalSearchParams<{
+    id: string;
+    type?: string;
+    title: string;
+    artist: string;
+    year?: string;
+    artUrl?: string;
+  }>();
   const { engine, ranked, ratingFor, commitPlacement } = useRatings();
 
   const album: Item = {
     id: String(params.id),
-    type: 'album',
+    type: (params.type as ItemType) || 'album',
     title: String(params.title),
     artist: String(params.artist),
-    artUrl: coverArtUrl(String(params.id), 500),
+    artUrl: params.artUrl || undefined,
   };
   const existing = ratingFor(album.id);
   // Capture at open time so the header doesn't flip to "Update" after committing.
@@ -49,6 +59,7 @@ export default function LogModal() {
   const [comparison, setComparison] = useState<Comparison | null>(null);
   const [result, setResult] = useState<{ rank: number; total: number } | null>(null);
   const [pendingChoice, setPendingChoice] = useState<'new' | 'existing' | null>(null);
+  const [reviewText, setReviewText] = useState('');
   const placement = useRef<Placement | null>(null);
 
   function adjust(delta: number) {
@@ -89,6 +100,24 @@ export default function LogModal() {
     const sorted = sortRanked(list);
     const idx = sorted.findIndex((r) => r.item.id === album.id);
     setResult({ rank: idx + 1, total: sorted.length });
+    setStep('review');
+  }
+
+  function submitReview() {
+    const body = reviewText.trim();
+    if (body && user) {
+      // Fire-and-forget: don't gate the success screen on a network write.
+      postComment({
+        itemId: album.id,
+        itemType: album.type === 'song' ? 'song' : 'album',
+        itemTitle: album.title,
+        itemArtist: album.artist,
+        itemArtUrl: album.artUrl,
+        userId: user.id,
+        displayName: user.displayName,
+        body,
+      }).catch((e: unknown) => console.warn('Failed to post review', e));
+    }
     setStep('done');
   }
 
@@ -165,6 +194,36 @@ export default function LogModal() {
               state={pendingChoice === null ? 'idle' : pendingChoice === 'existing' ? 'won' : 'lost'}
             />
           </View>
+        </Animated.View>
+      )}
+
+      {step === 'review' && (
+        <Animated.View style={[styles.body, { opacity: fade }]}>
+          <AlbumCover uri={album.artUrl} size={120} radius={12} />
+          <ThemedText type="subtitle" style={styles.center}>
+            Add a review?
+          </ThemedText>
+          <ThemedText themeColor="textSecondary" style={styles.center}>
+            Public — anyone can see it on this album's page.
+          </ThemedText>
+          <TextField
+            testID="review-input"
+            label="Review (optional)"
+            value={reviewText}
+            onChangeText={setReviewText}
+            placeholder="What did you think?"
+            multiline
+            maxLength={1000}
+            style={styles.reviewInput}
+          />
+          <Pressable
+            testID="review-submit"
+            onPress={submitReview}
+            style={({ pressed }) => [styles.primary, { opacity: pressed ? 0.7 : 1 }]}>
+            <ThemedText type="smallBold" style={{ color: '#fff' }}>
+              {reviewText.trim() ? 'Post' : 'Skip'}
+            </ThemedText>
+          </Pressable>
         </Animated.View>
       )}
 
@@ -306,6 +365,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginTop: Spacing.two,
   },
+  reviewInput: { minHeight: 90, textAlignVertical: 'top' },
   versus: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   compareCard: {
     width: 130,

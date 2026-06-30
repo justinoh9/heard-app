@@ -10,23 +10,25 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useRatings } from '@/data/store';
 import { useTheme } from '@/hooks/use-theme';
-import { useAlbumSearch, type AlbumSearchResult } from '@/music';
+import { useMusicSearch, type SearchResult } from '@/music';
 
 export default function RateSearchScreen() {
   const theme = useTheme();
   const router = useRouter();
   const { ratingFor } = useRatings();
   const [query, setQuery] = useState('');
-  const { results, loading, error } = useAlbumSearch(query);
+  const { results, loading, error } = useMusicSearch(query, 'album');
 
-  function openLog(album: AlbumSearchResult) {
+  function openLog(album: SearchResult) {
     router.push({
       pathname: '/log',
       params: {
         id: album.id,
+        type: album.kind,
         title: album.title,
         artist: album.artist,
         year: album.year ?? '',
+        artUrl: album.coverUrl ?? '',
       },
     });
   }

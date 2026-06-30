@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { coverArtUrl, MusicBrainzCatalog, parseAlbumResults } from './musicbrainz';
+import { coverArtUrl, MusicBrainzCatalog, parseAlbumResults, parseTrackResults } from './musicbrainz';
 import { MusicCatalogError } from './types';
 
 const fixture = {
@@ -86,4 +86,64 @@ test('network failure is wrapped as MusicCatalogError', async () => {
     throw new TypeError('Failed to fetch');
   }) as unknown as typeof fetch);
   await assert.rejects(() => cat.searchAlbums('x'), MusicCatalogError);
+});
+
+const trackFixture = {
+  recordings: [
+    {
+      id: 'rec-multi-release',
+      title: 'Ditto',
+      'first-release-date': '2022-12-19',
+      'artist-credit': [{ name: 'NewJeans', joinphrase: '' }],
+      releases: [
+        { id: 'rel-1', 'release-group': { id: 'rg-first' } },
+        { id: 'rel-2', 'release-group': { id: 'rg-second' } },
+      ],
+    },
+    {
+      id: 'rec-no-release',
+      title: 'Unreleased Demo',
+      'artist-credit': [{ name: 'A', joinphrase: ' & ' }, { name: 'B', joinphrase: '' }],
+      releases: [],
+    },
+  ],
+};
+
+test('parses a track: title, artist, year, kind, provider, cover from first release', () => {
+  const track = parseTrackResults(trackFixture).find((t) => t.id === 'rec-multi-release')!;
+  assert.equal(track.title, 'Ditto');
+  assert.equal(track.artist, 'NewJeans');
+  assert.equal(track.year, '2022');
+  assert.equal(track.kind, 'song');
+  assert.equal(track.provider, 'musicbrainz');
+  assert.equal(track.coverUrl, coverArtUrl('rg-first'));
+});
+
+test('joins multi-artist credits on track results', () => {
+  const track = parseTrackResults(trackFixture).find((t) => t.id === 'rec-no-release')!;
+  assert.equal(track.artist, 'A & B');
+});
+
+test('a recording with zero releases gets no cover and does not crash', () => {
+  const track = parseTrackResults(trackFixture).find((t) => t.id === 'rec-no-release')!;
+  assert.equal(track.coverUrl, undefined);
+});
+
+test('searchTracks maps a successful HTTP response', async () => {
+  const cat = new MusicBrainzCatalog(ok(trackFixture));
+  const r = await cat.searchTracks('ditto');
+  assert.equal(r.length, 2);
+  assert.equal(r[0].kind, 'song');
+});
+
+test('searchAll concatenates albums and tracks', async () => {
+  let call = 0;
+  const cat = new MusicBrainzCatalog((async (url: string) => {
+    call += 1;
+    const body = url.includes('/recording') ? trackFixture : fixture;
+    return new Response(JSON.stringify(body), { status: 200 });
+  }) as unknown as typeof fetch);
+  const r = await cat.searchAll('newjeans');
+  assert.equal(call, 2);
+  assert.equal(r.length, fixture['release-groups'].length + trackFixture.recordings.length);
 });

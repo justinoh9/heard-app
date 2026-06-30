@@ -1,5 +1,5 @@
 /**
- * Debounced album search. Waits for the user to stop typing, then queries the
+ * Debounced music search. Waits for the user to stop typing, then queries the
  * active catalog, cancelling any in-flight request when the query changes
  * (MusicBrainz is rate-limited, so we don't fire a request per keystroke).
  */
@@ -7,16 +7,28 @@
 import { useEffect, useState } from 'react';
 
 import { musicCatalog } from './provider';
-import { MusicCatalogError, type AlbumSearchResult } from './types';
+import { MusicCatalogError, type SearchResult } from './types';
 
-export interface AlbumSearchState {
-  results: AlbumSearchResult[];
+export type MusicSearchKind = 'album' | 'song' | 'all';
+
+export interface MusicSearchState {
+  results: SearchResult[];
   loading: boolean;
   error: string | null;
 }
 
-export function useAlbumSearch(query: string, debounceMs = 350): AlbumSearchState {
-  const [state, setState] = useState<AlbumSearchState>({
+function searchFor(kind: MusicSearchKind) {
+  if (kind === 'album') return musicCatalog.searchAlbums.bind(musicCatalog);
+  if (kind === 'song') return musicCatalog.searchTracks.bind(musicCatalog);
+  return musicCatalog.searchAll.bind(musicCatalog);
+}
+
+export function useMusicSearch(
+  query: string,
+  kind: MusicSearchKind = 'album',
+  debounceMs = 350,
+): MusicSearchState {
+  const [state, setState] = useState<MusicSearchState>({
     results: [],
     loading: false,
     error: null,
@@ -32,8 +44,7 @@ export function useAlbumSearch(query: string, debounceMs = 350): AlbumSearchStat
     setState((s) => ({ ...s, loading: true, error: null }));
     const controller = new AbortController();
     const timer = setTimeout(() => {
-      musicCatalog
-        .searchAlbums(q, { signal: controller.signal, limit: 25 })
+      searchFor(kind)(q, { signal: controller.signal, limit: 25 })
         .then((results) => setState({ results, loading: false, error: null }))
         .catch((e: unknown) => {
           if ((e as Error)?.name === 'AbortError') return; // superseded by a newer query
@@ -49,7 +60,7 @@ export function useAlbumSearch(query: string, debounceMs = 350): AlbumSearchStat
       clearTimeout(timer);
       controller.abort();
     };
-  }, [query, debounceMs]);
+  }, [query, kind, debounceMs]);
 
   return state;
 }

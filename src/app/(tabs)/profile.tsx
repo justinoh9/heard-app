@@ -25,7 +25,7 @@ export default function ProfileScreen() {
   const theme = useTheme();
   const router = useRouter();
   const { ranked } = useRatings();
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
 
   const displayName = user?.displayName ?? PROFILE.username;
   const initials = user ? initialsFrom(user.displayName) : PROFILE.initials;
@@ -33,7 +33,14 @@ export default function ProfileScreen() {
   function reRate(r: RankedItem) {
     router.push({
       pathname: '/log',
-      params: { id: r.item.id, title: r.item.title, artist: r.item.artist, year: '' },
+      params: {
+        id: r.item.id,
+        type: r.item.type,
+        title: r.item.title,
+        artist: r.item.artist,
+        year: '',
+        artUrl: r.item.artUrl ?? '',
+      },
     });
   }
 
@@ -53,13 +60,13 @@ export default function ProfileScreen() {
             </ThemedText>
           </View>
           <Pressable
-            onPress={signOut}
-            accessibilityLabel="Sign out"
+            onPress={() => router.push('/settings')}
+            accessibilityLabel="Settings"
             style={({ pressed }) => [
-              styles.signOut,
+              styles.settingsBtn,
               { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.6 : 1 },
             ]}>
-            <Ionicons name="log-out-outline" size={18} color={theme.textSecondary} />
+            <Ionicons name="settings-outline" size={18} color={theme.textSecondary} />
           </Pressable>
         </View>
 
@@ -171,7 +178,7 @@ const styles = StyleSheet.create({
   content: { padding: Spacing.three, gap: Spacing.three },
   header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   avatar: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
-  signOut: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  settingsBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   stats: { flexDirection: 'row', gap: Spacing.two },
   stat: { flex: 1, alignItems: 'center', paddingVertical: Spacing.three, borderRadius: 10, gap: 2 },
   sectionLabel: { marginTop: Spacing.two },
