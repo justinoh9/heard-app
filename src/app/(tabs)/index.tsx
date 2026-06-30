@@ -7,11 +7,14 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { FEED, type FeedEvent } from '@/data/catalog';
+import { useFeed, type DailyDrop } from '@/feed/store';
+import { relativeTime } from '@/feed/time';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function FeedScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const { myDrop } = useFeed();
   const drop = FEED.find((e) => e.kind === 'drop');
   const rest = FEED.filter((e) => e.kind !== 'drop');
 
@@ -29,9 +32,29 @@ export default function FeedScreen() {
     });
   }
 
+  function openDropItem(d: DailyDrop) {
+    router.push({
+      pathname: '/item/[id]',
+      params: {
+        id: d.item.id,
+        type: d.item.type,
+        title: d.item.title,
+        artist: d.item.artist,
+        artUrl: d.item.artUrl ?? '',
+      },
+    });
+  }
+
   return (
     <ThemedView style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
+        <YourDrop
+          drop={myDrop}
+          theme={theme}
+          onCompose={() => router.push('/drop')}
+          onOpen={() => myDrop && openDropItem(myDrop)}
+        />
+
         {drop && (
           <Pressable
             testID="feed-drop"
@@ -40,7 +63,7 @@ export default function FeedScreen() {
             <View style={styles.dropHeader}>
               <Ionicons name="radio" size={16} color="#378ADD" />
               <ThemedText type="small" style={{ color: '#378ADD' }}>
-                Daily drop · 2h left
+                {drop.user}&apos;s drop · 2h left
               </ThemedText>
             </View>
             <View style={styles.dropBody}>
@@ -61,6 +84,74 @@ export default function FeedScreen() {
         ))}
       </ScrollView>
     </ThemedView>
+  );
+}
+
+function YourDrop({
+  drop,
+  theme,
+  onCompose,
+  onOpen,
+}: {
+  drop: DailyDrop | null;
+  theme: ReturnType<typeof useTheme>;
+  onCompose: () => void;
+  onOpen: () => void;
+}) {
+  if (!drop) {
+    return (
+      <Pressable
+        testID="compose-drop"
+        onPress={onCompose}
+        style={({ pressed }) => [
+          styles.promptCard,
+          { borderColor: '#378ADD', opacity: pressed ? 0.7 : 1 },
+        ]}>
+        <View style={[styles.promptIcon, { backgroundColor: theme.backgroundElement }]}>
+          <Ionicons name="radio" size={20} color="#378ADD" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <ThemedText type="smallBold">Share your daily drop</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            Post what you&apos;re listening to right now
+          </ThemedText>
+        </View>
+        <Ionicons name="add-circle" size={26} color="#378ADD" />
+      </Pressable>
+    );
+  }
+
+  return (
+    <View style={[styles.dropCard, { borderColor: '#378ADD', backgroundColor: theme.backgroundElement }]}>
+      <View style={styles.dropHeader}>
+        <Ionicons name="radio" size={16} color="#378ADD" />
+        <ThemedText type="small" style={{ color: '#378ADD', flex: 1 }}>
+          Your daily drop · {relativeTime(drop.createdAt)}
+        </ThemedText>
+        <Pressable testID="replace-drop" onPress={onCompose} hitSlop={8} accessibilityLabel="Replace drop">
+          <Ionicons name="repeat" size={18} color={theme.textSecondary} />
+        </Pressable>
+      </View>
+      <Pressable
+        testID="open-drop"
+        onPress={onOpen}
+        style={({ pressed }) => [styles.dropBody, { opacity: pressed ? 0.7 : 1 }]}>
+        <AlbumCover uri={drop.item.artUrl} size={48} radius={8} />
+        <View style={{ flex: 1 }}>
+          <ThemedText type="smallBold" numberOfLines={1}>
+            {drop.item.title}
+          </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+            {drop.item.artist}
+          </ThemedText>
+          {drop.caption ? (
+            <ThemedText type="small" style={styles.review} numberOfLines={2}>
+              “{drop.caption}”
+            </ThemedText>
+          ) : null}
+        </View>
+      </Pressable>
+    </View>
   );
 }
 
@@ -141,6 +232,16 @@ const styles = StyleSheet.create({
   dropCard: { borderWidth: 1, borderRadius: 12, padding: Spacing.three, gap: Spacing.two },
   dropHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   dropBody: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  promptCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    padding: Spacing.three,
+  },
+  promptIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   card: { borderRadius: 12, padding: Spacing.three, gap: Spacing.three },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   avatar: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },

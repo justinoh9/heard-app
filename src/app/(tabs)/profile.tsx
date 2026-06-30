@@ -4,6 +4,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AlbumCover } from '@/components/album-cover';
 import { EmptyState } from '@/components/empty-state';
+import { PlaylistCover } from '@/components/playlist-cover';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -11,6 +12,8 @@ import { PROFILE } from '@/data/catalog';
 import { useAuth } from '@/auth/store';
 import { useRatings } from '@/data/store';
 import { useTheme } from '@/hooks/use-theme';
+import { playlistCoverUrls, songCountLabel } from '@/playlists/helpers';
+import { usePlaylists } from '@/playlists/store';
 import type { RankedItem } from '@/ranking/types';
 
 const BADGE_TINTS = ['#993556', '#854F0B', '#185FA5'];
@@ -26,6 +29,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { ranked } = useRatings();
   const { user } = useAuth();
+  const { playlists } = usePlaylists();
 
   const displayName = user?.displayName ?? PROFILE.username;
   const initials = user ? initialsFrom(user.displayName) : PROFILE.initials;
@@ -96,6 +100,45 @@ export default function ProfileScreen() {
             </View>
           </>
         )}
+
+        <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
+          PLAYLISTS
+        </ThemedText>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.playlists}>
+          {playlists.map((p) => (
+            <Pressable
+              key={p.id}
+              testID={`playlist-${p.id}`}
+              style={styles.playlistCard}
+              onPress={() => router.push({ pathname: '/playlist/[id]', params: { id: p.id } })}>
+              <PlaylistCover urls={playlistCoverUrls(p)} size={120} radius={10} />
+              <ThemedText type="small" numberOfLines={1} style={styles.playlistName}>
+                {p.name}
+              </ThemedText>
+              <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+                {songCountLabel(p.songs.length)}
+              </ThemedText>
+            </Pressable>
+          ))}
+          <Pressable
+            testID="new-playlist"
+            style={styles.playlistCard}
+            onPress={() => router.push('/playlist/new')}>
+            <View
+              style={[
+                styles.newPlaylist,
+                { borderColor: theme.backgroundSelected, backgroundColor: theme.backgroundElement },
+              ]}>
+              <Ionicons name="add" size={32} color={theme.textSecondary} />
+            </View>
+            <ThemedText type="small" themeColor="textSecondary">
+              New playlist
+            </ThemedText>
+          </Pressable>
+        </ScrollView>
 
         <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
           ALL RANKED
@@ -185,6 +228,18 @@ const styles = StyleSheet.create({
   favorites: { flexDirection: 'row', gap: Spacing.two },
   favorite: { flex: 1, gap: 4 },
   favTitle: { marginTop: 2 },
+  playlists: { gap: Spacing.three, paddingRight: Spacing.three },
+  playlistCard: { width: 120, gap: 4 },
+  playlistName: { marginTop: 2 },
+  newPlaylist: {
+    width: 120,
+    height: 120,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   rankRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, padding: Spacing.two, borderRadius: 10 },
   rankNum: { width: 16, textAlign: 'center' },
   badges: { flexDirection: 'row', gap: Spacing.two },

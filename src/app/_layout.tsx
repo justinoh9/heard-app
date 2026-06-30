@@ -5,6 +5,8 @@ import { ActivityIndicator, useColorScheme } from 'react-native';
 import { ThemedView } from '@/components/themed-view';
 import { AuthProvider, useAuth } from '@/auth/store';
 import { RatingsContext, useRatingsState } from '@/data/store';
+import { FeedContext, useFeedState } from '@/feed/store';
+import { PlaylistsContext, usePlaylistsState } from '@/playlists/store';
 
 export default function RootLayout() {
   const scheme = useColorScheme() ?? 'light';
@@ -12,9 +14,13 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <RatingsBridge>
-        <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <RootNavigator />
-        </ThemeProvider>
+        <FeedBridge>
+          <PlaylistsBridge>
+            <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
+              <RootNavigator />
+            </ThemeProvider>
+          </PlaylistsBridge>
+        </FeedBridge>
       </RatingsBridge>
     </AuthProvider>
   );
@@ -23,6 +29,16 @@ export default function RootLayout() {
 function RatingsBridge({ children }: { children: React.ReactNode }) {
   const ratings = useRatingsState();
   return <RatingsContext.Provider value={ratings}>{children}</RatingsContext.Provider>;
+}
+
+function FeedBridge({ children }: { children: React.ReactNode }) {
+  const feed = useFeedState();
+  return <FeedContext.Provider value={feed}>{children}</FeedContext.Provider>;
+}
+
+function PlaylistsBridge({ children }: { children: React.ReactNode }) {
+  const playlists = usePlaylistsState();
+  return <PlaylistsContext.Provider value={playlists}>{children}</PlaylistsContext.Provider>;
 }
 
 function RootNavigator() {
@@ -53,6 +69,9 @@ function RootNavigator() {
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="log" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="drop" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="playlist/[id]" />
+      <Stack.Screen name="playlist/new" options={{ presentation: 'modal' }} />
     </Stack>
   );
 }

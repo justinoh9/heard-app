@@ -5,6 +5,7 @@ import { Animated, Pressable, StyleSheet, View } from 'react-native';
 
 import { useAuth } from '@/auth/store';
 import { AlbumCover } from '@/components/album-cover';
+import { ScoreInput } from '@/components/score-input';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -61,11 +62,6 @@ export default function LogModal() {
   const [pendingChoice, setPendingChoice] = useState<'new' | 'existing' | null>(null);
   const [reviewText, setReviewText] = useState('');
   const placement = useRef<Placement | null>(null);
-
-  function adjust(delta: number) {
-    haptics.selection();
-    setScore((s) => Math.min(10, Math.max(0, Math.round((s + delta) * 10) / 10)));
-  }
 
   function advance() {
     const next = placement.current!.next();
@@ -145,18 +141,7 @@ export default function LogModal() {
             {params.year ? ` · ${params.year}` : ''}
           </ThemedText>
 
-          <ThemedText style={styles.bigScore}>{score.toFixed(1)}</ThemedText>
-          <View style={styles.stepperRow}>
-            {[-1, -0.1, 0.1, 1].map((d) => (
-              <StepButton
-                key={d}
-                testID={`step-${d}`}
-                label={d > 0 ? `+${d}` : `${d}`}
-                onPress={() => adjust(d)}
-                theme={theme}
-              />
-            ))}
-          </View>
+          <ScoreInput value={score} onChange={setScore} />
 
           <Pressable
             testID="rate-confirm"
@@ -251,30 +236,6 @@ export default function LogModal() {
   );
 }
 
-function StepButton({
-  label,
-  onPress,
-  theme,
-  testID,
-}: {
-  label: string;
-  onPress: () => void;
-  theme: ReturnType<typeof useTheme>;
-  testID?: string;
-}) {
-  return (
-    <Pressable
-      testID={testID}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.stepBtn,
-        { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.6 : 1 },
-      ]}>
-      <ThemedText type="smallBold">{label}</ThemedText>
-    </Pressable>
-  );
-}
-
 type CompareCardState = 'idle' | 'won' | 'lost';
 
 function CompareCard({
@@ -349,15 +310,6 @@ const styles = StyleSheet.create({
   },
   body: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.three, padding: Spacing.four },
   center: { textAlign: 'center' },
-  bigScore: { fontSize: 72, fontWeight: 700, lineHeight: 80 },
-  stepperRow: { flexDirection: 'row', gap: Spacing.two },
-  stepBtn: {
-    paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    borderRadius: 10,
-    minWidth: 56,
-    alignItems: 'center',
-  },
   primary: {
     backgroundColor: '#1D9E75',
     paddingVertical: Spacing.three,

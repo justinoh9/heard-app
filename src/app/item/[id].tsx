@@ -7,10 +7,12 @@ import { useAuth } from '@/auth/store';
 import { AlbumCover } from '@/components/album-cover';
 import { CommentCard } from '@/components/comment-card';
 import { EmptyState } from '@/components/empty-state';
+import { ScoreBreakdown } from '@/components/score-breakdown';
+import { Segmented } from '@/components/segmented';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { useComments } from '@/comments';
+import { filterSortComments, useComments, type CommentScope, type CommentSort } from '@/comments';
 import { Spacing } from '@/constants/theme';
 import { useRatings } from '@/data/store';
 import { useTheme } from '@/hooks/use-theme';
@@ -39,6 +41,9 @@ export default function ItemProfileScreen() {
   const { comments, loading, error, addComment } = useComments(id, type === 'song' ? 'song' : 'album');
   const [body, setBody] = useState('');
   const [posting, setPosting] = useState(false);
+  const [scope, setScope] = useState<CommentScope>('everyone');
+  const [sort, setSort] = useState<CommentSort>('newest');
+  const visibleComments = filterSortComments(comments, { scope, sort });
 
   function rate() {
     router.push({
@@ -104,6 +109,11 @@ export default function ItemProfileScreen() {
         </View>
 
         <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
+          SCORES
+        </ThemedText>
+        <ScoreBreakdown itemId={id} yourScore={existing?.score} />
+
+        <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
           COMMENTS
         </ThemedText>
 
@@ -137,11 +147,42 @@ export default function ItemProfileScreen() {
           </ThemedText>
         )}
 
-        {!loading && comments.length === 0 && !error && (
+        {comments.length > 1 && (
+          <View style={styles.commentControls}>
+            <Segmented
+              options={[
+                { key: 'everyone', label: 'Everyone' },
+                { key: 'friends', label: 'Friends' },
+              ]}
+              value={scope}
+              onChange={(v) => setScope(v as CommentScope)}
+              testIDPrefix="comment-scope"
+              style={{ flex: 1 }}
+            />
+            <Pressable
+              testID="comment-sort"
+              onPress={() => setSort((s) => (s === 'newest' ? 'oldest' : 'newest'))}
+              style={({ pressed }) => [
+                styles.sortBtn,
+                { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.6 : 1 },
+              ]}>
+              <Ionicons name="swap-vertical" size={15} color={theme.textSecondary} />
+              <ThemedText type="small" themeColor="textSecondary">
+                {sort === 'newest' ? 'Newest' : 'Oldest'}
+              </ThemedText>
+            </Pressable>
+          </View>
+        )}
+
+        {!loading && !error && comments.length === 0 && (
           <EmptyState icon="chatbubble-outline" message="No comments yet." />
         )}
 
-        {comments.map((c) => (
+        {!loading && !error && comments.length > 0 && visibleComments.length === 0 && (
+          <EmptyState icon="people-outline" message="No comments from friends yet." />
+        )}
+
+        {visibleComments.map((c) => (
           <CommentCard key={c.id} comment={c} />
         ))}
       </ScrollView>
@@ -176,6 +217,15 @@ const styles = StyleSheet.create({
     marginTop: Spacing.one,
   },
   sectionLabel: { marginTop: Spacing.two },
+  commentControls: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  sortBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    borderRadius: 10,
+  },
   commentBox: { gap: Spacing.two, alignItems: 'flex-start' },
   commentInput: { minHeight: 70, textAlignVertical: 'top', alignSelf: 'stretch' },
   error: { color: '#E24B4A' },

@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { Segmented } from '@/components/segmented';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -54,7 +55,8 @@ export default function LeaderboardScreen() {
           ]}
           value={scope}
           onChange={(v) => setScope(v as Scope)}
-          theme={theme}
+          testIDPrefix="scope"
+          style={{ marginBottom: Spacing.one }}
         />
 
         <View style={styles.chips}>
@@ -123,42 +125,9 @@ export default function LeaderboardScreen() {
   );
 }
 
-function Segmented({
-  options,
-  value,
-  onChange,
-  theme,
-}: {
-  options: { key: string; label: string }[];
-  value: string;
-  onChange: (v: string) => void;
-  theme: ReturnType<typeof useTheme>;
-}) {
-  return (
-    <View style={[styles.segmented, { backgroundColor: theme.backgroundElement }]}>
-      {options.map((o) => {
-        const active = o.key === value;
-        return (
-          <Pressable
-            key={o.key}
-            testID={`scope-${o.key}`}
-            onPress={() => onChange(o.key)}
-            style={[styles.segment, active && { backgroundColor: theme.backgroundSelected }]}>
-            <ThemedText type="smallBold" themeColor={active ? 'text' : 'textSecondary'}>
-              {o.label}
-            </ThemedText>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { padding: Spacing.three, gap: Spacing.two },
-  segmented: { flexDirection: 'row', borderRadius: 10, padding: 3, marginBottom: Spacing.one },
-  segment: { flex: 1, alignItems: 'center', paddingVertical: Spacing.two, borderRadius: 8 },
   chips: { flexDirection: 'row', gap: Spacing.two, marginBottom: Spacing.two },
   chip: { paddingVertical: 6, paddingHorizontal: Spacing.three, borderRadius: 999 },
   row: {

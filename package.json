@@ -45,7 +45,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "test": "tsx --test src/ranking/engine.test.ts src/music/musicbrainz.test.ts"
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test src/ranking/engine.test.ts src/ranking/score.test.ts src/social/scores.test.ts src/feed/time.test.ts src/comments/filter.test.ts src/playlists/helpers.test.ts src/music/musicbrainz.test.ts"
   },
   "private": true
 }
