@@ -77,6 +77,8 @@ export interface MusicCatalog {
   searchAll(query: string, opts?: SearchOptions): Promise<SearchResult[]>;
   /** An artist's albums + singles (albums first, newest first), for the artist page. */
   getArtistAlbums(artistId: string, opts?: SearchOptions): Promise<SearchResult[]>;
+  /** An artist's popular songs (best-effort, relevance-ranked), for the artist page. */
+  getArtistTopTracks(artistName: string, opts?: SearchOptions): Promise<SearchResult[]>;
   /** An album's tracklist, in album order, for the album's item page. */
   getAlbumTracks(albumId: string, opts?: SearchOptions): Promise<AlbumTrack[]>;
 }

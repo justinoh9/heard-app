@@ -433,6 +433,15 @@ export class SpotifyCatalog implements MusicCatalog {
     return parseArtistAlbums((await res.json()) as SpotifyArtistAlbumsResponse);
   }
 
+  async getArtistTopTracks(artistName: string, opts: SearchOptions = {}): Promise<SearchResult[]> {
+    const name = artistName.trim();
+    if (!name) return [];
+    // This tier blocks GET /artists/{id}/top-tracks (403) and caps the exact
+    // artist:"…" filter at 5 hits, so approximate popular songs with a plain
+    // name track search — Spotify's relevance surfaces the artist's hits first.
+    return parseTrackResults(await this.search('track', name, opts.limit, opts.signal));
+  }
+
   async getAlbumTracks(albumId: string, opts: SearchOptions = {}): Promise<AlbumTrack[]> {
     const id = albumId.trim();
     if (!id) return [];

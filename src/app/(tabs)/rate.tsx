@@ -246,10 +246,7 @@ function ResultRow({
     <Pressable
       testID={item.kind === 'song' ? 'song-result' : 'album-result'}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.row,
-        { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.6 : 1 },
-      ]}>
+      style={({ pressed }) => [styles.row, { opacity: pressed ? 0.6 : 1 }]}>
       <AlbumCover uri={item.coverUrl} size={52} />
       <View style={styles.rowText}>
         <ThemedText type="smallBold" numberOfLines={1}>
@@ -281,10 +278,7 @@ function ArtistRow({
     <Pressable
       testID="artist-result"
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.row,
-        { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.6 : 1 },
-      ]}>
+      style={({ pressed }) => [styles.row, { opacity: pressed ? 0.6 : 1 }]}>
       <AlbumCover uri={artist.coverUrl} size={52} radius={26} fallbackIcon="person" />
       <View style={styles.rowText}>
         <ThemedText type="smallBold" numberOfLines={1}>
@@ -321,8 +315,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.three,
-    padding: Spacing.two,
-    borderRadius: 12,
+    paddingVertical: Spacing.two,
   },
   rowText: { flex: 1, gap: 2 },
   scorePill: {

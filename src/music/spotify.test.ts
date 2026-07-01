@@ -327,6 +327,30 @@ test('getArtistAlbums surfaces a non-ok status as MusicCatalogError', async () =
   await assert.rejects(() => cat.getArtistAlbums('x'), MusicCatalogError);
 });
 
+test('getArtistTopTracks runs an artist-scoped track search', async () => {
+  let url = '';
+  const impl = (async (u: string) => {
+    if (u.includes('accounts.spotify.com')) {
+      return new Response(JSON.stringify({ access_token: 'tok', expires_in: 3600 }), { status: 200 });
+    }
+    url = u;
+    return new Response(JSON.stringify(trackFixture), { status: 200 });
+  }) as unknown as typeof fetch;
+  const cat = new SpotifyCatalog(impl);
+  const r = await cat.getArtistTopTracks('Tame Impala');
+  assert.match(url, /type=track/);
+  assert.match(decodeURIComponent(url), /[?&]q=Tame Impala(&|$)/);
+  assert.ok(r.length > 0);
+  assert.equal(r[0].kind, 'song');
+});
+
+test('getArtistTopTracks returns [] for a blank name without any fetch', async () => {
+  const { impl, calls } = stubFetch({ search: {} });
+  const cat = new SpotifyCatalog(impl);
+  assert.deepEqual(await cat.getArtistTopTracks('  '), []);
+  assert.equal(calls.token, 0);
+});
+
 test('parseAlbumTracks maps id, title, number, duration, and artists in order', () => {
   const r = parseAlbumTracks(albumTracksFixture);
   assert.equal(r.length, 3);
