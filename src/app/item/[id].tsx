@@ -15,12 +15,15 @@ import { ThemedView } from '@/components/themed-view';
 import { filterSortComments, useComments, type CommentScope, type CommentSort } from '@/comments';
 import { Spacing } from '@/constants/theme';
 import { useRatings } from '@/data/store';
+import { useHaptics } from '@/hooks/use-haptics';
 import { useTheme } from '@/hooks/use-theme';
+import { useLikeSummaries, useLikeSummary } from '@/likes';
 import type { ItemType } from '@/ranking/types';
 
 export default function ItemProfileScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const haptics = useHaptics();
   const { user } = useAuth();
   const { ratingFor } = useRatings();
   const params = useLocalSearchParams<{
@@ -38,7 +41,9 @@ export default function ItemProfileScreen() {
   const artUrl = params.artUrl || undefined;
 
   const existing = ratingFor(id);
+  const itemLike = useLikeSummary('item', id);
   const { comments, loading, error, addComment } = useComments(id, type === 'song' ? 'song' : 'album');
+  const commentLikes = useLikeSummaries('comment', comments.map((c) => c.id));
   const [body, setBody] = useState('');
   const [posting, setPosting] = useState(false);
   const [scope, setScope] = useState<CommentScope>('everyone');
@@ -50,6 +55,11 @@ export default function ItemProfileScreen() {
       pathname: '/log',
       params: { id, type, title, artist, artUrl: artUrl ?? '', year: '' },
     });
+  }
+
+  function toggleLike() {
+    haptics.selection();
+    itemLike.toggle();
   }
 
   async function post() {
@@ -99,13 +109,32 @@ export default function ItemProfileScreen() {
             </View>
           ) : null}
 
-          <Pressable
-            onPress={rate}
-            style={({ pressed }) => [styles.primary, { opacity: pressed ? 0.7 : 1 }]}>
-            <ThemedText type="smallBold" style={{ color: '#fff' }}>
-              {existing ? 'Update rating' : 'Rate'}
-            </ThemedText>
-          </Pressable>
+          <View style={styles.actionsRow}>
+            <Pressable
+              onPress={rate}
+              style={({ pressed }) => [styles.primary, { opacity: pressed ? 0.7 : 1 }]}>
+              <ThemedText type="smallBold" style={{ color: '#fff' }}>
+                {existing ? 'Update rating' : 'Rate'}
+              </ThemedText>
+            </Pressable>
+
+            <Pressable
+              testID="like-item"
+              onPress={toggleLike}
+              style={({ pressed }) => [
+                styles.likeBtn,
+                { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.6 : 1 },
+              ]}>
+              <Ionicons
+                name={itemLike.likedByMe ? 'heart' : 'heart-outline'}
+                size={18}
+                color={itemLike.likedByMe ? '#E24B4A' : theme.textSecondary}
+              />
+              <ThemedText type="smallBold" themeColor="textSecondary">
+                {itemLike.count}
+              </ThemedText>
+            </Pressable>
+          </View>
         </View>
 
         <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
@@ -183,7 +212,12 @@ export default function ItemProfileScreen() {
         )}
 
         {visibleComments.map((c) => (
-          <CommentCard key={c.id} comment={c} />
+          <CommentCard
+            key={c.id}
+            comment={c}
+            likeSummary={commentLikes.summaries.get(c.id)}
+            onToggleLike={() => commentLikes.toggle(c.id)}
+          />
         ))}
       </ScrollView>
     </ThemedView>
@@ -209,12 +243,20 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     alignItems: 'center',
   },
+  actionsRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, marginTop: Spacing.one },
   primary: {
     backgroundColor: '#1D9E75',
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.four,
     borderRadius: 12,
-    marginTop: Spacing.one,
+  },
+  likeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    borderRadius: 12,
   },
   sectionLabel: { marginTop: Spacing.two },
   commentControls: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },

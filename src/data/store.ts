@@ -11,6 +11,7 @@ import { createContext, useContext, useMemo, useState } from 'react';
 
 import { RatingTiebreakEngine, sortRanked, type RankingEngine } from '@/ranking/engine';
 import type { ComparisonEvent, RankedItem } from '@/ranking/types';
+import { useStreaks } from '@/streaks/store';
 import { INITIAL_RANKED } from './catalog';
 
 export interface RatingsApi {
@@ -31,6 +32,7 @@ export function useRatingsState(): RatingsApi {
   const engine = useMemo(() => new RatingTiebreakEngine(), []);
   const [ranked, setRanked] = useState<RankedItem[]>(INITIAL_RANKED);
   const [comparisonLog, setComparisonLog] = useState<ComparisonEvent[]>([]);
+  const streaks = useStreaks();
 
   return useMemo<RatingsApi>(() => {
     const sorted = sortRanked(ranked);
@@ -42,9 +44,10 @@ export function useRatingsState(): RatingsApi {
       commitPlacement: (list, events) => {
         setRanked(list);
         if (events.length) setComparisonLog((log) => [...log, ...events]);
+        streaks.recordActivity();
       },
     };
-  }, [engine, ranked, comparisonLog]);
+  }, [engine, ranked, comparisonLog, streaks]);
 }
 
 export function useRatings(): RatingsApi {

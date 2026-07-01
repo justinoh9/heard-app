@@ -7,15 +7,19 @@ A social music-rating app. See `SPEC.md` for the full product spec and rationale
 - React Native 0.85, TypeScript (strict)
 - Icons: `@expo/vector-icons` (Ionicons)
 - Auth and ratings are still local/in-memory (no backend) — mock seed data in
-  `src/data/`. Supabase is wired up, but **scoped only to comments** (see
-  `src/comments/` below); a full Spotify catalog and Supabase auth/ratings
-  migration are still planned (SPEC §7).
+  `src/data/`. Supabase is wired up, but **scoped only to comments and likes**
+  (see `src/comments/` and `src/likes/` below); a full Spotify catalog and
+  Supabase auth/ratings migration are still planned (SPEC §7).
+- Streak state (`src/streaks/`) is the one exception to "ratings are
+  in-memory": it persists per-user to `AsyncStorage` (like `src/auth/`),
+  because a streak that resets every app reload is meaningless.
 
 ## Layout
 - `src/app/` — routes. Tabs: `index.tsx` (Feed), `rate.tsx` (Rate),
-  `leaderboard.tsx` (Ranks), `profile.tsx`. Plus `log.tsx` (rate/review modal)
-  and `item/[id].tsx` (public song/album profile + comments). `_layout.tsx`
-  wraps everything in the auth + ratings providers.
+  `leaderboard.tsx` (Ranks), `profile.tsx`. Plus `log.tsx` (rate/review modal),
+  `item/[id].tsx` (public song/album profile + comments + likes), and
+  `streak.tsx` (pushed from the Profile streak stat). `_layout.tsx` wraps
+  everything in the auth + streaks + ratings + feed + playlists providers.
 - `src/ranking/` — the core rating engine.
   - `types.ts` — `Item`, `ItemType`, `RankedItem`, `Comparison`, `ComparisonEvent`.
   - `engine.ts` — `RankingEngine` interface (swappable) + `RatingTiebreakEngine`
@@ -30,10 +34,16 @@ A social music-rating app. See `SPEC.md` for the full product spec and rationale
   track/recording search, no API key). Spotify drops in behind the same
   interface later.
 - `src/comments/` — `CommentsBackend` seam; `SupabaseCommentsBackend` is the
-  only implementation (ships Supabase-backed from day one — see "Comments &
-  Supabase" below).
-- `src/lib/supabase.ts` — the Supabase client singleton, used only by
-  `src/comments/`.
+  only implementation (ships Supabase-backed from day one — see "Comments,
+  likes & Supabase" below).
+- `src/likes/` — `LikesBackend` seam, same Supabase-backed-from-day-one
+  treatment as comments. One generic `likes` table (discriminated by
+  `target_type`) covers both item likes (song/album profile) and comment likes.
+- `src/streaks/` — pure day-boundary logic (`logic.ts`) + an `AsyncStorage`-backed
+  `useStreaks()` store. `commitPlacement` (`src/data/store.ts`) and `postDrop`
+  (`src/feed/store.tsx`) both call `recordActivity()` directly.
+- `src/lib/supabase.ts` — the Supabase client singleton, used by
+  `src/comments/` and `src/likes/`.
 - `src/components/`, `src/constants/theme.ts`, `src/hooks/` — shared UI
   primitives (`ThemedText`, `ThemedView`, `EmptyState`, `Skeleton`,
   `CommentCard`, `useTheme`, `useHaptics`, `Colors`, `Spacing`).
@@ -41,7 +51,7 @@ A social music-rating app. See `SPEC.md` for the full product spec and rationale
 ## Commands
 - `npm run web` — run in browser (easiest local check on Windows)
 - `npm start` — Expo dev server (scan QR with Expo Go for a phone)
-- `npm test` — run ranking + music unit tests (tsx + node:test)
+- `npm test` — run ranking + music + streaks + likes unit tests (tsx + node:test)
 - `npx tsc --noEmit` — typecheck
 
 ## Conventions
@@ -50,20 +60,22 @@ A social music-rating app. See `SPEC.md` for the full product spec and rationale
 - Every head-to-head is logged to `comparisonLog` even though the current engine
   only needs final order — that banked data enables a future Elo engine (SPEC §5).
 
-## Comments & Supabase
-Comments are the one piece of this app backed by a real, hosted database —
-everything else (auth, ratings) is still local/in-memory. This is a
+## Comments, likes & Supabase
+Comments and likes are the pieces of this app backed by a real, hosted
+database — everything else (auth, ratings) is still local/in-memory. This is a
 deliberate, narrow scope, not a first step in a broader migration that's
 already underway.
 
 - **Setup required**: copy `.env.example` to `.env` and fill in
   `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY` from a Supabase
   project (Project Settings → API). Without these, `src/lib/supabase.ts`
-  throws at module load — search/rating still work, only comments break.
-- Run `supabase/migrations/0001_comments.sql` in the project's SQL Editor to
-  create the `comments` table.
+  throws at module load — search/rating still work, only comments and likes
+  break.
+- Run `supabase/migrations/0001_comments.sql` and `0002_likes.sql` in the
+  project's SQL Editor to create the `comments` and `likes` tables.
 - **Known trust gap**: auth is `LocalAuthBackend`, not Supabase Auth, so RLS
-  cannot cryptographically verify who's posting a comment. The `comments`
-  table's RLS policy allows public read and trusts client-supplied
-  `user_id`/`display_name` on insert — the same trust level as the rest of
-  this prototype. Revisit if auth ever migrates to Supabase Auth.
+  cannot cryptographically verify who's posting a comment or toggling a like.
+  Both tables' RLS policies allow public read and trust client-supplied
+  `user_id` (comments also trust `display_name`) on insert/delete — the same
+  trust level as the rest of this prototype. Revisit if auth ever migrates to
+  Supabase Auth.

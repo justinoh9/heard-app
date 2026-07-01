@@ -7,23 +7,31 @@ import { AuthProvider, useAuth } from '@/auth/store';
 import { RatingsContext, useRatingsState } from '@/data/store';
 import { FeedContext, useFeedState } from '@/feed/store';
 import { PlaylistsContext, usePlaylistsState } from '@/playlists/store';
+import { StreaksContext, useStreaksState } from '@/streaks/store';
 
 export default function RootLayout() {
   const scheme = useColorScheme() ?? 'light';
 
   return (
     <AuthProvider>
-      <RatingsBridge>
-        <FeedBridge>
-          <PlaylistsBridge>
-            <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
-              <RootNavigator />
-            </ThemeProvider>
-          </PlaylistsBridge>
-        </FeedBridge>
-      </RatingsBridge>
+      <StreaksBridge>
+        <RatingsBridge>
+          <FeedBridge>
+            <PlaylistsBridge>
+              <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
+                <RootNavigator />
+              </ThemeProvider>
+            </PlaylistsBridge>
+          </FeedBridge>
+        </RatingsBridge>
+      </StreaksBridge>
     </AuthProvider>
   );
+}
+
+function StreaksBridge({ children }: { children: React.ReactNode }) {
+  const streaks = useStreaksState();
+  return <StreaksContext.Provider value={streaks}>{children}</StreaksContext.Provider>;
 }
 
 function RatingsBridge({ children }: { children: React.ReactNode }) {
@@ -72,6 +80,7 @@ function RootNavigator() {
       <Stack.Screen name="drop" options={{ presentation: 'modal' }} />
       <Stack.Screen name="playlist/[id]" />
       <Stack.Screen name="playlist/new" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="streak" />
     </Stack>
   );
 }

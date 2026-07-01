@@ -11,6 +11,7 @@ import { PROFILE } from '@/data/catalog';
 import { useRatings } from '@/data/store';
 import { useTheme } from '@/hooks/use-theme';
 import { LEADERBOARD_USERS, METRICS, type LeaderboardUser, type MetricKey } from '@/leaderboard/data';
+import { useStreaks } from '@/streaks/store';
 
 type Scope = 'friends' | 'global';
 
@@ -25,6 +26,7 @@ export default function LeaderboardScreen() {
   const theme = useTheme();
   const { user } = useAuth();
   const { ranked } = useRatings();
+  const { current: streak } = useStreaks();
   const [scope, setScope] = useState<Scope>('global');
   const [metricKey, setMetricKey] = useState<MetricKey>('reviews');
 
@@ -39,11 +41,11 @@ export default function LeaderboardScreen() {
       isFriend: true,
       reviews: ranked.length,
       concerts: PROFILE.shows,
-      streak: PROFILE.streak,
+      streak,
     };
     const pool = scope === 'friends' ? LEADERBOARD_USERS.filter((u) => u.isFriend) : LEADERBOARD_USERS;
     return [...pool, you].sort((a, b) => metric.get(b) - metric.get(a));
-  }, [scope, metric, ranked.length, user, youId]);
+  }, [scope, metric, ranked.length, user, youId, streak]);
 
   return (
     <ThemedView style={styles.screen}>

@@ -11,6 +11,7 @@
 import { createContext, useContext, useMemo, useState } from 'react';
 
 import type { ItemType } from '@/ranking/types';
+import { useStreaks } from '@/streaks/store';
 
 export interface DropItem {
   id: string;
@@ -46,20 +47,23 @@ export const FeedContext = createContext<FeedApi | null>(null);
 
 export function useFeedState(): FeedApi {
   const [myDrop, setMyDrop] = useState<DailyDrop | null>(null);
+  const streaks = useStreaks();
 
   return useMemo<FeedApi>(
     () => ({
       myDrop,
-      postDrop: ({ item, caption }) =>
+      postDrop: ({ item, caption }) => {
         setMyDrop({
           id: `drop-${Date.now()}`,
           item,
           caption: caption?.trim() ? caption.trim() : undefined,
           createdAt: new Date().toISOString(),
-        }),
+        });
+        streaks.recordActivity();
+      },
       clearDrop: () => setMyDrop(null),
     }),
-    [myDrop],
+    [myDrop, streaks],
   );
 }
 
