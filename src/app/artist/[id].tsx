@@ -14,58 +14,25 @@ import { useTheme } from '@/hooks/use-theme';
 import { musicCatalog, MusicCatalogError, type SearchResult } from '@/music';
 
 /**
- * Public artist page (Spotify-style): circular hero, name, follower count and
- * genre chips, then the artist's discography. Header data rides in via route
- * params from the search row (instant render); the albums are fetched here.
+ * Public artist page (Spotify-style): circular hero, name, then the artist's
+ * discography. Name + image ride in via route params (instant render); the
+ * albums are fetched here. Note: Spotify's current API tier returns only
+ * id/name/images for artists — no follower count, genres, or popularity — so
+ * the header is deliberately image + name, and the discography carries the page.
  */
 export default function ArtistProfileScreen() {
   const theme = useTheme();
   const router = useRouter();
   const { ratingFor } = useRatings();
-  const params = useLocalSearchParams<{
-    id: string;
-    name?: string;
-    image?: string;
-    followers?: string;
-    genres?: string;
-  }>();
+  const params = useLocalSearchParams<{ id: string; name?: string; image?: string }>();
 
   const id = String(params.id);
-
-  // Header seeds instantly from the search row, then `getArtist` enriches it
-  // with followers/genres — a search response doesn't include those.
-  const [artist, setArtist] = useState<{
-    name: string;
-    image?: string;
-    followers?: number;
-    genres: string[];
-  }>({
-    name: params.name ? String(params.name) : 'Artist',
-    image: params.image || undefined,
-    genres: [],
-  });
+  const name = params.name ? String(params.name) : 'Artist';
+  const image = params.image || undefined;
 
   const [albums, setAlbums] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    musicCatalog
-      .getArtist(id, { signal: controller.signal })
-      .then((a) =>
-        setArtist((prev) => ({
-          name: a.title || prev.name,
-          image: a.coverUrl || prev.image,
-          followers: a.followers,
-          genres: a.genres ?? [],
-        })),
-      )
-      .catch(() => {
-        // Best-effort: the name/image from the search row still show.
-      });
-    return () => controller.abort();
-  }, [id]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -111,26 +78,10 @@ export default function ArtistProfileScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <PageContainer style={styles.inner}>
           <View style={styles.header}>
-            <AlbumCover uri={artist.image} size={150} radius={75} fallbackIcon="person" />
+            <AlbumCover uri={image} size={150} radius={75} fallbackIcon="person" />
             <ThemedText type="title" style={styles.center} numberOfLines={2}>
-              {artist.name}
+              {name}
             </ThemedText>
-            {artist.followers != null && (
-              <ThemedText type="small" themeColor="textSecondary">
-                {formatFollowers(artist.followers)}
-              </ThemedText>
-            )}
-            {artist.genres.length > 0 && (
-              <View style={styles.genreRow}>
-                {artist.genres.slice(0, 3).map((g) => (
-                  <View key={g} style={[styles.chip, { backgroundColor: theme.backgroundElement }]}>
-                    <ThemedText type="small" themeColor="textSecondary">
-                      {titleCase(g)}
-                    </ThemedText>
-                  </View>
-                ))}
-              </View>
-            )}
           </View>
 
           <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
@@ -192,18 +143,6 @@ export default function ArtistProfileScreen() {
   );
 }
 
-/** e.g. "indie pop" → "Indie Pop". */
-function titleCase(s: string): string {
-  return s.replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-/** Compact follower label, e.g. 1_234_567 → "1.2M followers". */
-function formatFollowers(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M followers`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, '')}K followers`;
-  return `${n} follower${n === 1 ? '' : 's'}`;
-}
-
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   topBar: {
@@ -216,8 +155,6 @@ const styles = StyleSheet.create({
   inner: { gap: Spacing.three },
   header: { alignItems: 'center', gap: Spacing.two },
   center: { textAlign: 'center' },
-  genreRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two, justifyContent: 'center' },
-  chip: { paddingHorizontal: Spacing.three, paddingVertical: 4, borderRadius: 999 },
   sectionLabel: { marginTop: Spacing.two },
   loading: { paddingVertical: Spacing.six, alignItems: 'center' },
   error: { color: '#E24B4A' },

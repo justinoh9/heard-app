@@ -4,7 +4,6 @@ import { test } from 'node:test';
 import {
   base64,
   parseAlbumResults,
-  parseArtist,
   parseArtistAlbums,
   parseArtistAlbumSearch,
   parseArtistResults,
@@ -205,14 +204,12 @@ test('base64 encodes ASCII correctly', () => {
 
 // ---- artist parsing --------------------------------------------------------
 
-test('parses an artist: name in title, blank artist, cover, genres, followers, popularity', () => {
+test('parses an artist: name in title, blank artist, cover, popularity', () => {
   const a = parseArtistResults(artistFixture).find((x) => x.id === 'ar-high')!;
   assert.equal(a.kind, 'artist');
   assert.equal(a.title, 'Tame Impala');
   assert.equal(a.artist, '');
   assert.equal(a.coverUrl, 'ti300');
-  assert.deepEqual(a.genres, ['psychedelic rock', 'indietronica']);
-  assert.equal(a.followers, 8500000);
   assert.equal(a.popularity, 90);
   assert.equal(a.provider, 'spotify');
 });
@@ -247,21 +244,6 @@ test('parseArtistAlbums lists full albums before singles', () => {
   assert.deepEqual(r.map((x) => x.primaryType), ['Album', 'Single']); // album first despite being older
 });
 
-test('parseArtist maps the full-artist fields (genres, followers)', () => {
-  const a = parseArtist({
-    id: 'ar-full',
-    name: 'Tame Impala',
-    genres: ['psychedelic rock'],
-    popularity: 88,
-    followers: { total: 8500000 },
-    images: [img('f640', 640), img('f300', 300)],
-  });
-  assert.equal(a.kind, 'artist');
-  assert.equal(a.title, 'Tame Impala');
-  assert.equal(a.followers, 8500000);
-  assert.deepEqual(a.genres, ['psychedelic rock']);
-  assert.equal(a.coverUrl, 'f300');
-});
 
 // ---- catalog (fetch + token) ----------------------------------------------
 
@@ -321,25 +303,6 @@ test('getArtistAlbums hits the artist-albums endpoint, clamps the limit, and ded
   assert.match(url, /[?&]limit=10(&|$)/); // clamped to the dev-mode max
   assert.equal(r.length, 3); // duplicate collapsed
   assert.equal(r[0].title, 'The Slow Rush');
-});
-
-test('getArtist hits the artist endpoint and returns full detail', async () => {
-  let url = '';
-  const impl = (async (u: string) => {
-    if (u.includes('accounts.spotify.com')) {
-      return new Response(JSON.stringify({ access_token: 'tok', expires_in: 3600 }), { status: 200 });
-    }
-    url = u;
-    return new Response(
-      JSON.stringify({ id: 'ar1', name: 'Tame Impala', genres: ['psych rock'], followers: { total: 8500000 }, images: [img('a300', 300)] }),
-      { status: 200 },
-    );
-  }) as unknown as typeof fetch;
-  const cat = new SpotifyCatalog(impl);
-  const a = await cat.getArtist('ar1');
-  assert.match(url, /\/artists\/ar1(\?|$)/);
-  assert.equal(a.title, 'Tame Impala');
-  assert.equal(a.followers, 8500000);
 });
 
 test('getArtistAlbums returns [] for a blank id without any fetch', async () => {

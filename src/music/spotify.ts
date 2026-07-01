@@ -71,9 +71,7 @@ interface SpotifyArtistObject {
   id: string;
   name: string;
   images?: SpotifyImage[];
-  genres?: string[];
   popularity?: number;
-  followers?: { total?: number };
 }
 
 interface SpotifySearchResponse {
@@ -193,34 +191,22 @@ export function parseSearchResults(json: SpotifySearchResponse): SearchResult[] 
 }
 
 /**
- * Map one Spotify artist object to an artist result. `artist` is left blank
- * (the name lives in `title`). Note: artist objects returned inside a *search*
- * are simplified (no genres/followers/popularity); those fields are only
- * populated by the full-artist lookup (`getArtist`).
+ * Pure: map a search response's artists to artist results, most popular first.
+ * `artist` is left blank (the name lives in `title`). Spotify's current API tier
+ * returns only id/name/images for artists — no genres/followers — so the artist
+ * page leads with the discography rather than those stats.
  */
-function artistToResult(a: SpotifyArtistObject): SearchResult {
-  return {
+export function parseArtistResults(json: SpotifySearchResponse): SearchResult[] {
+  const results: SearchResult[] = (json.artists?.items ?? []).map((a) => ({
     id: a.id,
     kind: 'artist',
     title: a.name,
     artist: '',
     coverUrl: pickCover(a.images),
     popularity: a.popularity,
-    genres: a.genres,
-    followers: a.followers?.total,
     provider: 'spotify',
-  };
-}
-
-/** Pure: map a search response's artists to artist results, most popular first. */
-export function parseArtistResults(json: SpotifySearchResponse): SearchResult[] {
-  const results = (json.artists?.items ?? []).map(artistToResult);
+  }));
   return results.sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0));
-}
-
-/** Pure: map a full-artist response (GET /artists/{id}) to an artist result. */
-export function parseArtist(json: SpotifyArtistObject): SearchResult {
-  return artistToResult(json);
 }
 
 /** Pure: artists first, then albums — the ordering for `searchAlbumsAndArtists`. */
@@ -423,16 +409,6 @@ export class SpotifyCatalog implements MusicCatalog {
     const q = query.trim();
     if (!q) return [];
     return parseArtistAlbumSearch(await this.search('album,artist', q, opts.limit, opts.signal));
-  }
-
-  async getArtist(artistId: string, opts: SearchOptions = {}): Promise<SearchResult> {
-    const id = artistId.trim();
-    if (!id) throw new MusicCatalogError('No artist id.');
-    const res = await this.authedGet(`${API}/artists/${encodeURIComponent(id)}`, opts.signal);
-    if (!res.ok) {
-      throw new MusicCatalogError(`Could not load the artist (${res.status}).`);
-    }
-    return parseArtist((await res.json()) as SpotifyArtistObject);
   }
 
   async getArtistAlbums(artistId: string, opts: SearchOptions = {}): Promise<SearchResult[]> {

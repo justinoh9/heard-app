@@ -32,12 +32,8 @@ export interface SearchResult {
   primaryType?: string;
   /** Parent album title — song-kind only. */
   albumTitle?: string;
-  /** 0-100 normalized popularity, when the provider has one. Spotify sets this on tracks/artists. */
+  /** 0-100 normalized popularity, when the provider has one. Spotify sets this on tracks. */
   popularity?: number;
-  /** Spotify genre tags — artist-kind only. */
-  genres?: string[];
-  /** Total follower count — artist-kind only. */
-  followers?: number;
   /**
    * 30-second preview MP3, when Spotify provides one. Banked for a future
    * tap-to-preview affordance; often null on newer apps (Spotify has been
@@ -68,8 +64,6 @@ export interface MusicCatalog {
    * lets the user jump into an artist's page or rate an album from one query.
    */
   searchAlbumsAndArtists(query: string, opts?: SearchOptions): Promise<SearchResult[]>;
-  /** Full artist detail (name, image, genres, followers) for the artist page header. */
-  getArtist(artistId: string, opts?: SearchOptions): Promise<SearchResult>;
   /** An artist's albums + singles (albums first, newest first), for the artist page. */
   getArtistAlbums(artistId: string, opts?: SearchOptions): Promise<SearchResult[]>;
 }
