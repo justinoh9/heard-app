@@ -5,6 +5,7 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, TextInput, View } f
 
 import { AlbumCover } from '@/components/album-cover';
 import { EmptyState } from '@/components/empty-state';
+import { PageContainer } from '@/components/page-container';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -65,79 +66,83 @@ export default function PlaylistDetailScreen() {
         theme={theme}
       />
 
-      <View style={[styles.searchBar, { backgroundColor: theme.backgroundElement }]}>
-        <Ionicons name="search" size={18} color={theme.textSecondary} />
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Add a song"
-          placeholderTextColor={theme.textSecondary}
-          autoCorrect={false}
-          autoCapitalize="none"
-          style={[styles.searchInput, { color: theme.text }]}
-        />
-        {query.length > 0 && (
-          <Pressable onPress={() => setQuery('')} accessibilityLabel="Clear search">
-            <Ionicons name="close-circle" size={18} color={theme.textSecondary} />
-          </Pressable>
+      <PageContainer>
+        <View style={[styles.searchBar, { backgroundColor: theme.backgroundElement }]}>
+          <Ionicons name="search" size={18} color={theme.textSecondary} />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Add a song"
+            placeholderTextColor={theme.textSecondary}
+            autoCorrect={false}
+            autoCapitalize="none"
+            style={[styles.searchInput, { color: theme.text }]}
+          />
+          {query.length > 0 && (
+            <Pressable onPress={() => setQuery('')} accessibilityLabel="Clear search">
+              <Ionicons name="close-circle" size={18} color={theme.textSecondary} />
+            </Pressable>
+          )}
+        </View>
+
+        {error && (
+          <ThemedText type="small" style={styles.error}>
+            {error}
+          </ThemedText>
         )}
-      </View>
+      </PageContainer>
 
-      {error && (
-        <ThemedText type="small" style={styles.error}>
-          {error}
-        </ThemedText>
-      )}
-
-      <FlatList
-        data={data}
-        keyExtractor={(item) => item.id}
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={styles.list}
-        ListHeaderComponent={
-          searching ? (
-            loading && results.length > 0 ? (
-              <ActivityIndicator style={{ marginBottom: Spacing.two }} />
+      <PageContainer style={{ flex: 1 }}>
+        <FlatList
+          data={data}
+          keyExtractor={(item) => item.id}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.list}
+          ListHeaderComponent={
+            searching ? (
+              loading && results.length > 0 ? (
+                <ActivityIndicator style={{ marginBottom: Spacing.two }} />
+              ) : null
+            ) : playlist.songs.length > 0 ? (
+              <ThemedText type="small" themeColor="textSecondary" style={styles.countLabel}>
+                {songCountLabel(playlist.songs.length)}
+              </ThemedText>
             ) : null
-          ) : playlist.songs.length > 0 ? (
-            <ThemedText type="small" themeColor="textSecondary" style={styles.countLabel}>
-              {songCountLabel(playlist.songs.length)}
-            </ThemedText>
-          ) : null
-        }
-        ListEmptyComponent={
-          searching ? (
-            loading ? (
-              <View style={styles.empty}>
-                <ActivityIndicator />
-              </View>
+          }
+          ListEmptyComponent={
+            searching ? (
+              loading ? (
+                <View style={styles.empty}>
+                  <ActivityIndicator />
+                </View>
+              ) : (
+                <EmptyState icon="sad-outline" message={`No songs found for “${query.trim()}”`} />
+              )
             ) : (
-              <EmptyState icon="sad-outline" message={`No songs found for “${query.trim()}”`} />
+              <EmptyState icon="musical-notes-outline" message="No songs yet. Search above to add some." />
             )
-          ) : (
-            <EmptyState icon="musical-notes-outline" message="No songs yet. Search above to add some." />
-          )
-        }
-        renderItem={({ item }) =>
-          searching ? (
-            <ResultRow
-              result={item as SearchResult}
-              added={hasSong(playlist.songs, item.id)}
-              onAdd={() => add(item as SearchResult)}
-              theme={theme}
-            />
-          ) : (
-            <SongRow
-              song={item as PlaylistSong}
-              onRemove={() => {
-                haptics.selection();
-                removeSong(playlist.id, item.id);
-              }}
-              theme={theme}
-            />
-          )
-        }
-      />
+          }
+          renderItem={({ item }) =>
+            searching ? (
+              <ResultRow
+                result={item as SearchResult}
+                added={hasSong(playlist.songs, item.id)}
+                onAdd={() => add(item as SearchResult)}
+                theme={theme}
+              />
+            ) : (
+              <SongRow
+                song={item as PlaylistSong}
+                onRemove={() => {
+                  haptics.selection();
+                  removeSong(playlist.id, item.id);
+                }}
+                theme={theme}
+              />
+            )
+          }
+        />
+      </PageContainer>
     </ThemedView>
   );
 }

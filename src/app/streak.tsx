@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { EmptyState } from '@/components/empty-state';
+import { PageContainer } from '@/components/page-container';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -42,46 +43,48 @@ export default function StreakScreen() {
       </View>
 
       <View style={styles.content}>
-        <View style={styles.hero}>
-          <ThemedText type="subtitle" style={styles.current}>
-            {current}🔥
-          </ThemedText>
-          <ThemedText themeColor="textSecondary">
-            {current === 1 ? 'day' : 'days'} in a row
-          </ThemedText>
-        </View>
-
-        <View style={[styles.longest, { backgroundColor: theme.backgroundElement }]}>
-          <ThemedText type="smallBold" style={{ fontSize: 20 }}>
-            {longest}
-          </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
-            longest streak
-          </ThemedText>
-        </View>
-
-        <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
-          LAST {GRID_DAYS} DAYS
-        </ThemedText>
-
-        {activeDates.length === 0 ? (
-          <EmptyState icon="flame-outline" message="Rate something or post a drop to start a streak." />
-        ) : (
-          <View style={styles.grid}>
-            {grid.map((day) => (
-              <View
-                key={day}
-                style={[
-                  styles.cell,
-                  {
-                    backgroundColor: active.has(day) ? '#1D9E75' : theme.backgroundElement,
-                    borderColor: day === today ? '#1D9E75' : 'transparent',
-                  },
-                ]}
-              />
-            ))}
+        <PageContainer style={styles.inner}>
+          <View style={styles.hero}>
+            <ThemedText type="subtitle" style={styles.current}>
+              {current}🔥
+            </ThemedText>
+            <ThemedText themeColor="textSecondary">
+              {current === 1 ? 'day' : 'days'} in a row
+            </ThemedText>
           </View>
-        )}
+
+          <View style={[styles.longest, { backgroundColor: theme.backgroundElement }]}>
+            <ThemedText type="smallBold" style={{ fontSize: 20 }}>
+              {longest}
+            </ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              longest streak
+            </ThemedText>
+          </View>
+
+          <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
+            LAST {GRID_DAYS} DAYS
+          </ThemedText>
+
+          {activeDates.length === 0 ? (
+            <EmptyState icon="flame-outline" message="Rate something or post a drop to start a streak." />
+          ) : (
+            <View style={styles.grid}>
+              {grid.map((day) => (
+                <View
+                  key={day}
+                  style={[
+                    styles.cell,
+                    {
+                      backgroundColor: active.has(day) ? '#1D9E75' : theme.backgroundElement,
+                      borderColor: day === today ? '#1D9E75' : 'transparent',
+                    },
+                  ]}
+                />
+              ))}
+            </View>
+          )}
+        </PageContainer>
       </View>
     </ThemedView>
   );
@@ -95,7 +98,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: Spacing.three,
   },
-  content: { padding: Spacing.three, gap: Spacing.three },
+  content: { padding: Spacing.three },
+  inner: { gap: Spacing.three },
   hero: { alignItems: 'center', gap: 4, marginTop: Spacing.two },
   current: { fontSize: 40 },
   longest: { alignItems: 'center', paddingVertical: Spacing.three, borderRadius: 12, gap: 2 },

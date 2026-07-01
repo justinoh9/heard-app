@@ -50,5 +50,11 @@ export function Segmented({
 
 const styles = StyleSheet.create({
   segmented: { flexDirection: 'row', borderRadius: 10, padding: 3 },
-  segment: { flex: 1, alignItems: 'center', paddingVertical: Spacing.two, borderRadius: 8 },
+  segment: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    borderRadius: 8,
+  },
 });

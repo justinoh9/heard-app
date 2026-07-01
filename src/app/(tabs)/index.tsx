@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AlbumCover } from '@/components/album-cover';
+import { PageContainer } from '@/components/page-container';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -48,40 +49,42 @@ export default function FeedScreen() {
   return (
     <ThemedView style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
-        <YourDrop
-          drop={myDrop}
-          theme={theme}
-          onCompose={() => router.push('/drop')}
-          onOpen={() => myDrop && openDropItem(myDrop)}
-        />
+        <PageContainer style={styles.inner}>
+          <YourDrop
+            drop={myDrop}
+            theme={theme}
+            onCompose={() => router.push('/drop')}
+            onOpen={() => myDrop && openDropItem(myDrop)}
+          />
 
-        {drop && (
-          <Pressable
-            testID="feed-drop"
-            onPress={() => openItem(drop)}
-            style={[styles.dropCard, { borderColor: '#378ADD', backgroundColor: theme.backgroundElement }]}>
-            <View style={styles.dropHeader}>
-              <Ionicons name="radio" size={16} color="#378ADD" />
-              <ThemedText type="small" style={{ color: '#378ADD' }}>
-                {drop.user}&apos;s drop · 2h left
-              </ThemedText>
-            </View>
-            <View style={styles.dropBody}>
-              <AlbumCover uri={drop.coverUrl} size={48} radius={8} />
-              <View style={{ flex: 1 }}>
-                <ThemedText type="smallBold">{drop.user} is listening to</ThemedText>
-                <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-                  {drop.title}
-                  {drop.artist ? ` — ${drop.artist}` : ''}
+          {drop && (
+            <Pressable
+              testID="feed-drop"
+              onPress={() => openItem(drop)}
+              style={[styles.dropCard, { borderColor: '#378ADD', backgroundColor: theme.backgroundElement }]}>
+              <View style={styles.dropHeader}>
+                <Ionicons name="radio" size={16} color="#378ADD" />
+                <ThemedText type="small" style={{ color: '#378ADD' }}>
+                  {drop.user}&apos;s drop · 2h left
                 </ThemedText>
               </View>
-            </View>
-          </Pressable>
-        )}
+              <View style={styles.dropBody}>
+                <AlbumCover uri={drop.coverUrl} size={48} radius={8} />
+                <View style={{ flex: 1 }}>
+                  <ThemedText type="smallBold">{drop.user} is listening to</ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+                    {drop.title}
+                    {drop.artist ? ` — ${drop.artist}` : ''}
+                  </ThemedText>
+                </View>
+              </View>
+            </Pressable>
+          )}
 
-        {rest.map((event) => (
-          <FeedRow key={event.id} event={event} theme={theme} onPress={() => openItem(event)} />
-        ))}
+          {rest.map((event) => (
+            <FeedRow key={event.id} event={event} theme={theme} onPress={() => openItem(event)} />
+          ))}
+        </PageContainer>
       </ScrollView>
     </ThemedView>
   );
@@ -228,7 +231,8 @@ function FeedRow({
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  content: { padding: Spacing.three, gap: Spacing.three },
+  content: { padding: Spacing.three },
+  inner: { gap: Spacing.three },
   dropCard: { borderWidth: 1, borderRadius: 12, padding: Spacing.three, gap: Spacing.two },
   dropHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   dropBody: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },

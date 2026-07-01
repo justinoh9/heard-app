@@ -5,10 +5,10 @@ import { Animated, Pressable, StyleSheet, View } from 'react-native';
 
 import { useAuth } from '@/auth/store';
 import { AlbumCover } from '@/components/album-cover';
+import { ModalDialogFrame } from '@/components/modal-dialog-frame';
 import { ScoreInput } from '@/components/score-input';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { postComment } from '@/comments';
 import { Spacing } from '@/constants/theme';
 import { useRatings } from '@/data/store';
@@ -121,7 +121,7 @@ export default function LogModal() {
   const fade = useStepFade(stepKey);
 
   return (
-    <ThemedView style={styles.screen}>
+    <ModalDialogFrame>
       <View style={styles.topBar}>
         <Pressable onPress={() => router.back()} accessibilityLabel="Close" hitSlop={8}>
           <Ionicons name="close" size={26} color={theme.text} />
@@ -232,7 +232,7 @@ export default function LogModal() {
           </Pressable>
         </Animated.View>
       )}
-    </ThemedView>
+    </ModalDialogFrame>
   );
 }
 
@@ -301,7 +301,6 @@ function CompareCard({
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
