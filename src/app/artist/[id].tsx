@@ -3,6 +3,7 @@ import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AlbumCover } from '@/components/album-cover';
@@ -19,11 +20,12 @@ type Theme = ReturnType<typeof useTheme>;
 const POPULAR_PREVIEW = 5;
 
 /**
- * Public artist page (Spotify-style): a full-bleed banner with the name overlaid,
- * a "Popular" song list (expandable to all we can fetch), then a horizontally
- * scrolling discography of albums + singles. Name + image ride in via route
- * params; songs and albums are fetched here. Spotify's current API tier omits
- * follower counts, genres, and real stream counts, so those aren't shown.
+ * Public artist page: an animated "record player" hero — a spinning vinyl with
+ * the artist's album covers around the rim and their photo as the center label,
+ * over a blurred backdrop — then a "Popular" song list (expandable) and a
+ * horizontally scrolling discography. Name + image ride in via route params;
+ * songs and albums are fetched here. Spotify's current API tier omits follower
+ * counts, genres, and real stream counts, so those aren't shown.
  */
 export default function ArtistProfileScreen() {
   const theme = useTheme();
@@ -82,30 +84,15 @@ export default function ArtistProfileScreen() {
   return (
     <ThemedView style={styles.screen}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={[styles.banner, { backgroundColor: theme.backgroundSelected }]}>
+        <View style={[styles.banner, { paddingTop: insets.top + Spacing.six }]}>
           {image ? (
-            <Image source={{ uri: image }} style={StyleSheet.absoluteFill} contentFit="cover" transition={200} />
+            <Image source={{ uri: image }} style={StyleSheet.absoluteFill} contentFit="cover" blurRadius={40} transition={200} />
           ) : (
-            <View style={[StyleSheet.absoluteFill, styles.bannerFallback]}>
-              <Ionicons name="person" size={80} color={theme.textSecondary} />
-            </View>
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: theme.backgroundSelected }]} />
           )}
-          {/* Faux gradient: many faint layers compound toward the bottom for a
-              smooth, line-free scrim (no gradient lib installed). */}
-          {Array.from({ length: SCRIM_STEPS }).map((_, i) => (
-            <View
-              key={i}
-              pointerEvents="none"
-              style={{
-                position: 'absolute',
-                left: 0,
-                right: 0,
-                bottom: 0,
-                height: ((i + 1) / SCRIM_STEPS) * 240,
-                backgroundColor: 'rgba(0,0,0,0.045)',
-              }}
-            />
-          ))}
+          <View style={[StyleSheet.absoluteFill, styles.bannerTint]} pointerEvents="none" />
+
+          <RecordPlayer image={image} albums={albums} size={216} />
           <Text style={styles.bannerName} numberOfLines={2}>
             {name}
           </Text>
@@ -209,6 +196,77 @@ export default function ArtistProfileScreen() {
   );
 }
 
+/**
+ * Spinning vinyl: album covers orbit the rim, the artist photo is the center
+ * label, and the whole disc rotates continuously. Covers fill in once the
+ * discography loads; the disc spins regardless.
+ */
+function RecordPlayer({ image, albums, size }: { image?: string; albums: SearchResult[]; size: number }) {
+  const rotation = useSharedValue(0);
+  useEffect(() => {
+    rotation.value = withRepeat(withTiming(360, { duration: 16000, easing: Easing.linear }), -1, false);
+  }, [rotation]);
+  const spin = useAnimatedStyle(() => ({ transform: [{ rotate: `${rotation.value}deg` }] }));
+
+  const R = size / 2;
+  const covers = albums.slice(0, 6);
+  const artSize = Math.round(size * 0.17);
+  const orbit = R * 0.66;
+  const label = Math.round(size * 0.36);
+
+  return (
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <Animated.View
+        style={[
+          {
+            position: 'absolute',
+            width: size,
+            height: size,
+            borderRadius: R,
+            backgroundColor: '#0c0c0e',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderWidth: 1,
+            borderColor: 'rgba(255,255,255,0.08)',
+          },
+          spin,
+        ]}>
+        {[0.92, 0.78, 0.62, 0.46].map((f) => (
+          <View
+            key={f}
+            style={{
+              position: 'absolute',
+              width: size * f,
+              height: size * f,
+              borderRadius: (size * f) / 2,
+              borderWidth: 1,
+              borderColor: 'rgba(255,255,255,0.05)',
+            }}
+          />
+        ))}
+        {covers.map((al, i) => {
+          const angle = (i / covers.length) * 360;
+          return (
+            <View
+              key={al.id}
+              style={{
+                position: 'absolute',
+                transform: [{ rotate: `${angle}deg` }, { translateY: -orbit }, { rotate: `${-angle}deg` }],
+              }}>
+              <AlbumCover uri={al.coverUrl} size={artSize} radius={6} />
+            </View>
+          );
+        })}
+      </Animated.View>
+
+      <View style={[styles.recordLabel, { width: label, height: label, borderRadius: label / 2 }]}>
+        <AlbumCover uri={image} size={label} radius={label / 2} fallbackIcon="person" />
+      </View>
+      <View style={styles.spindle} pointerEvents="none" />
+    </View>
+  );
+}
+
 function SongRow({
   index,
   song,
@@ -254,23 +312,23 @@ function SongRow({
   );
 }
 
-const SCRIM_STEPS = 12;
-
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   scroll: { paddingBottom: Spacing.six },
-  banner: { width: '100%', height: 300, justifyContent: 'flex-end' },
-  bannerFallback: { alignItems: 'center', justifyContent: 'center' },
+  banner: { alignItems: 'center', gap: Spacing.three, paddingBottom: Spacing.five, overflow: 'hidden' },
+  bannerTint: { backgroundColor: 'rgba(0,0,0,0.55)' },
   bannerName: {
     color: '#fff',
-    fontSize: 34,
+    fontSize: 30,
     fontWeight: '800',
     letterSpacing: 0.2,
+    textAlign: 'center',
     paddingHorizontal: Spacing.four,
-    paddingBottom: Spacing.four,
-    textShadowColor: 'rgba(0,0,0,0.45)',
+    textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowRadius: 6,
   },
+  recordLabel: { overflow: 'hidden', borderWidth: 4, borderColor: '#0c0c0e' },
+  spindle: { position: 'absolute', width: 7, height: 7, borderRadius: 4, backgroundColor: '#0c0c0e' },
   backBtn: {
     position: 'absolute',
     left: Spacing.three,

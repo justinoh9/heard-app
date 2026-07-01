@@ -149,6 +149,12 @@ export function pickCover(images?: SpotifyImage[]): string | undefined {
   return (usable[0] ?? images[0]).url;
 }
 
+/** Largest available image — for the artist hero, which fills more space. */
+export function pickLargest(images?: SpotifyImage[]): string | undefined {
+  if (!images?.length) return undefined;
+  return [...images].sort((a, b) => (b.width ?? 0) - (a.width ?? 0))[0].url;
+}
+
 /**
  * Pure: map a Spotify search response's albums to album results, full albums
  * sorted before singles/compilations (mirrors the old catalog's album-first
@@ -205,7 +211,8 @@ export function parseArtistResults(json: SpotifySearchResponse): SearchResult[] 
     kind: 'artist',
     title: a.name,
     artist: '',
-    coverUrl: pickCover(a.images),
+    // Largest image: the artist hero (banner/record) fills more space than a thumbnail.
+    coverUrl: pickLargest(a.images),
     popularity: a.popularity,
     provider: 'spotify',
   }));
