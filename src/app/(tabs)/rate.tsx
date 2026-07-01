@@ -5,6 +5,7 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, TextInput, View } f
 
 import { AlbumCover } from '@/components/album-cover';
 import { EmptyState } from '@/components/empty-state';
+import { PageContainer } from '@/components/page-container';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -35,85 +36,89 @@ export default function RateSearchScreen() {
 
   return (
     <ThemedView style={styles.screen}>
-      <View style={[styles.searchBar, { backgroundColor: theme.backgroundElement }]}>
-        <Ionicons name="search" size={18} color={theme.textSecondary} />
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Search albums or artists"
-          placeholderTextColor={theme.textSecondary}
-          autoCorrect={false}
-          autoCapitalize="none"
-          style={[styles.searchInput, { color: theme.text }]}
-        />
-        {query.length > 0 && (
-          <Pressable onPress={() => setQuery('')} accessibilityLabel="Clear search">
-            <Ionicons name="close-circle" size={18} color={theme.textSecondary} />
-          </Pressable>
+      <PageContainer>
+        <View style={[styles.searchBar, { backgroundColor: theme.backgroundElement }]}>
+          <Ionicons name="search" size={18} color={theme.textSecondary} />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search albums or artists"
+            placeholderTextColor={theme.textSecondary}
+            autoCorrect={false}
+            autoCapitalize="none"
+            style={[styles.searchInput, { color: theme.text }]}
+          />
+          {query.length > 0 && (
+            <Pressable onPress={() => setQuery('')} accessibilityLabel="Clear search">
+              <Ionicons name="close-circle" size={18} color={theme.textSecondary} />
+            </Pressable>
+          )}
+        </View>
+
+        {error && (
+          <ThemedText type="small" style={styles.error}>
+            {error}
+          </ThemedText>
         )}
-      </View>
+      </PageContainer>
 
-      {error && (
-        <ThemedText type="small" style={styles.error}>
-          {error}
-        </ThemedText>
-      )}
-
-      <FlatList
-        data={results}
-        keyExtractor={(a) => a.id}
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={styles.list}
-        ListEmptyComponent={
-          loading ? (
-            <View style={styles.empty}>
-              <ActivityIndicator />
-            </View>
-          ) : (
-            <EmptyState
-              icon={query ? 'sad-outline' : 'search'}
-              message={query ? `No albums found for “${query.trim()}”` : 'Find an album to rate.'}
-            />
-          )
-        }
-        ListHeaderComponent={
-          loading && results.length > 0 ? (
-            <ActivityIndicator style={{ marginBottom: Spacing.two }} />
-          ) : null
-        }
-        renderItem={({ item }) => {
-          const existing = ratingFor(item.id);
-          return (
-            <Pressable
-              testID="album-result"
-              onPress={() => openLog(item)}
-              style={({ pressed }) => [
-                styles.row,
-                { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.6 : 1 },
-              ]}>
-              <AlbumCover uri={item.coverUrl} size={56} />
-              <View style={styles.rowText}>
-                <ThemedText type="smallBold" numberOfLines={1}>
-                  {item.title}
-                </ThemedText>
-                <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-                  {item.artist}
-                  {item.year ? ` · ${item.year}` : ''}
-                </ThemedText>
+      <PageContainer style={{ flex: 1 }}>
+        <FlatList
+          data={results}
+          keyExtractor={(a) => a.id}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.list}
+          ListEmptyComponent={
+            loading ? (
+              <View style={styles.empty}>
+                <ActivityIndicator />
               </View>
-              {existing ? (
-                <View style={styles.scorePill}>
-                  <ThemedText type="smallBold" style={{ color: '#fff' }}>
-                    {existing.score.toFixed(1)}
+            ) : (
+              <EmptyState
+                icon={query ? 'sad-outline' : 'search'}
+                message={query ? `No albums found for “${query.trim()}”` : 'Find an album to rate.'}
+              />
+            )
+          }
+          ListHeaderComponent={
+            loading && results.length > 0 ? (
+              <ActivityIndicator style={{ marginBottom: Spacing.two }} />
+            ) : null
+          }
+          renderItem={({ item }) => {
+            const existing = ratingFor(item.id);
+            return (
+              <Pressable
+                testID="album-result"
+                onPress={() => openLog(item)}
+                style={({ pressed }) => [
+                  styles.row,
+                  { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.6 : 1 },
+                ]}>
+                <AlbumCover uri={item.coverUrl} size={56} />
+                <View style={styles.rowText}>
+                  <ThemedText type="smallBold" numberOfLines={1}>
+                    {item.title}
+                  </ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+                    {item.artist}
+                    {item.year ? ` · ${item.year}` : ''}
                   </ThemedText>
                 </View>
-              ) : (
-                <Ionicons name="add-circle-outline" size={24} color={theme.textSecondary} />
-              )}
-            </Pressable>
-          );
-        }}
-      />
+                {existing ? (
+                  <View style={styles.scorePill}>
+                    <ThemedText type="smallBold" style={{ color: '#fff' }}>
+                      {existing.score.toFixed(1)}
+                    </ThemedText>
+                  </View>
+                ) : (
+                  <Ionicons name="add-circle-outline" size={24} color={theme.textSecondary} />
+                )}
+              </Pressable>
+            );
+          }}
+        />
+      </PageContainer>
     </ThemedView>
   );
 }

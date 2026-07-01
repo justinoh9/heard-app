@@ -9,6 +9,7 @@ import {
   StyleSheet,
 } from 'react-native';
 
+import { PageContainer } from '@/components/page-container';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { TextField } from '@/components/text-field';
@@ -43,54 +44,56 @@ export default function SignInScreen() {
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <BrandHeader tagline="Welcome back" />
+          <PageContainer maxWidth={440} style={styles.inner}>
+            <BrandHeader tagline="Welcome back" />
 
-          <SpotifyButton onPress={() => setError('Spotify sign-in is coming soon.')} />
-          <OrDivider />
+            <SpotifyButton onPress={() => setError('Spotify sign-in is coming soon.')} />
+            <OrDivider />
 
-          <TextField
-            label="Email"
-            value={email}
-            onChangeText={setEmail}
-            placeholder="name@email.com"
-            autoCapitalize="none"
-            keyboardType="email-address"
-            autoComplete="email"
-          />
-          <TextField
-            label="Password"
-            value={password}
-            onChangeText={setPassword}
-            placeholder="Your password"
-            secureTextEntry
-            onSubmitEditing={submit}
-          />
+            <TextField
+              label="Email"
+              value={email}
+              onChangeText={setEmail}
+              placeholder="name@email.com"
+              autoCapitalize="none"
+              keyboardType="email-address"
+              autoComplete="email"
+            />
+            <TextField
+              label="Password"
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Your password"
+              secureTextEntry
+              onSubmitEditing={submit}
+            />
 
-          {error && (
-            <ThemedText type="small" style={styles.error}>
-              {error}
-            </ThemedText>
-          )}
-
-          <Pressable
-            testID="auth-submit"
-            onPress={submit}
-            style={({ pressed }) => [styles.primary, { opacity: pressed || busy ? 0.7 : 1 }]}>
-            {busy ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <ThemedText type="smallBold" style={{ color: '#fff' }}>
-                Sign in
+            {error && (
+              <ThemedText type="small" style={styles.error}>
+                {error}
               </ThemedText>
             )}
-          </Pressable>
 
-          <ThemedText type="small" themeColor="textSecondary" style={styles.footer}>
-            New here?{' '}
-            <Link href="/(auth)/sign-up" replace style={styles.link}>
-              Create an account
-            </Link>
-          </ThemedText>
+            <Pressable
+              testID="auth-submit"
+              onPress={submit}
+              style={({ pressed }) => [styles.primary, { opacity: pressed || busy ? 0.7 : 1 }]}>
+              {busy ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <ThemedText type="smallBold" style={{ color: '#fff' }}>
+                  Sign in
+                </ThemedText>
+              )}
+            </Pressable>
+
+            <ThemedText type="small" themeColor="textSecondary" style={styles.footer}>
+              New here?{' '}
+              <Link href="/(auth)/sign-up" replace style={styles.link}>
+                Create an account
+              </Link>
+            </ThemedText>
+          </PageContainer>
         </ScrollView>
       </KeyboardAvoidingView>
     </ThemedView>
@@ -104,8 +107,8 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     padding: Spacing.four,
-    gap: Spacing.three,
   },
+  inner: { gap: Spacing.three },
   error: { color: '#E24B4A' },
   primary: {
     backgroundColor: '#1D9E75',

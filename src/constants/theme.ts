@@ -63,3 +63,11 @@ export const Spacing = {
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 export const MaxContentWidth = 800;
+
+/**
+ * Lives here (not in use-responsive.ts) because use-responsive.web.ts needs
+ * it too, and importing it from './use-responsive' inside its own .web
+ * sibling makes Metro's platform-extension resolution redirect that import
+ * back to use-responsive.web.ts itself — infinite self-import.
+ */
+export const Breakpoints = { desktop: 768 } as const;

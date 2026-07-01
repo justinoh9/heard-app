@@ -3,9 +3,9 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { ModalDialogFrame } from '@/components/modal-dialog-frame';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useHaptics } from '@/hooks/use-haptics';
 import { useTheme } from '@/hooks/use-theme';
@@ -27,7 +27,7 @@ export default function NewPlaylistModal() {
   }
 
   return (
-    <ThemedView style={styles.screen}>
+    <ModalDialogFrame>
       <View style={styles.topBar}>
         <Pressable onPress={() => router.back()} accessibilityLabel="Close" hitSlop={8}>
           <Ionicons name="close" size={26} color={theme.text} />
@@ -57,12 +57,11 @@ export default function NewPlaylistModal() {
           </ThemedText>
         </Pressable>
       </View>
-    </ThemedView>
+    </ModalDialogFrame>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',

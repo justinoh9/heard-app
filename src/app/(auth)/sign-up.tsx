@@ -9,6 +9,7 @@ import {
   StyleSheet,
 } from 'react-native';
 
+import { PageContainer } from '@/components/page-container';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { TextField } from '@/components/text-field';
@@ -44,63 +45,65 @@ export default function SignUpScreen() {
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <BrandHeader tagline="Rate music. Build your taste." />
+          <PageContainer maxWidth={440} style={styles.inner}>
+            <BrandHeader tagline="Rate music. Build your taste." />
 
-          <SpotifyButton onPress={() => setError('Spotify sign-up is coming soon.')} />
-          <OrDivider />
+            <SpotifyButton onPress={() => setError('Spotify sign-up is coming soon.')} />
+            <OrDivider />
 
-          <TextField
-            label="Display name"
-            value={displayName}
-            onChangeText={setDisplayName}
-            placeholder="What friends will see"
-            autoCapitalize="words"
-            autoComplete="name"
-          />
-          <TextField
-            label="Email"
-            value={email}
-            onChangeText={setEmail}
-            placeholder="name@email.com"
-            autoCapitalize="none"
-            keyboardType="email-address"
-            autoComplete="email"
-          />
-          <TextField
-            label="Password"
-            value={password}
-            onChangeText={setPassword}
-            placeholder="At least 6 characters"
-            secureTextEntry
-            autoComplete="new-password"
-            onSubmitEditing={submit}
-          />
+            <TextField
+              label="Display name"
+              value={displayName}
+              onChangeText={setDisplayName}
+              placeholder="What friends will see"
+              autoCapitalize="words"
+              autoComplete="name"
+            />
+            <TextField
+              label="Email"
+              value={email}
+              onChangeText={setEmail}
+              placeholder="name@email.com"
+              autoCapitalize="none"
+              keyboardType="email-address"
+              autoComplete="email"
+            />
+            <TextField
+              label="Password"
+              value={password}
+              onChangeText={setPassword}
+              placeholder="At least 6 characters"
+              secureTextEntry
+              autoComplete="new-password"
+              onSubmitEditing={submit}
+            />
 
-          {error && (
-            <ThemedText type="small" style={styles.error}>
-              {error}
-            </ThemedText>
-          )}
-
-          <Pressable
-            testID="auth-submit"
-            onPress={submit}
-            style={({ pressed }) => [styles.primary, { opacity: pressed || busy ? 0.7 : 1 }]}>
-            {busy ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <ThemedText type="smallBold" style={{ color: '#fff' }}>
-                Create account
+            {error && (
+              <ThemedText type="small" style={styles.error}>
+                {error}
               </ThemedText>
             )}
-          </Pressable>
 
-          <ThemedText type="small" themeColor="textSecondary" style={styles.footer}>
-            Already have an account?{' '}
-            <Link href="/(auth)/sign-in" replace style={styles.link}>
-              Sign in
-            </Link>
-          </ThemedText>
+            <Pressable
+              testID="auth-submit"
+              onPress={submit}
+              style={({ pressed }) => [styles.primary, { opacity: pressed || busy ? 0.7 : 1 }]}>
+              {busy ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <ThemedText type="smallBold" style={{ color: '#fff' }}>
+                  Create account
+                </ThemedText>
+              )}
+            </Pressable>
+
+            <ThemedText type="small" themeColor="textSecondary" style={styles.footer}>
+              Already have an account?{' '}
+              <Link href="/(auth)/sign-in" replace style={styles.link}>
+                Sign in
+              </Link>
+            </ThemedText>
+          </PageContainer>
         </ScrollView>
       </KeyboardAvoidingView>
     </ThemedView>
@@ -114,8 +117,8 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     padding: Spacing.four,
-    gap: Spacing.three,
   },
+  inner: { gap: Spacing.three },
   error: { color: '#E24B4A' },
   primary: {
     backgroundColor: '#1D9E75',

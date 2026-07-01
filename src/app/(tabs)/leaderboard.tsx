@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { PageContainer } from '@/components/page-container';
 import { Segmented } from '@/components/segmented';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -9,6 +10,7 @@ import { Spacing } from '@/constants/theme';
 import { useAuth } from '@/auth/store';
 import { PROFILE } from '@/data/catalog';
 import { useRatings } from '@/data/store';
+import { useResponsive } from '@/hooks/use-responsive';
 import { useTheme } from '@/hooks/use-theme';
 import { LEADERBOARD_USERS, METRICS, type LeaderboardUser, type MetricKey } from '@/leaderboard/data';
 import { useStreaks } from '@/streaks/store';
@@ -24,6 +26,7 @@ function initialsFrom(name: string): string {
 
 export default function LeaderboardScreen() {
   const theme = useTheme();
+  const { isWide } = useResponsive();
   const { user } = useAuth();
   const { ranked } = useRatings();
   const { current: streak } = useStreaks();
@@ -50,78 +53,80 @@ export default function LeaderboardScreen() {
   return (
     <ThemedView style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Segmented
-          options={[
-            { key: 'global', label: 'Global' },
-            { key: 'friends', label: 'Friends' },
-          ]}
-          value={scope}
-          onChange={(v) => setScope(v as Scope)}
-          testIDPrefix="scope"
-          style={{ marginBottom: Spacing.one }}
-        />
+        <PageContainer style={styles.inner}>
+          <Segmented
+            options={[
+              { key: 'global', label: 'Global' },
+              { key: 'friends', label: 'Friends' },
+            ]}
+            value={scope}
+            onChange={(v) => setScope(v as Scope)}
+            testIDPrefix="scope"
+            style={{ marginBottom: Spacing.one, ...(isWide && { alignSelf: 'flex-start' }) }}
+          />
 
-        <View style={styles.chips}>
-          {METRICS.map((m) => {
-            const active = m.key === metricKey;
+          <View style={styles.chips}>
+            {METRICS.map((m) => {
+              const active = m.key === metricKey;
+              return (
+                <Pressable
+                  key={m.key}
+                  testID={`metric-${m.key}`}
+                  onPress={() => setMetricKey(m.key)}
+                  style={[
+                    styles.chip,
+                    { backgroundColor: active ? '#1D9E75' : theme.backgroundElement },
+                  ]}>
+                  <ThemedText type="small" style={{ color: active ? '#fff' : theme.textSecondary }}>
+                    {m.label}
+                  </ThemedText>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {rows.map((u, i) => {
+            const isYou = u.id === youId;
             return (
-              <Pressable
-                key={m.key}
-                testID={`metric-${m.key}`}
-                onPress={() => setMetricKey(m.key)}
+              <View
+                key={u.id}
                 style={[
-                  styles.chip,
-                  { backgroundColor: active ? '#1D9E75' : theme.backgroundElement },
+                  styles.row,
+                  {
+                    backgroundColor: isYou ? '#1D9E7522' : theme.backgroundElement,
+                    borderColor: isYou ? '#1D9E75' : 'transparent',
+                  },
                 ]}>
-                <ThemedText type="small" style={{ color: active ? '#fff' : theme.textSecondary }}>
-                  {m.label}
+                <ThemedText
+                  type="smallBold"
+                  style={[styles.rank, { color: MEDALS[i] ?? theme.textSecondary }]}>
+                  {i + 1}
                 </ThemedText>
-              </Pressable>
+                <View style={[styles.avatar, { backgroundColor: theme.backgroundSelected }]}>
+                  <ThemedText type="smallBold">{u.initials}</ThemedText>
+                </View>
+                <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: Spacing.two }}>
+                  <ThemedText type="smallBold" numberOfLines={1}>
+                    {u.username}
+                  </ThemedText>
+                  {isYou && (
+                    <View style={styles.youBadge}>
+                      <ThemedText type="small" style={{ color: '#1D9E75', fontSize: 11 }}>
+                        you
+                      </ThemedText>
+                    </View>
+                  )}
+                </View>
+                <ThemedText type="smallBold">{metric.format(metric.get(u))}</ThemedText>
+              </View>
             );
           })}
-        </View>
 
-        {rows.map((u, i) => {
-          const isYou = u.id === youId;
-          return (
-            <View
-              key={u.id}
-              style={[
-                styles.row,
-                {
-                  backgroundColor: isYou ? '#1D9E7522' : theme.backgroundElement,
-                  borderColor: isYou ? '#1D9E75' : 'transparent',
-                },
-              ]}>
-              <ThemedText
-                type="smallBold"
-                style={[styles.rank, { color: MEDALS[i] ?? theme.textSecondary }]}>
-                {i + 1}
-              </ThemedText>
-              <View style={[styles.avatar, { backgroundColor: theme.backgroundSelected }]}>
-                <ThemedText type="smallBold">{u.initials}</ThemedText>
-              </View>
-              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: Spacing.two }}>
-                <ThemedText type="smallBold" numberOfLines={1}>
-                  {u.username}
-                </ThemedText>
-                {isYou && (
-                  <View style={styles.youBadge}>
-                    <ThemedText type="small" style={{ color: '#1D9E75', fontSize: 11 }}>
-                      you
-                    </ThemedText>
-                  </View>
-                )}
-              </View>
-              <ThemedText type="smallBold">{metric.format(metric.get(u))}</ThemedText>
-            </View>
-          );
-        })}
-
-        <ThemedText type="small" themeColor="textSecondary" style={styles.footnote}>
-          Ranked by {metric.label.toLowerCase()} ·{' '}
-          {scope === 'friends' ? 'people you follow' : 'everyone on Heard'}
-        </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.footnote}>
+            Ranked by {metric.label.toLowerCase()} ·{' '}
+            {scope === 'friends' ? 'people you follow' : 'everyone on Heard'}
+          </ThemedText>
+        </PageContainer>
       </ScrollView>
     </ThemedView>
   );
@@ -129,7 +134,8 @@ export default function LeaderboardScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  content: { padding: Spacing.three, gap: Spacing.two },
+  content: { padding: Spacing.three },
+  inner: { gap: Spacing.two },
   chips: { flexDirection: 'row', gap: Spacing.two, marginBottom: Spacing.two },
   chip: { paddingVertical: 6, paddingHorizontal: Spacing.three, borderRadius: 999 },
   row: {

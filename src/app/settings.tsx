@@ -9,6 +9,7 @@ import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { useAuth } from '@/auth/store';
+import { PageContainer } from '@/components/page-container';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -30,34 +31,36 @@ export default function SettingsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        <Section label="ACCOUNT">
-          <Row icon="person-outline" label="Display name" value={user?.displayName} theme={theme} />
-          <Row icon="mail-outline" label="Email" value={user?.email} theme={theme} />
-          <Row icon="key-outline" label="Change password" soon theme={theme} />
-          <Row
-            testID="sign-out"
-            icon="log-out-outline"
-            label="Sign out"
-            onPress={signOut}
-            danger
-            theme={theme}
-          />
-        </Section>
+        <PageContainer style={styles.inner}>
+          <Section label="ACCOUNT">
+            <Row icon="person-outline" label="Display name" value={user?.displayName} theme={theme} />
+            <Row icon="mail-outline" label="Email" value={user?.email} theme={theme} />
+            <Row icon="key-outline" label="Change password" soon theme={theme} />
+            <Row
+              testID="sign-out"
+              icon="log-out-outline"
+              label="Sign out"
+              onPress={signOut}
+              danger
+              theme={theme}
+            />
+          </Section>
 
-        <Section label="PREFERENCES">
-          <Row icon="contrast-outline" label="Appearance" value="System" soon theme={theme} />
-          <Row icon="options-outline" label="Default rating increment" value="0.1" soon theme={theme} />
-          <Row icon="notifications-outline" label="Notifications" soon theme={theme} />
-        </Section>
+          <Section label="PREFERENCES">
+            <Row icon="contrast-outline" label="Appearance" value="System" soon theme={theme} />
+            <Row icon="options-outline" label="Default rating increment" value="0.1" soon theme={theme} />
+            <Row icon="notifications-outline" label="Notifications" soon theme={theme} />
+          </Section>
 
-        <Section label="PRIVACY">
-          <Row icon="eye-outline" label="Profile visibility" value="Public" soon theme={theme} />
-          <Row icon="people-outline" label="Friends" soon theme={theme} />
-        </Section>
+          <Section label="PRIVACY">
+            <Row icon="eye-outline" label="Profile visibility" value="Public" soon theme={theme} />
+            <Row icon="people-outline" label="Friends" soon theme={theme} />
+          </Section>
 
-        <Section label="ABOUT">
-          <Row icon="information-circle-outline" label="Version" value="1.0.0" theme={theme} />
-        </Section>
+          <Section label="ABOUT">
+            <Row icon="information-circle-outline" label="Version" value="1.0.0" theme={theme} />
+          </Section>
+        </PageContainer>
       </ScrollView>
     </ThemedView>
   );
@@ -131,7 +134,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: Spacing.three,
   },
-  content: { padding: Spacing.three, gap: Spacing.four },
+  content: { padding: Spacing.three },
+  inner: { gap: Spacing.four },
   section: { gap: Spacing.two },
   sectionLabel: {},
   sectionBody: { gap: Spacing.one },

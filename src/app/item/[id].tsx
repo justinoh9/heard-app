@@ -7,6 +7,7 @@ import { useAuth } from '@/auth/store';
 import { AlbumCover } from '@/components/album-cover';
 import { CommentCard } from '@/components/comment-card';
 import { EmptyState } from '@/components/empty-state';
+import { PageContainer } from '@/components/page-container';
 import { ScoreBreakdown } from '@/components/score-breakdown';
 import { Segmented } from '@/components/segmented';
 import { TextField } from '@/components/text-field';
@@ -92,133 +93,135 @@ export default function ItemProfileScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.header}>
-          <AlbumCover uri={artUrl} size={140} radius={12} />
-          <ThemedText type="subtitle" style={styles.center}>
-            {title}
-          </ThemedText>
-          <ThemedText themeColor="textSecondary" style={styles.center}>
-            {artist}
-          </ThemedText>
-
-          {existing ? (
-            <View style={styles.scorePill}>
-              <ThemedText type="smallBold" style={{ color: '#fff' }}>
-                {existing.score.toFixed(1)}
-              </ThemedText>
-            </View>
-          ) : null}
-
-          <View style={styles.actionsRow}>
-            <Pressable
-              onPress={rate}
-              style={({ pressed }) => [styles.primary, { opacity: pressed ? 0.7 : 1 }]}>
-              <ThemedText type="smallBold" style={{ color: '#fff' }}>
-                {existing ? 'Update rating' : 'Rate'}
-              </ThemedText>
-            </Pressable>
-
-            <Pressable
-              testID="like-item"
-              onPress={toggleLike}
-              style={({ pressed }) => [
-                styles.likeBtn,
-                { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.6 : 1 },
-              ]}>
-              <Ionicons
-                name={itemLike.likedByMe ? 'heart' : 'heart-outline'}
-                size={18}
-                color={itemLike.likedByMe ? '#E24B4A' : theme.textSecondary}
-              />
-              <ThemedText type="smallBold" themeColor="textSecondary">
-                {itemLike.count}
-              </ThemedText>
-            </Pressable>
-          </View>
-        </View>
-
-        <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
-          SCORES
-        </ThemedText>
-        <ScoreBreakdown itemId={id} yourScore={existing?.score} />
-
-        <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
-          COMMENTS
-        </ThemedText>
-
-        <View style={styles.commentBox}>
-          <TextField
-            label="Add a comment"
-            value={body}
-            onChangeText={setBody}
-            placeholder="Share your thoughts"
-            multiline
-            maxLength={1000}
-            style={styles.commentInput}
-          />
-          <Pressable
-            testID="post-comment"
-            onPress={post}
-            disabled={!body.trim() || posting}
-            style={({ pressed }) => [
-              styles.primary,
-              { opacity: pressed || !body.trim() || posting ? 0.6 : 1 },
-            ]}>
-            <ThemedText type="smallBold" style={{ color: '#fff' }}>
-              Post
+        <PageContainer style={styles.inner}>
+          <View style={styles.header}>
+            <AlbumCover uri={artUrl} size={140} radius={12} />
+            <ThemedText type="subtitle" style={styles.center}>
+              {title}
             </ThemedText>
-          </Pressable>
-        </View>
+            <ThemedText themeColor="textSecondary" style={styles.center}>
+              {artist}
+            </ThemedText>
 
-        {error && (
-          <ThemedText type="small" style={styles.error}>
-            {error}
+            {existing ? (
+              <View style={styles.scorePill}>
+                <ThemedText type="smallBold" style={{ color: '#fff' }}>
+                  {existing.score.toFixed(1)}
+                </ThemedText>
+              </View>
+            ) : null}
+
+            <View style={styles.actionsRow}>
+              <Pressable
+                onPress={rate}
+                style={({ pressed }) => [styles.primary, { opacity: pressed ? 0.7 : 1 }]}>
+                <ThemedText type="smallBold" style={{ color: '#fff' }}>
+                  {existing ? 'Update rating' : 'Rate'}
+                </ThemedText>
+              </Pressable>
+
+              <Pressable
+                testID="like-item"
+                onPress={toggleLike}
+                style={({ pressed }) => [
+                  styles.likeBtn,
+                  { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.6 : 1 },
+                ]}>
+                <Ionicons
+                  name={itemLike.likedByMe ? 'heart' : 'heart-outline'}
+                  size={18}
+                  color={itemLike.likedByMe ? '#E24B4A' : theme.textSecondary}
+                />
+                <ThemedText type="smallBold" themeColor="textSecondary">
+                  {itemLike.count}
+                </ThemedText>
+              </Pressable>
+            </View>
+          </View>
+
+          <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
+            SCORES
           </ThemedText>
-        )}
+          <ScoreBreakdown itemId={id} yourScore={existing?.score} />
 
-        {comments.length > 1 && (
-          <View style={styles.commentControls}>
-            <Segmented
-              options={[
-                { key: 'everyone', label: 'Everyone' },
-                { key: 'friends', label: 'Friends' },
-              ]}
-              value={scope}
-              onChange={(v) => setScope(v as CommentScope)}
-              testIDPrefix="comment-scope"
-              style={{ flex: 1 }}
+          <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
+            COMMENTS
+          </ThemedText>
+
+          <View style={styles.commentBox}>
+            <TextField
+              label="Add a comment"
+              value={body}
+              onChangeText={setBody}
+              placeholder="Share your thoughts"
+              multiline
+              maxLength={1000}
+              style={styles.commentInput}
             />
             <Pressable
-              testID="comment-sort"
-              onPress={() => setSort((s) => (s === 'newest' ? 'oldest' : 'newest'))}
+              testID="post-comment"
+              onPress={post}
+              disabled={!body.trim() || posting}
               style={({ pressed }) => [
-                styles.sortBtn,
-                { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.6 : 1 },
+                styles.primary,
+                { opacity: pressed || !body.trim() || posting ? 0.6 : 1 },
               ]}>
-              <Ionicons name="swap-vertical" size={15} color={theme.textSecondary} />
-              <ThemedText type="small" themeColor="textSecondary">
-                {sort === 'newest' ? 'Newest' : 'Oldest'}
+              <ThemedText type="smallBold" style={{ color: '#fff' }}>
+                Post
               </ThemedText>
             </Pressable>
           </View>
-        )}
 
-        {!loading && !error && comments.length === 0 && (
-          <EmptyState icon="chatbubble-outline" message="No comments yet." />
-        )}
+          {error && (
+            <ThemedText type="small" style={styles.error}>
+              {error}
+            </ThemedText>
+          )}
 
-        {!loading && !error && comments.length > 0 && visibleComments.length === 0 && (
-          <EmptyState icon="people-outline" message="No comments from friends yet." />
-        )}
+          {comments.length > 1 && (
+            <View style={styles.commentControls}>
+              <Segmented
+                options={[
+                  { key: 'everyone', label: 'Everyone' },
+                  { key: 'friends', label: 'Friends' },
+                ]}
+                value={scope}
+                onChange={(v) => setScope(v as CommentScope)}
+                testIDPrefix="comment-scope"
+                style={{ flex: 1 }}
+              />
+              <Pressable
+                testID="comment-sort"
+                onPress={() => setSort((s) => (s === 'newest' ? 'oldest' : 'newest'))}
+                style={({ pressed }) => [
+                  styles.sortBtn,
+                  { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.6 : 1 },
+                ]}>
+                <Ionicons name="swap-vertical" size={15} color={theme.textSecondary} />
+                <ThemedText type="small" themeColor="textSecondary">
+                  {sort === 'newest' ? 'Newest' : 'Oldest'}
+                </ThemedText>
+              </Pressable>
+            </View>
+          )}
 
-        {visibleComments.map((c) => (
-          <CommentCard
-            key={c.id}
-            comment={c}
-            likeSummary={commentLikes.summaries.get(c.id)}
-            onToggleLike={() => commentLikes.toggle(c.id)}
-          />
-        ))}
+          {!loading && !error && comments.length === 0 && (
+            <EmptyState icon="chatbubble-outline" message="No comments yet." />
+          )}
+
+          {!loading && !error && comments.length > 0 && visibleComments.length === 0 && (
+            <EmptyState icon="people-outline" message="No comments from friends yet." />
+          )}
+
+          {visibleComments.map((c) => (
+            <CommentCard
+              key={c.id}
+              comment={c}
+              likeSummary={commentLikes.summaries.get(c.id)}
+              onToggleLike={() => commentLikes.toggle(c.id)}
+            />
+          ))}
+        </PageContainer>
       </ScrollView>
     </ThemedView>
   );
@@ -232,7 +235,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: Spacing.three,
   },
-  content: { padding: Spacing.three, gap: Spacing.three },
+  content: { padding: Spacing.three },
+  inner: { gap: Spacing.three },
   header: { alignItems: 'center', gap: Spacing.two },
   center: { textAlign: 'center' },
   scorePill: {
