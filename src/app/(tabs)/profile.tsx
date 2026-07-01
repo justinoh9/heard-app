@@ -15,6 +15,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { playlistCoverUrls, songCountLabel } from '@/playlists/helpers';
 import { usePlaylists } from '@/playlists/store';
 import type { RankedItem } from '@/ranking/types';
+import { useStreaks } from '@/streaks/store';
 
 const BADGE_TINTS = ['#993556', '#854F0B', '#185FA5'];
 
@@ -30,6 +31,7 @@ export default function ProfileScreen() {
   const { ranked } = useRatings();
   const { user } = useAuth();
   const { playlists } = usePlaylists();
+  const { current: streak } = useStreaks();
 
   const displayName = user?.displayName ?? PROFILE.username;
   const initials = user ? initialsFrom(user.displayName) : PROFILE.initials;
@@ -77,7 +79,13 @@ export default function ProfileScreen() {
         <View style={styles.stats}>
           <Stat value={String(ranked.length)} label="rated" theme={theme} />
           <Stat value={String(PROFILE.shows)} label="shows" theme={theme} />
-          <Stat value={`${PROFILE.streak}🔥`} label="streak" theme={theme} />
+          <Stat
+            value={`${streak}🔥`}
+            label="streak"
+            theme={theme}
+            onPress={() => router.push('/streak')}
+            testID="streak-stat"
+          />
         </View>
 
         {ranked.length > 0 && (
@@ -199,20 +207,28 @@ function Stat({
   value,
   label,
   theme,
+  onPress,
+  testID,
 }: {
   value: string;
   label: string;
   theme: ReturnType<typeof useTheme>;
+  onPress?: () => void;
+  testID?: string;
 }) {
   return (
-    <View style={[styles.stat, { backgroundColor: theme.backgroundElement }]}>
+    <Pressable
+      testID={testID}
+      disabled={!onPress}
+      onPress={onPress}
+      style={({ pressed }) => [styles.stat, { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.7 : 1 }]}>
       <ThemedText type="subtitle" style={{ fontSize: 22 }}>
         {value}
       </ThemedText>
       <ThemedText type="small" themeColor="textSecondary">
         {label}
       </ThemedText>
-    </View>
+    </Pressable>
   );
 }
 
