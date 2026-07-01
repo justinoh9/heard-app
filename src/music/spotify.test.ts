@@ -4,8 +4,8 @@ import { test } from 'node:test';
 import {
   base64,
   parseAlbumResults,
+  parseAlbumTracks,
   parseArtistAlbums,
-  parseArtistAlbumSearch,
   parseArtistResults,
   parseSearchResults,
   parseTrackResults,
@@ -108,6 +108,15 @@ const artistAlbumsFixture = {
   ],
 };
 
+// GET /albums/{id}/tracks shape: a bare paging object of simplified tracks.
+const albumTracksFixture = {
+  items: [
+    { id: 't1', name: 'Let It Happen', track_number: 1, duration_ms: 467066, artists: [{ name: 'Tame Impala' }] },
+    { id: 't2', name: 'Nangs', track_number: 2, duration_ms: 108920, artists: [{ name: 'Tame Impala' }] },
+    { id: 't3', name: 'The Moment', track_number: 3, duration_ms: 254160, artists: [{ name: 'Tame Impala' }] },
+  ],
+};
+
 /** A fetch stub that answers the token endpoint and the search endpoint, counting each. */
 function stubFetch(opts: { search?: unknown; searchStatus?: number; onSearch?: () => Response }) {
   const calls = { token: 0, search: 0 };
@@ -191,11 +200,12 @@ test('a null preview_url and empty album images degrade gracefully', () => {
   assert.equal(track.artist, 'A, B');
 });
 
-test('parseSearchResults concatenates albums then tracks', () => {
-  const r = parseSearchResults({ ...albumFixture, ...trackFixture });
-  assert.equal(r.length, 3 + 2);
-  assert.equal(r[0].kind, 'album');
+test('parseSearchResults returns artists, then albums, then songs', () => {
+  const r = parseSearchResults({ ...artistFixture, ...albumFixture, ...trackFixture });
+  assert.equal(r.length, 3 + 3 + 2); // 3 artists, 3 albums, 2 songs
+  assert.equal(r[0].kind, 'artist');
   assert.equal(r[r.length - 1].kind, 'song');
+  assert.ok(r.some((x) => x.kind === 'album'));
 });
 
 test('base64 encodes ASCII correctly', () => {
@@ -218,12 +228,6 @@ test('artists are ranked by popularity, highest first', () => {
   const r = parseArtistResults(artistFixture);
   assert.equal(r[0].id, 'ar-high');
   assert.equal(r[r.length - 1].id, 'ar-noimg');
-});
-
-test('parseArtistAlbumSearch puts artists before albums', () => {
-  const r = parseArtistAlbumSearch({ ...artistFixture, ...albumFixture });
-  assert.equal(r[0].kind, 'artist');
-  assert.equal(r[r.length - 1].kind, 'album');
 });
 
 test('parseArtistAlbums dedupes by name and sorts newest first', () => {
@@ -270,21 +274,20 @@ test('searchTracks maps a successful HTTP response', async () => {
   assert.equal(r[0].kind, 'song');
 });
 
-test('searchAll fetches both types in a single request', async () => {
-  const { impl, calls } = stubFetch({ search: { ...albumFixture, ...trackFixture } });
+test('searchAll fetches artists, albums, and songs in a single request', async () => {
+  let url = '';
+  const impl = (async (u: string) => {
+    if (u.includes('accounts.spotify.com')) {
+      return new Response(JSON.stringify({ access_token: 'tok', expires_in: 3600 }), { status: 200 });
+    }
+    url = u;
+    return new Response(JSON.stringify({ ...artistFixture, ...albumFixture, ...trackFixture }), { status: 200 });
+  }) as unknown as typeof fetch;
   const cat = new SpotifyCatalog(impl);
   const r = await cat.searchAll('newjeans');
-  assert.equal(calls.search, 1); // one request, unlike MusicBrainz's two
-  assert.equal(r.length, 5);
-});
-
-test('searchAlbumsAndArtists returns artists then albums in one request', async () => {
-  const { impl, calls } = stubFetch({ search: { ...artistFixture, ...albumFixture } });
-  const cat = new SpotifyCatalog(impl);
-  const r = await cat.searchAlbumsAndArtists('tame impala');
-  assert.equal(calls.search, 1);
+  assert.match(url, /type=artist,album,track/);
+  assert.equal(r.length, 3 + 3 + 2);
   assert.equal(r[0].kind, 'artist');
-  assert.ok(r.some((x) => x.kind === 'album'));
 });
 
 test('getArtistAlbums hits the artist-albums endpoint, clamps the limit, and dedupes', async () => {
@@ -322,6 +325,38 @@ test('getArtistAlbums surfaces a non-ok status as MusicCatalogError', async () =
   }) as unknown as typeof fetch;
   const cat = new SpotifyCatalog(impl);
   await assert.rejects(() => cat.getArtistAlbums('x'), MusicCatalogError);
+});
+
+test('parseAlbumTracks maps id, title, number, duration, and artists in order', () => {
+  const r = parseAlbumTracks(albumTracksFixture);
+  assert.equal(r.length, 3);
+  assert.equal(r[0].title, 'Let It Happen');
+  assert.equal(r[0].trackNumber, 1);
+  assert.equal(r[0].durationMs, 467066);
+  assert.equal(r[0].artist, 'Tame Impala');
+});
+
+test('getAlbumTracks hits the album-tracks endpoint (limit up to 50, no dev-mode cap)', async () => {
+  let url = '';
+  const impl = (async (u: string) => {
+    if (u.includes('accounts.spotify.com')) {
+      return new Response(JSON.stringify({ access_token: 'tok', expires_in: 3600 }), { status: 200 });
+    }
+    url = u;
+    return new Response(JSON.stringify(albumTracksFixture), { status: 200 });
+  }) as unknown as typeof fetch;
+  const cat = new SpotifyCatalog(impl);
+  const r = await cat.getAlbumTracks('album123');
+  assert.match(url, /\/albums\/album123\/tracks\?/);
+  assert.match(url, /[?&]limit=50(&|$)/);
+  assert.equal(r.length, 3);
+});
+
+test('getAlbumTracks returns [] for a blank id without any fetch', async () => {
+  const { impl, calls } = stubFetch({ search: {} });
+  const cat = new SpotifyCatalog(impl);
+  assert.deepEqual(await cat.getAlbumTracks('  '), []);
+  assert.equal(calls.token, 0);
 });
 
 test('the search limit is clamped to Spotify’s development-mode max (10)', async () => {

@@ -43,6 +43,18 @@ export interface SearchResult {
   provider: MusicProvider;
 }
 
+/** One track in an album's tracklist (from getAlbumTracks). */
+export interface AlbumTrack {
+  id: string;
+  title: string;
+  /** 1-based position on the album. */
+  trackNumber: number;
+  /** Length in milliseconds. */
+  durationMs: number;
+  /** Credited artists, comma-joined. */
+  artist: string;
+}
+
 export interface SearchOptions {
   /** Max results to return. Default 20. */
   limit?: number;
@@ -57,13 +69,14 @@ export interface MusicCatalog {
   readonly provider: MusicProvider;
   searchAlbums(query: string, opts?: SearchOptions): Promise<SearchResult[]>;
   searchTracks(query: string, opts?: SearchOptions): Promise<SearchResult[]>;
-  /** Combined album + song search, for surfaces that don't separate the two. */
-  searchAll(query: string, opts?: SearchOptions): Promise<SearchResult[]>;
   /**
-   * Combined artist + album search (artists first), for the main search surface:
-   * lets the user jump into an artist's page or rate an album from one query.
+   * Everything at once — artists, songs, and albums — for the main search
+   * surface (Spotify-style mixed results). Order: artists, then albums, then
+   * songs; the UI groups by `kind`.
    */
-  searchAlbumsAndArtists(query: string, opts?: SearchOptions): Promise<SearchResult[]>;
+  searchAll(query: string, opts?: SearchOptions): Promise<SearchResult[]>;
   /** An artist's albums + singles (albums first, newest first), for the artist page. */
   getArtistAlbums(artistId: string, opts?: SearchOptions): Promise<SearchResult[]>;
+  /** An album's tracklist, in album order, for the album's item page. */
+  getAlbumTracks(albumId: string, opts?: SearchOptions): Promise<AlbumTrack[]>;
 }

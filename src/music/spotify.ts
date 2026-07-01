@@ -22,6 +22,7 @@
 
 import {
   MusicCatalogError,
+  type AlbumTrack,
   type MusicCatalog,
   type SearchOptions,
   type SearchResult,
@@ -63,8 +64,15 @@ interface SpotifyTrackObject {
   name: string;
   popularity?: number;
   preview_url?: string | null;
+  track_number?: number;
+  duration_ms?: number;
   album?: SpotifyAlbumObject;
   artists?: SpotifyArtist[];
+}
+
+/** Shape of GET /albums/{id}/tracks (a bare paging object of simplified tracks). */
+interface SpotifyAlbumTracksResponse {
+  items?: SpotifyTrackObject[];
 }
 
 interface SpotifyArtistObject {
@@ -185,11 +193,6 @@ export function parseTrackResults(json: SpotifySearchResponse): SearchResult[] {
   return results.sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0));
 }
 
-/** Pure: combined album + track results (albums first), for `searchAll`. */
-export function parseSearchResults(json: SpotifySearchResponse): SearchResult[] {
-  return [...parseAlbumResults(json), ...parseTrackResults(json)];
-}
-
 /**
  * Pure: map a search response's artists to artist results, most popular first.
  * `artist` is left blank (the name lives in `title`). Spotify's current API tier
@@ -209,9 +212,23 @@ export function parseArtistResults(json: SpotifySearchResponse): SearchResult[] 
   return results.sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0));
 }
 
-/** Pure: artists first, then albums — the ordering for `searchAlbumsAndArtists`. */
-export function parseArtistAlbumSearch(json: SpotifySearchResponse): SearchResult[] {
-  return [...parseArtistResults(json), ...parseAlbumResults(json)];
+/**
+ * Pure: everything from a mixed search — artists, then albums, then songs. The
+ * search UI groups by `kind`, so this order just gives a sensible default.
+ */
+export function parseSearchResults(json: SpotifySearchResponse): SearchResult[] {
+  return [...parseArtistResults(json), ...parseAlbumResults(json), ...parseTrackResults(json)];
+}
+
+/** Pure: map GET /albums/{id}/tracks to a tracklist in album order. */
+export function parseAlbumTracks(json: SpotifyAlbumTracksResponse): AlbumTrack[] {
+  return (json.items ?? []).map((t, i) => ({
+    id: t.id,
+    title: t.name,
+    trackNumber: t.track_number ?? i + 1,
+    durationMs: t.duration_ms ?? 0,
+    artist: artistNames(t.artists),
+  }));
 }
 
 /**
@@ -401,14 +418,8 @@ export class SpotifyCatalog implements MusicCatalog {
   async searchAll(query: string, opts: SearchOptions = {}): Promise<SearchResult[]> {
     const q = query.trim();
     if (!q) return [];
-    // Spotify searches both types in one request — no fan-out like MusicBrainz.
-    return parseSearchResults(await this.search('album,track', q, opts.limit, opts.signal));
-  }
-
-  async searchAlbumsAndArtists(query: string, opts: SearchOptions = {}): Promise<SearchResult[]> {
-    const q = query.trim();
-    if (!q) return [];
-    return parseArtistAlbumSearch(await this.search('album,artist', q, opts.limit, opts.signal));
+    // One request for all three types — artists, albums, and songs together.
+    return parseSearchResults(await this.search('artist,album,track', q, opts.limit, opts.signal));
   }
 
   async getArtistAlbums(artistId: string, opts: SearchOptions = {}): Promise<SearchResult[]> {
@@ -420,5 +431,16 @@ export class SpotifyCatalog implements MusicCatalog {
       throw new MusicCatalogError(`Could not load the artist’s albums (${res.status}).`);
     }
     return parseArtistAlbums((await res.json()) as SpotifyArtistAlbumsResponse);
+  }
+
+  async getAlbumTracks(albumId: string, opts: SearchOptions = {}): Promise<AlbumTrack[]> {
+    const id = albumId.trim();
+    if (!id) return [];
+    const url = `${API}/albums/${encodeURIComponent(id)}/tracks?limit=${Math.min(opts.limit ?? 50, 50)}`;
+    const res = await this.authedGet(url, opts.signal);
+    if (!res.ok) {
+      throw new MusicCatalogError(`Could not load the album’s tracks (${res.status}).`);
+    }
+    return parseAlbumTracks((await res.json()) as SpotifyAlbumTracksResponse);
   }
 }

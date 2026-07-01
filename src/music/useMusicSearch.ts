@@ -9,7 +9,7 @@ import { useEffect, useState } from 'react';
 import { musicCatalog } from './provider';
 import { MusicCatalogError, type SearchResult } from './types';
 
-export type MusicSearchKind = 'album' | 'song' | 'albumArtist' | 'all';
+export type MusicSearchKind = 'album' | 'song' | 'all';
 
 export interface MusicSearchState {
   results: SearchResult[];
@@ -20,7 +20,6 @@ export interface MusicSearchState {
 function searchFor(kind: MusicSearchKind) {
   if (kind === 'album') return musicCatalog.searchAlbums.bind(musicCatalog);
   if (kind === 'song') return musicCatalog.searchTracks.bind(musicCatalog);
-  if (kind === 'albumArtist') return musicCatalog.searchAlbumsAndArtists.bind(musicCatalog);
   return musicCatalog.searchAll.bind(musicCatalog);
 }
 
