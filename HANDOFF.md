@@ -180,7 +180,10 @@ same pass, to keep this change scoped.
 5. **Spotify catalog — DONE.** `SpotifyCatalog` (`src/music/spotify.ts`) is live
    behind `MusicCatalog`, closing the deferred search gaps: Spotify's native
    relevance prioritizes the artist you meant, and tracks are popularity-ranked.
-   Remaining follow-ups: (a) move token minting to a backend so the client
-   secret stops shipping in the bundle; (b) optional tap-to-preview using the
-   banked `previewUrl`; (c) Apple Music (MusicKit) as a second `MusicCatalog`
-   provider later.
+   Remaining follow-ups: (a) DONE — the `supabase/functions/spotify-token` Edge
+   Function mints the token server-side; set `EXPO_PUBLIC_SPOTIFY_TOKEN_URL` and
+   drop the client secret to switch `SpotifyCatalog` into proxy mode (see that
+   function's README). (b) optional tap-to-preview using the banked `previewUrl`;
+   (c) Apple Music (MusicKit) as a second `MusicCatalog` provider later; (d)
+   optionally move the whole search server-side so not even the token reaches the
+   client.

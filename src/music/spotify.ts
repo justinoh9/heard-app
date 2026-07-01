@@ -9,11 +9,15 @@
  * Docs: https://developer.spotify.com/documentation/web-api/tutorials/client-credentials-flow
  *       https://developer.spotify.com/documentation/web-api/reference/search
  *
- * SECURITY: the Client Credentials flow needs a client secret. This app has no
- * backend, so the secret is read from `EXPO_PUBLIC_SPOTIFY_CLIENT_SECRET` and
- * therefore ships in the client bundle — the same trust level as the Supabase
- * anon key and the client-supplied `user_id` elsewhere in this prototype. Move
- * token minting behind a backend endpoint before any real launch (SPEC §7).
+ * TOKEN SOURCE (two modes, see `requestToken`):
+ *   1. Proxy (recommended) — set `EXPO_PUBLIC_SPOTIFY_TOKEN_URL` to the Supabase
+ *      Edge Function in `supabase/functions/spotify-token`. The secret stays
+ *      server-side; the client only ever holds a short-lived app token.
+ *   2. Direct (quick start) — set `EXPO_PUBLIC_SPOTIFY_CLIENT_ID` +
+ *      `EXPO_PUBLIC_SPOTIFY_CLIENT_SECRET`. Simplest, but `EXPO_PUBLIC_*` values
+ *      are inlined into the client bundle, so the secret is exposed — the same
+ *      trust level as the Supabase anon key elsewhere in this prototype. Fine
+ *      for a demo; use mode 1 before any real launch (SPEC §7).
  */
 
 import {
@@ -179,21 +183,51 @@ export class SpotifyCatalog implements MusicCatalog {
    */
   constructor(private fetchImpl: typeof fetch = fetch.bind(globalThis)) {}
 
-  private credentials(): { id: string; secret: string } {
+  /**
+   * Where the app token comes from. Prefers the server-side proxy (a Supabase
+   * Edge Function, `supabase/functions/spotify-token`) so the client secret
+   * never ships in the bundle; falls back to talking to Spotify directly with
+   * the embedded secret for a zero-backend quick start. If neither is
+   * configured, the error surfaces inline in the search UI.
+   *
+   * No AbortSignal on the token path on purpose: the fetch is shared across
+   * concurrent searches, so one search being superseded must not cancel it for
+   * the others.
+   */
+  private async requestToken(): Promise<SpotifyTokenResponse> {
+    const proxyUrl = process.env.EXPO_PUBLIC_SPOTIFY_TOKEN_URL;
+    if (proxyUrl) return this.tokenFromProxy(proxyUrl);
+
     const id = process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_ID;
     const secret = process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_SECRET;
-    if (!id || !secret) {
-      throw new MusicCatalogError(
-        'Spotify search isn’t configured. Add EXPO_PUBLIC_SPOTIFY_CLIENT_ID and EXPO_PUBLIC_SPOTIFY_CLIENT_SECRET to your .env.',
-      );
-    }
-    return { id, secret };
+    if (id && secret) return this.tokenDirect(id, secret);
+
+    throw new MusicCatalogError(
+      'Spotify search isn’t configured. Set EXPO_PUBLIC_SPOTIFY_TOKEN_URL (recommended), or EXPO_PUBLIC_SPOTIFY_CLIENT_ID + EXPO_PUBLIC_SPOTIFY_CLIENT_SECRET, in your .env.',
+    );
   }
 
-  private async fetchToken(): Promise<string> {
-    const { id, secret } = this.credentials();
-    // No AbortSignal here on purpose: the token fetch is shared across concurrent
-    // searches, so one search being superseded must not cancel it for the others.
+  /** Token via the Edge Function proxy — the secret stays server-side. */
+  private async tokenFromProxy(url: string): Promise<SpotifyTokenResponse> {
+    const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+    const headers: Record<string, string> = { Accept: 'application/json' };
+    // Supabase Edge Functions verify a JWT by default; the anon key satisfies it
+    // and is already in the bundle. Harmless if the function is --no-verify-jwt.
+    if (anonKey) {
+      headers.apikey = anonKey;
+      headers.Authorization = `Bearer ${anonKey}`;
+    }
+    const res = await this.fetchImpl(url, { headers }).catch(() => {
+      throw new MusicCatalogError('Could not reach the Spotify token service. Check your connection.');
+    });
+    if (!res.ok) {
+      throw new MusicCatalogError(`Spotify token service failed (${res.status}).`);
+    }
+    return (await res.json()) as SpotifyTokenResponse;
+  }
+
+  /** Token straight from Spotify using the embedded secret (quick-start mode). */
+  private async tokenDirect(id: string, secret: string): Promise<SpotifyTokenResponse> {
     const res = await this.fetchImpl(TOKEN_URL, {
       method: 'POST',
       headers: {
@@ -204,11 +238,14 @@ export class SpotifyCatalog implements MusicCatalog {
     }).catch(() => {
       throw new MusicCatalogError('Could not reach Spotify. Check your connection.');
     });
-
     if (!res.ok) {
       throw new MusicCatalogError(`Spotify authentication failed (${res.status}).`);
     }
-    const json = (await res.json()) as SpotifyTokenResponse;
+    return (await res.json()) as SpotifyTokenResponse;
+  }
+
+  private async fetchToken(): Promise<string> {
+    const json = await this.requestToken();
     if (!json.access_token) {
       throw new MusicCatalogError('Spotify did not return an access token.');
     }

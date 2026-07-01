@@ -11,11 +11,13 @@ A social music-rating app. See `SPEC.md` for the full product spec and rationale
   (see `src/comments/` and `src/likes/` below); a Supabase auth/ratings
   migration is still planned (SPEC §7).
 - Music search runs on the **Spotify Web API** (`src/music/spotify.ts`, Client
-  Credentials flow). It needs `EXPO_PUBLIC_SPOTIFY_CLIENT_ID` /
-  `EXPO_PUBLIC_SPOTIFY_CLIENT_SECRET` in `.env`; without them search shows a
-  friendly "not configured" message instead of crashing. The secret ships in
-  the client bundle for lack of a backend — same trust level as the Supabase
-  anon key (see the SECURITY note in `spotify.ts`).
+  Credentials flow). Two token modes (see `requestToken`): **proxy** — set
+  `EXPO_PUBLIC_SPOTIFY_TOKEN_URL` to the `supabase/functions/spotify-token` Edge
+  Function so the secret stays server-side (recommended); or **direct** — set
+  `EXPO_PUBLIC_SPOTIFY_CLIENT_ID` / `EXPO_PUBLIC_SPOTIFY_CLIENT_SECRET` for a
+  zero-backend quick start (the secret then ships in the bundle, same trust
+  level as the Supabase anon key). With neither set, search shows a friendly
+  "not configured" message instead of crashing.
 - Streak state (`src/streaks/`) is the one exception to "ratings are
   in-memory": it persists per-user to `AsyncStorage` (like `src/auth/`),
   because a streak that resets every app reload is meaningless.

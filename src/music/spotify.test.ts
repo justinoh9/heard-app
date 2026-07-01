@@ -240,6 +240,55 @@ test('network failure is wrapped as MusicCatalogError', async () => {
   await assert.rejects(() => cat.searchAlbums('x'), MusicCatalogError);
 });
 
+// ---- proxy mode (Edge Function token endpoint) ----------------------------
+
+test('proxy mode fetches the token from the token URL, never from Spotify', async () => {
+  const PROXY = 'https://proj.supabase.co/functions/v1/spotify-token';
+  process.env.EXPO_PUBLIC_SPOTIFY_TOKEN_URL = PROXY;
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = 'anon-key-123';
+  try {
+    const hits = { proxy: 0, spotifyToken: 0, search: 0 };
+    let sentAuth: string | undefined;
+    const impl = (async (url: string, init?: RequestInit) => {
+      if (url === PROXY) {
+        hits.proxy += 1;
+        sentAuth = (init?.headers as Record<string, string>)?.Authorization;
+        return new Response(JSON.stringify({ access_token: 'proxy-tok', expires_in: 3600 }), { status: 200 });
+      }
+      if (url.includes('accounts.spotify.com')) {
+        hits.spotifyToken += 1;
+        return new Response('{}', { status: 200 });
+      }
+      hits.search += 1;
+      return new Response(JSON.stringify(albumFixture), { status: 200 });
+    }) as unknown as typeof fetch;
+    const cat = new SpotifyCatalog(impl);
+    const r = await cat.searchAlbums('newjeans');
+    assert.equal(r.length, 3);
+    assert.equal(hits.proxy, 1);
+    assert.equal(hits.spotifyToken, 0); // the secret never leaves the server
+    assert.equal(sentAuth, 'Bearer anon-key-123'); // anon key forwarded to satisfy JWT
+  } finally {
+    delete process.env.EXPO_PUBLIC_SPOTIFY_TOKEN_URL;
+    delete process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+  }
+});
+
+test('proxy mode surfaces a token-service failure as MusicCatalogError', async () => {
+  const PROXY = 'https://proj.supabase.co/functions/v1/spotify-token';
+  process.env.EXPO_PUBLIC_SPOTIFY_TOKEN_URL = PROXY;
+  try {
+    const impl = (async (url: string) => {
+      if (url === PROXY) return new Response('nope', { status: 500 });
+      return new Response(JSON.stringify(albumFixture), { status: 200 });
+    }) as unknown as typeof fetch;
+    const cat = new SpotifyCatalog(impl);
+    await assert.rejects(() => cat.searchAlbums('x'), MusicCatalogError);
+  } finally {
+    delete process.env.EXPO_PUBLIC_SPOTIFY_TOKEN_URL;
+  }
+});
+
 test('missing credentials throws a MusicCatalogError without hitting the network', async () => {
   const id = process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_ID;
   const secret = process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_SECRET;
