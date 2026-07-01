@@ -10,24 +10,34 @@
  */
 
 export type MusicProvider = 'musicbrainz' | 'spotify';
-export type SearchResultKind = 'album' | 'song';
+/**
+ * `artist` is a browse-only result (you navigate into its page, you don't rate
+ * it), so comments/ratings never receive it in practice — see `src/comments`.
+ */
+export type SearchResultKind = 'album' | 'song' | 'artist';
 
 export interface SearchResult {
-  /** Provider-specific id (MusicBrainz release-group MBID for albums, recording MBID for songs). */
+  /** Provider-specific id (Spotify album/track/artist id). */
   id: string;
   kind: SearchResultKind;
+  /** Album/song title, or the artist's name for artist-kind results. */
   title: string;
+  /** Credited artist. Empty for artist-kind results (the name is in `title`). */
   artist: string;
   /** Release year, when known (e.g. "2023"). */
   year?: string;
-  /** Front cover thumbnail URL. May 404 if the release has no art — UI falls back. */
+  /** Cover/artist thumbnail URL. May be missing — UI falls back. */
   coverUrl?: string;
   /** "Album" | "EP" | "Single" | ... — album-kind only, lets the UI label or filter. */
   primaryType?: string;
   /** Parent album title — song-kind only. */
   albumTitle?: string;
-  /** 0-100 normalized popularity, when the provider has one. Spotify sets this on tracks. */
+  /** 0-100 normalized popularity, when the provider has one. Spotify sets this on tracks/artists. */
   popularity?: number;
+  /** Spotify genre tags — artist-kind only. */
+  genres?: string[];
+  /** Total follower count — artist-kind only. */
+  followers?: number;
   /**
    * 30-second preview MP3, when Spotify provides one. Banked for a future
    * tap-to-preview affordance; often null on newer apps (Spotify has been
@@ -53,4 +63,13 @@ export interface MusicCatalog {
   searchTracks(query: string, opts?: SearchOptions): Promise<SearchResult[]>;
   /** Combined album + song search, for surfaces that don't separate the two. */
   searchAll(query: string, opts?: SearchOptions): Promise<SearchResult[]>;
+  /**
+   * Combined artist + album search (artists first), for the main search surface:
+   * lets the user jump into an artist's page or rate an album from one query.
+   */
+  searchAlbumsAndArtists(query: string, opts?: SearchOptions): Promise<SearchResult[]>;
+  /** Full artist detail (name, image, genres, followers) for the artist page header. */
+  getArtist(artistId: string, opts?: SearchOptions): Promise<SearchResult>;
+  /** An artist's albums + singles (albums first, newest first), for the artist page. */
+  getArtistAlbums(artistId: string, opts?: SearchOptions): Promise<SearchResult[]>;
 }

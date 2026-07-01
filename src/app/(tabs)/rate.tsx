@@ -18,7 +18,7 @@ export default function RateSearchScreen() {
   const router = useRouter();
   const { ratingFor } = useRatings();
   const [query, setQuery] = useState('');
-  const { results, loading, error } = useMusicSearch(query, 'album');
+  const { results, loading, error } = useMusicSearch(query, 'albumArtist');
 
   function openLog(album: SearchResult) {
     router.push({
@@ -31,6 +31,14 @@ export default function RateSearchScreen() {
         year: album.year ?? '',
         artUrl: album.coverUrl ?? '',
       },
+    });
+  }
+
+  function openArtist(artist: SearchResult) {
+    // Only name + image are known from search; the artist page fetches the rest.
+    router.push({
+      pathname: '/artist/[id]',
+      params: { id: artist.id, name: artist.title, image: artist.coverUrl ?? '' },
     });
   }
 
@@ -76,7 +84,11 @@ export default function RateSearchScreen() {
             ) : (
               <EmptyState
                 icon={query ? 'sad-outline' : 'search'}
-                message={query ? `No albums found for “${query.trim()}”` : 'Find an album to rate.'}
+                message={
+                  query
+                    ? `No results for “${query.trim()}”`
+                    : 'Search an artist or album to rate.'
+                }
               />
             )
           }
@@ -86,6 +98,28 @@ export default function RateSearchScreen() {
             ) : null
           }
           renderItem={({ item }) => {
+            if (item.kind === 'artist') {
+              return (
+                <Pressable
+                  testID="artist-result"
+                  onPress={() => openArtist(item)}
+                  style={({ pressed }) => [
+                    styles.row,
+                    { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.6 : 1 },
+                  ]}>
+                  <AlbumCover uri={item.coverUrl} size={56} radius={28} fallbackIcon="person" />
+                  <View style={styles.rowText}>
+                    <ThemedText type="smallBold" numberOfLines={1}>
+                      {item.title}
+                    </ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+                      Artist
+                    </ThemedText>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
+                </Pressable>
+              );
+            }
             const existing = ratingFor(item.id);
             return (
               <Pressable

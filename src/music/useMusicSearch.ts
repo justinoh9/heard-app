@@ -9,7 +9,7 @@ import { useEffect, useState } from 'react';
 import { musicCatalog } from './provider';
 import { MusicCatalogError, type SearchResult } from './types';
 
-export type MusicSearchKind = 'album' | 'song' | 'all';
+export type MusicSearchKind = 'album' | 'song' | 'albumArtist' | 'all';
 
 export interface MusicSearchState {
   results: SearchResult[];
@@ -20,6 +20,7 @@ export interface MusicSearchState {
 function searchFor(kind: MusicSearchKind) {
   if (kind === 'album') return musicCatalog.searchAlbums.bind(musicCatalog);
   if (kind === 'song') return musicCatalog.searchTracks.bind(musicCatalog);
+  if (kind === 'albumArtist') return musicCatalog.searchAlbumsAndArtists.bind(musicCatalog);
   return musicCatalog.searchAll.bind(musicCatalog);
 }
 
@@ -44,7 +45,7 @@ export function useMusicSearch(
     setState((s) => ({ ...s, loading: true, error: null }));
     const controller = new AbortController();
     const timer = setTimeout(() => {
-      searchFor(kind)(q, { signal: controller.signal, limit: 25 })
+      searchFor(kind)(q, { signal: controller.signal })
         .then((results) => setState({ results, loading: false, error: null }))
         .catch((e: unknown) => {
           if ((e as Error)?.name === 'AbortError') return; // superseded by a newer query

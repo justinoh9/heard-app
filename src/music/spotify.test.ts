@@ -4,6 +4,10 @@ import { test } from 'node:test';
 import {
   base64,
   parseAlbumResults,
+  parseArtist,
+  parseArtistAlbums,
+  parseArtistAlbumSearch,
+  parseArtistResults,
   parseSearchResults,
   parseTrackResults,
   pickCover,
@@ -69,6 +73,40 @@ const trackFixture = {
       },
     ],
   },
+};
+
+const artistFixture = {
+  artists: {
+    items: [
+      {
+        id: 'ar-low',
+        name: 'The Opener',
+        popularity: 40,
+        genres: ['indie pop'],
+        followers: { total: 12000 },
+        images: [img('op640', 640), img('op300', 300)],
+      },
+      {
+        id: 'ar-high',
+        name: 'Tame Impala',
+        popularity: 90,
+        genres: ['psychedelic rock', 'indietronica'],
+        followers: { total: 8500000 },
+        images: [img('ti640', 640), img('ti300', 300)],
+      },
+      { id: 'ar-noimg', name: 'No Pic', popularity: 10, genres: [], images: [] },
+    ],
+  },
+};
+
+// GET /artists/{id}/albums shape: a bare paging object (not wrapped in `albums`).
+const artistAlbumsFixture = {
+  items: [
+    { id: 'd1', name: 'Currents', album_type: 'album', release_date: '2015-07-17', images: [img('c300', 300)], artists: [{ name: 'Tame Impala' }] },
+    { id: 'd1-dup', name: 'Currents', album_type: 'album', release_date: '2015-07-17', images: [img('c300', 300)], artists: [{ name: 'Tame Impala' }] },
+    { id: 'd2', name: 'The Slow Rush', album_type: 'album', release_date: '2020-02-14', images: [img('s300', 300)], artists: [{ name: 'Tame Impala' }] },
+    { id: 'd3', name: 'Lonerism', album_type: 'album', release_date: '2012-10-05', images: [img('l300', 300)], artists: [{ name: 'Tame Impala' }] },
+  ],
 };
 
 /** A fetch stub that answers the token endpoint and the search endpoint, counting each. */
@@ -165,6 +203,66 @@ test('base64 encodes ASCII correctly', () => {
   assert.equal(base64('test-id:test-secret'), 'dGVzdC1pZDp0ZXN0LXNlY3JldA==');
 });
 
+// ---- artist parsing --------------------------------------------------------
+
+test('parses an artist: name in title, blank artist, cover, genres, followers, popularity', () => {
+  const a = parseArtistResults(artistFixture).find((x) => x.id === 'ar-high')!;
+  assert.equal(a.kind, 'artist');
+  assert.equal(a.title, 'Tame Impala');
+  assert.equal(a.artist, '');
+  assert.equal(a.coverUrl, 'ti300');
+  assert.deepEqual(a.genres, ['psychedelic rock', 'indietronica']);
+  assert.equal(a.followers, 8500000);
+  assert.equal(a.popularity, 90);
+  assert.equal(a.provider, 'spotify');
+});
+
+test('artists are ranked by popularity, highest first', () => {
+  const r = parseArtistResults(artistFixture);
+  assert.equal(r[0].id, 'ar-high');
+  assert.equal(r[r.length - 1].id, 'ar-noimg');
+});
+
+test('parseArtistAlbumSearch puts artists before albums', () => {
+  const r = parseArtistAlbumSearch({ ...artistFixture, ...albumFixture });
+  assert.equal(r[0].kind, 'artist');
+  assert.equal(r[r.length - 1].kind, 'album');
+});
+
+test('parseArtistAlbums dedupes by name and sorts newest first', () => {
+  const r = parseArtistAlbums(artistAlbumsFixture);
+  assert.deepEqual(r.map((x) => x.title), ['The Slow Rush', 'Currents', 'Lonerism']);
+  assert.equal(r[0].kind, 'album');
+  assert.equal(r[0].year, '2020');
+});
+
+test('parseArtistAlbums lists full albums before singles', () => {
+  const mixed = {
+    items: [
+      { id: 's1', name: 'New Single', album_type: 'single', release_date: '2026-01-01', images: [], artists: [] },
+      { id: 'a1', name: 'Old Album', album_type: 'album', release_date: '2010-01-01', images: [], artists: [] },
+    ],
+  };
+  const r = parseArtistAlbums(mixed);
+  assert.deepEqual(r.map((x) => x.primaryType), ['Album', 'Single']); // album first despite being older
+});
+
+test('parseArtist maps the full-artist fields (genres, followers)', () => {
+  const a = parseArtist({
+    id: 'ar-full',
+    name: 'Tame Impala',
+    genres: ['psychedelic rock'],
+    popularity: 88,
+    followers: { total: 8500000 },
+    images: [img('f640', 640), img('f300', 300)],
+  });
+  assert.equal(a.kind, 'artist');
+  assert.equal(a.title, 'Tame Impala');
+  assert.equal(a.followers, 8500000);
+  assert.deepEqual(a.genres, ['psychedelic rock']);
+  assert.equal(a.coverUrl, 'f300');
+});
+
 // ---- catalog (fetch + token) ----------------------------------------------
 
 test('empty / whitespace query returns [] without any fetch', async () => {
@@ -196,6 +294,85 @@ test('searchAll fetches both types in a single request', async () => {
   const r = await cat.searchAll('newjeans');
   assert.equal(calls.search, 1); // one request, unlike MusicBrainz's two
   assert.equal(r.length, 5);
+});
+
+test('searchAlbumsAndArtists returns artists then albums in one request', async () => {
+  const { impl, calls } = stubFetch({ search: { ...artistFixture, ...albumFixture } });
+  const cat = new SpotifyCatalog(impl);
+  const r = await cat.searchAlbumsAndArtists('tame impala');
+  assert.equal(calls.search, 1);
+  assert.equal(r[0].kind, 'artist');
+  assert.ok(r.some((x) => x.kind === 'album'));
+});
+
+test('getArtistAlbums hits the artist-albums endpoint, clamps the limit, and dedupes', async () => {
+  let url = '';
+  const impl = (async (u: string) => {
+    if (u.includes('accounts.spotify.com')) {
+      return new Response(JSON.stringify({ access_token: 'tok', expires_in: 3600 }), { status: 200 });
+    }
+    url = u;
+    return new Response(JSON.stringify(artistAlbumsFixture), { status: 200 });
+  }) as unknown as typeof fetch;
+  const cat = new SpotifyCatalog(impl);
+  const r = await cat.getArtistAlbums('artist123', { limit: 25 });
+  assert.match(url, /\/artists\/artist123\/albums\?/);
+  assert.match(url, /include_groups=album,single/);
+  assert.match(url, /[?&]limit=10(&|$)/); // clamped to the dev-mode max
+  assert.equal(r.length, 3); // duplicate collapsed
+  assert.equal(r[0].title, 'The Slow Rush');
+});
+
+test('getArtist hits the artist endpoint and returns full detail', async () => {
+  let url = '';
+  const impl = (async (u: string) => {
+    if (u.includes('accounts.spotify.com')) {
+      return new Response(JSON.stringify({ access_token: 'tok', expires_in: 3600 }), { status: 200 });
+    }
+    url = u;
+    return new Response(
+      JSON.stringify({ id: 'ar1', name: 'Tame Impala', genres: ['psych rock'], followers: { total: 8500000 }, images: [img('a300', 300)] }),
+      { status: 200 },
+    );
+  }) as unknown as typeof fetch;
+  const cat = new SpotifyCatalog(impl);
+  const a = await cat.getArtist('ar1');
+  assert.match(url, /\/artists\/ar1(\?|$)/);
+  assert.equal(a.title, 'Tame Impala');
+  assert.equal(a.followers, 8500000);
+});
+
+test('getArtistAlbums returns [] for a blank id without any fetch', async () => {
+  const { impl, calls } = stubFetch({ search: {} });
+  const cat = new SpotifyCatalog(impl);
+  assert.deepEqual(await cat.getArtistAlbums('   '), []);
+  assert.equal(calls.token, 0);
+  assert.equal(calls.search, 0);
+});
+
+test('getArtistAlbums surfaces a non-ok status as MusicCatalogError', async () => {
+  const impl = (async (u: string) => {
+    if (u.includes('accounts.spotify.com')) {
+      return new Response(JSON.stringify({ access_token: 'tok', expires_in: 3600 }), { status: 200 });
+    }
+    return new Response('nope', { status: 404 });
+  }) as unknown as typeof fetch;
+  const cat = new SpotifyCatalog(impl);
+  await assert.rejects(() => cat.getArtistAlbums('x'), MusicCatalogError);
+});
+
+test('the search limit is clamped to Spotify’s development-mode max (10)', async () => {
+  let searchUrl = '';
+  const impl = (async (url: string) => {
+    if (url.includes('accounts.spotify.com')) {
+      return new Response(JSON.stringify({ access_token: 'tok', expires_in: 3600 }), { status: 200 });
+    }
+    searchUrl = url;
+    return new Response(JSON.stringify(albumFixture), { status: 200 });
+  }) as unknown as typeof fetch;
+  const cat = new SpotifyCatalog(impl);
+  await cat.searchAlbums('newjeans', { limit: 25 }); // asks for more than allowed
+  assert.match(searchUrl, /[?&]limit=10(&|$)/);
 });
 
 test('the app token is fetched once and reused across searches', async () => {

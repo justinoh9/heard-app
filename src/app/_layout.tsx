@@ -80,6 +80,7 @@ function RootNavigator() {
       <Stack.Screen name="drop" options={{ presentation: 'modal' }} />
       <Stack.Screen name="playlist/[id]" />
       <Stack.Screen name="playlist/new" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="artist/[id]" />
       <Stack.Screen name="streak" />
     </Stack>
   );

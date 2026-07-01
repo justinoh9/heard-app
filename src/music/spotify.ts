@@ -30,6 +30,15 @@ import {
 const TOKEN_URL = 'https://accounts.spotify.com/api/token';
 const API = 'https://api.spotify.com/v1';
 
+/**
+ * Max page size we'll ask Spotify for. The docs allow up to 50, but apps in
+ * Spotify's **Development mode** (i.e. without an approved quota-extension
+ * request) are capped at 10 — a larger `limit` returns 400 "Invalid limit". 10
+ * is safe in both modes and plenty for a search-as-you-type list, so we clamp
+ * to it. Raise this only if the app is granted extended quota.
+ */
+const MAX_SEARCH_LIMIT = 10;
+
 interface SpotifyImage {
   url: string;
   width?: number | null;
@@ -58,9 +67,24 @@ interface SpotifyTrackObject {
   artists?: SpotifyArtist[];
 }
 
+interface SpotifyArtistObject {
+  id: string;
+  name: string;
+  images?: SpotifyImage[];
+  genres?: string[];
+  popularity?: number;
+  followers?: { total?: number };
+}
+
 interface SpotifySearchResponse {
   albums?: { items?: SpotifyAlbumObject[] };
   tracks?: { items?: SpotifyTrackObject[] };
+  artists?: { items?: SpotifyArtistObject[] };
+}
+
+/** Shape of GET /artists/{id}/albums (a bare paging object, not wrapped like search). */
+interface SpotifyArtistAlbumsResponse {
+  items?: SpotifyAlbumObject[];
 }
 
 interface SpotifyTokenResponse {
@@ -168,6 +192,73 @@ export function parseSearchResults(json: SpotifySearchResponse): SearchResult[] 
   return [...parseAlbumResults(json), ...parseTrackResults(json)];
 }
 
+/**
+ * Map one Spotify artist object to an artist result. `artist` is left blank
+ * (the name lives in `title`). Note: artist objects returned inside a *search*
+ * are simplified (no genres/followers/popularity); those fields are only
+ * populated by the full-artist lookup (`getArtist`).
+ */
+function artistToResult(a: SpotifyArtistObject): SearchResult {
+  return {
+    id: a.id,
+    kind: 'artist',
+    title: a.name,
+    artist: '',
+    coverUrl: pickCover(a.images),
+    popularity: a.popularity,
+    genres: a.genres,
+    followers: a.followers?.total,
+    provider: 'spotify',
+  };
+}
+
+/** Pure: map a search response's artists to artist results, most popular first. */
+export function parseArtistResults(json: SpotifySearchResponse): SearchResult[] {
+  const results = (json.artists?.items ?? []).map(artistToResult);
+  return results.sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0));
+}
+
+/** Pure: map a full-artist response (GET /artists/{id}) to an artist result. */
+export function parseArtist(json: SpotifyArtistObject): SearchResult {
+  return artistToResult(json);
+}
+
+/** Pure: artists first, then albums — the ordering for `searchAlbumsAndArtists`. */
+export function parseArtistAlbumSearch(json: SpotifySearchResponse): SearchResult[] {
+  return [...parseArtistResults(json), ...parseAlbumResults(json)];
+}
+
+/**
+ * Pure: map GET /artists/{id}/albums to album results, newest first, collapsing
+ * the duplicate entries Spotify returns for the same album across markets.
+ */
+export function parseArtistAlbums(json: SpotifyArtistAlbumsResponse): SearchResult[] {
+  const items = json.items ?? [];
+  const seen = new Set<string>();
+  const results: SearchResult[] = [];
+  for (const a of items) {
+    const key = a.name.trim().toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    results.push({
+      id: a.id,
+      kind: 'album',
+      title: a.name,
+      artist: artistNames(a.artists),
+      year: a.release_date?.slice(0, 4) || undefined,
+      coverUrl: pickCover(a.images),
+      primaryType: primaryTypeLabel(a.album_type),
+      provider: 'spotify',
+    });
+  }
+  // Full albums first (like Spotify's "Albums" section), then singles/EPs;
+  // newest first within each group.
+  const rank = (r: SearchResult) => (r.primaryType === 'Album' ? 0 : 1);
+  return results.sort(
+    (a, b) => rank(a) - rank(b) || (b.year ?? '').localeCompare(a.year ?? ''),
+  );
+}
+
 export class SpotifyCatalog implements MusicCatalog {
   readonly provider = 'spotify' as const;
 
@@ -266,15 +357,18 @@ export class SpotifyCatalog implements MusicCatalog {
     return this.pendingToken;
   }
 
-  private async search(
-    types: string,
-    query: string,
-    limit: number,
-    signal?: AbortSignal,
-  ): Promise<SpotifySearchResponse> {
-    const run = (token: string) => {
-      const url = `${API}/search?q=${encodeURIComponent(query)}&type=${types}&limit=${limit}`;
-      return this.fetchImpl(url, {
+  /** Clamp any requested limit to Spotify's development-mode ceiling. */
+  private cap(limit: number | undefined): number {
+    return Math.min(Math.max(1, limit ?? MAX_SEARCH_LIMIT), MAX_SEARCH_LIMIT);
+  }
+
+  /**
+   * GET a Spotify Web API URL with the app token attached, refreshing once on a
+   * 401. Shared by search and the artist-albums lookup.
+   */
+  private async authedGet(url: string, signal?: AbortSignal): Promise<Response> {
+    const run = (token: string) =>
+      this.fetchImpl(url, {
         signal,
         headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
       }).catch((e: unknown) => {
@@ -282,16 +376,24 @@ export class SpotifyCatalog implements MusicCatalog {
         if ((e as Error)?.name === 'AbortError') throw e;
         throw new MusicCatalogError('Could not reach Spotify. Check your connection.');
       });
-    };
 
     let res = await run(await this.accessToken());
-
     // A cached token can expire between mint and use — refresh once and retry.
     if (res.status === 401) {
       this.token = null;
       res = await run(await this.accessToken());
     }
+    return res;
+  }
 
+  private async search(
+    types: string,
+    query: string,
+    limit: number | undefined,
+    signal?: AbortSignal,
+  ): Promise<SpotifySearchResponse> {
+    const url = `${API}/search?q=${encodeURIComponent(query)}&type=${types}&limit=${this.cap(limit)}`;
+    const res = await this.authedGet(url, signal);
     if (!res.ok) {
       throw new MusicCatalogError(`Spotify search failed (${res.status}).`);
     }
@@ -301,19 +403,46 @@ export class SpotifyCatalog implements MusicCatalog {
   async searchAlbums(query: string, opts: SearchOptions = {}): Promise<SearchResult[]> {
     const q = query.trim();
     if (!q) return [];
-    return parseAlbumResults(await this.search('album', q, opts.limit ?? 20, opts.signal));
+    return parseAlbumResults(await this.search('album', q, opts.limit, opts.signal));
   }
 
   async searchTracks(query: string, opts: SearchOptions = {}): Promise<SearchResult[]> {
     const q = query.trim();
     if (!q) return [];
-    return parseTrackResults(await this.search('track', q, opts.limit ?? 20, opts.signal));
+    return parseTrackResults(await this.search('track', q, opts.limit, opts.signal));
   }
 
   async searchAll(query: string, opts: SearchOptions = {}): Promise<SearchResult[]> {
     const q = query.trim();
     if (!q) return [];
     // Spotify searches both types in one request — no fan-out like MusicBrainz.
-    return parseSearchResults(await this.search('album,track', q, opts.limit ?? 20, opts.signal));
+    return parseSearchResults(await this.search('album,track', q, opts.limit, opts.signal));
+  }
+
+  async searchAlbumsAndArtists(query: string, opts: SearchOptions = {}): Promise<SearchResult[]> {
+    const q = query.trim();
+    if (!q) return [];
+    return parseArtistAlbumSearch(await this.search('album,artist', q, opts.limit, opts.signal));
+  }
+
+  async getArtist(artistId: string, opts: SearchOptions = {}): Promise<SearchResult> {
+    const id = artistId.trim();
+    if (!id) throw new MusicCatalogError('No artist id.');
+    const res = await this.authedGet(`${API}/artists/${encodeURIComponent(id)}`, opts.signal);
+    if (!res.ok) {
+      throw new MusicCatalogError(`Could not load the artist (${res.status}).`);
+    }
+    return parseArtist((await res.json()) as SpotifyArtistObject);
+  }
+
+  async getArtistAlbums(artistId: string, opts: SearchOptions = {}): Promise<SearchResult[]> {
+    const id = artistId.trim();
+    if (!id) return [];
+    const url = `${API}/artists/${encodeURIComponent(id)}/albums?include_groups=album,single&limit=${this.cap(opts.limit)}`;
+    const res = await this.authedGet(url, opts.signal);
+    if (!res.ok) {
+      throw new MusicCatalogError(`Could not load the artist’s albums (${res.status}).`);
+    }
+    return parseArtistAlbums((await res.json()) as SpotifyArtistAlbumsResponse);
   }
 }
