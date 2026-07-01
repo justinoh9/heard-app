@@ -1,7 +1,7 @@
 /**
  * Debounced music search. Waits for the user to stop typing, then queries the
- * active catalog, cancelling any in-flight request when the query changes
- * (MusicBrainz is rate-limited, so we don't fire a request per keystroke).
+ * active catalog, cancelling any in-flight request when the query changes — so
+ * we don't fire a request (and burn Spotify rate limit) per keystroke.
  */
 
 import { useEffect, useState } from 'react';

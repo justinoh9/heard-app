@@ -46,7 +46,7 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test src/ranking/engine.test.ts src/ranking/score.test.ts src/social/scores.test.ts src/feed/time.test.ts src/comments/filter.test.ts src/playlists/helpers.test.ts src/music/musicbrainz.test.ts src/streaks/logic.test.ts src/likes/aggregate.test.ts"
+    "test": "tsx --test src/ranking/engine.test.ts src/ranking/score.test.ts src/social/scores.test.ts src/feed/time.test.ts src/comments/filter.test.ts src/playlists/helpers.test.ts src/music/spotify.test.ts src/streaks/logic.test.ts src/likes/aggregate.test.ts"
   },
   "private": true
 }

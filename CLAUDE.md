@@ -8,8 +8,14 @@ A social music-rating app. See `SPEC.md` for the full product spec and rationale
 - Icons: `@expo/vector-icons` (Ionicons)
 - Auth and ratings are still local/in-memory (no backend) — mock seed data in
   `src/data/`. Supabase is wired up, but **scoped only to comments and likes**
-  (see `src/comments/` and `src/likes/` below); a full Spotify catalog and
-  Supabase auth/ratings migration are still planned (SPEC §7).
+  (see `src/comments/` and `src/likes/` below); a Supabase auth/ratings
+  migration is still planned (SPEC §7).
+- Music search runs on the **Spotify Web API** (`src/music/spotify.ts`, Client
+  Credentials flow). It needs `EXPO_PUBLIC_SPOTIFY_CLIENT_ID` /
+  `EXPO_PUBLIC_SPOTIFY_CLIENT_SECRET` in `.env`; without them search shows a
+  friendly "not configured" message instead of crashing. The secret ships in
+  the client bundle for lack of a backend — same trust level as the Supabase
+  anon key (see the SECURITY note in `spotify.ts`).
 - Streak state (`src/streaks/`) is the one exception to "ratings are
   in-memory": it persists per-user to `AsyncStorage` (like `src/auth/`),
   because a streak that resets every app reload is meaningless.
@@ -30,9 +36,10 @@ A social music-rating app. See `SPEC.md` for the full product spec and rationale
   ratings store + `useRatings()` hook). This is the seam the backend replaces.
 - `src/auth/` — `useAuth()`/`AuthBackend` seam; `LocalAuthBackend` ships now
   (AsyncStorage + expo-crypto).
-- `src/music/` — `MusicCatalog` seam; `MusicBrainzCatalog` ships now (album +
-  track/recording search, no API key). Spotify drops in behind the same
-  interface later.
+- `src/music/` — `MusicCatalog` seam; `SpotifyCatalog` (`spotify.ts`) ships now
+  (album + track search in one request, popularity-ranked tracks, cached app
+  token). `cover-art.ts` builds Cover Art Archive URLs — used only by the mock
+  seed data (`catalog.ts`, `seed.ts`), independent of live search.
 - `src/comments/` — `CommentsBackend` seam; `SupabaseCommentsBackend` is the
   only implementation (ships Supabase-backed from day one — see "Comments,
   likes & Supabase" below).
@@ -70,7 +77,8 @@ already underway.
   `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY` from a Supabase
   project (Project Settings → API). Without these, `src/lib/supabase.ts`
   throws at module load — search/rating still work, only comments and likes
-  break.
+  break. (The same `.env` also holds the Spotify keys that power search — see
+  the Stack section.)
 - Run `supabase/migrations/0001_comments.sql` and `0002_likes.sql` in the
   project's SQL Editor to create the `comments` and `likes` tables.
 - **Known trust gap**: auth is `LocalAuthBackend`, not Supabase Auth, so RLS

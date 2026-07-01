@@ -14,11 +14,14 @@ the one feature backed by a real hosted database (Supabase)** — see below.
 ## Status: what's built (Phases 1–5 + leaderboard + song profiles/comments)
 - **Auth** — email/password sign-up + sign-in, session persisted on-device, route
   gating (signed-out users can't reach the app). "Continue with Spotify" is a stub.
-- **Music search** — live debounced MusicBrainz search, both album (release-group)
-  and song/track (recording) results, with cover art (Cover Art Archive) and
-  already-rated score pills. `rate.tsx`'s search tab stays album-only; track
-  search is wired into the catalog seam (`MusicCatalog.searchTracks`/`searchAll`)
-  for the item-profile flow and future surfaces.
+- **Music search** — live debounced **Spotify** search (`src/music/spotify.ts`,
+  Client Credentials flow), both album and track results, with cover art and
+  already-rated score pills. Tracks are ranked by Spotify popularity; `searchAll`
+  fetches both types in one request. `rate.tsx`'s search tab stays album-only;
+  track search is wired into the catalog seam (`MusicCatalog.searchTracks`/`searchAll`)
+  for the drop/playlist/item-profile flows. Needs `EXPO_PUBLIC_SPOTIFY_CLIENT_ID`/
+  `EXPO_PUBLIC_SPOTIFY_CLIENT_SECRET` in `.env` (verified in the web build: with
+  keys absent, search shows a friendly "not configured" message, no crash).
 - **Rate flow** — a modal: pick a 0–10 score (stepper, **0.1** fine increment),
   tie-break comparisons fire only when the score collides with existing items,
   then an optional, skippable review-text step that posts a public comment.
@@ -48,7 +51,7 @@ changes. This is the core design principle — keep it.
 |---|---|---|---|
 | Auth | `useAuth()` / `AuthBackend` | `LocalAuthBackend` (AsyncStorage + expo-crypto) | `SupabaseAuthBackend` |
 | Ratings | `useRatings()` / `RankingEngine` | `RatingTiebreakEngine` (in-memory store) | Supabase store / Elo engine |
-| Music search | `MusicCatalog` | `MusicBrainzCatalog` (albums + tracks) | `SpotifyCatalog` |
+| Music search | `MusicCatalog` | `SpotifyCatalog` (albums + tracks, popularity-ranked) | Apple Music (MusicKit) later |
 | Comments | `useComments()` / `CommentsBackend` | `SupabaseCommentsBackend` (real DB, scoped to this seam only) | — already real; revisit only the auth-trust gap (below) |
 | Leaderboard | mock `LEADERBOARD_USERS` + `METRICS` | mock data | Supabase aggregates |
 
@@ -91,10 +94,11 @@ same pass, to keep this change scoped.
   `FeedEvent` now carries `itemId`/`itemType` so cards can link out), `store.ts`
   (`RatingsContext`/`useRatings`/`useRatingsState`).
 - `src/music/` — `types.ts` (`SearchResult` with a `kind: 'album'|'song'`
-  discriminant), `musicbrainz.ts` (`parseAlbumResults`, `parseTrackResults`,
-  `searchAlbums`/`searchTracks`/`searchAll`), `provider.ts` (`musicCatalog`
-  singleton), `useMusicSearch.ts` (debounced, takes a `kind` param), `index.ts`
-  (barrel), `musicbrainz.test.ts`.
+  discriminant, plus `popularity`/`previewUrl`), `spotify.ts` (`SpotifyCatalog`:
+  token minting/caching + `parseAlbumResults`/`parseTrackResults`/`parseSearchResults`,
+  `searchAlbums`/`searchTracks`/`searchAll`), `cover-art.ts` (`coverArtUrl`, seed
+  data only), `provider.ts` (`musicCatalog` singleton), `useMusicSearch.ts`
+  (debounced, takes a `kind` param), `index.ts` (barrel), `spotify.test.ts`.
 - `src/comments/` — `types.ts` (`Comment`, `CommentsBackend`),
   `supabase-backend.ts` (`SupabaseCommentsBackend`), `store.ts`
   (`useComments` hook + standalone `postComment`), `index.ts` (barrel).
@@ -136,10 +140,14 @@ same pass, to keep this change scoped.
   `'/'`, not `'/(tabs)'`. This applies to the new `src/app/item/[id].tsx` route too.
 - **`.claude/` and `expo-env.d.ts` are gitignored** (local config). Don't commit them.
 - **LF→CRLF git warnings** on Windows are harmless.
-- **MusicBrainz** is rate-limited (~1 req/sec, hence the 350ms search debounce) and
-  has **no popularity data** — see deferral below. Recording (track) search is
-  noisier than release-group search — duplicate masters/regional releases/live
-  versions with no way to pick a canonical one.
+- **Spotify** uses the Client Credentials flow — an app token (not a user login),
+  cached in `SpotifyCatalog` and auto-refreshed (incl. a one-shot retry on 401).
+  The client secret ships in the bundle via `EXPO_PUBLIC_*` for lack of a backend
+  (documented trust gap, like the Supabase anon key). Search is still debounced
+  (350ms) to stay under rate limits. `preview_url` is banked in `SearchResult`
+  but often null on newer apps — don't build required UI on it. Cover art now
+  comes from Spotify; the mock seed data keeps its Cover Art Archive URLs via
+  `cover-art.ts`.
 - **Supabase on RN/Hermes needs `react-native-url-polyfill`** — Hermes doesn't
   fully implement the `URL` global that `@supabase/supabase-js`'s dependency
   chain needs. Already wired in `src/lib/supabase.ts` (`import 'react-native-url-polyfill/auto'`
@@ -169,9 +177,10 @@ same pass, to keep this change scoped.
    users/friends for the leaderboard. Swap `LocalAuthBackend` and the
    in-memory store. Comments already prove the Supabase wiring works; this
    would also close the comments RLS trust gap (`auth.uid()` becomes available).
-5. **Spotify catalog** — implement `SpotifyCatalog` behind `MusicCatalog`. This is
-   what fixes the deferred search gaps (artist-name prioritization +
-   popularity-first ranking, for both albums and the new track search).
-   MusicBrainz can't: it has no popularity signal and artist searches surface
-   unrelated same-title releases (verified via the API). Needs a backend to
-   hold the OAuth secret.
+5. **Spotify catalog — DONE.** `SpotifyCatalog` (`src/music/spotify.ts`) is live
+   behind `MusicCatalog`, closing the deferred search gaps: Spotify's native
+   relevance prioritizes the artist you meant, and tracks are popularity-ranked.
+   Remaining follow-ups: (a) move token minting to a backend so the client
+   secret stops shipping in the bundle; (b) optional tap-to-preview using the
+   banked `previewUrl`; (c) Apple Music (MusicKit) as a second `MusicCatalog`
+   provider later.

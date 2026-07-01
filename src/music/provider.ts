@@ -1,10 +1,11 @@
 /**
  * The active music catalog instance, in its own module so both the barrel
  * (index.ts) and the search hook can import it without a circular dependency.
- * Swap for a SpotifyCatalog later (same interface).
+ * Swapping providers is this one line — the `MusicCatalog` interface keeps the
+ * screens unaware of which backend answers.
  */
 
-import { MusicBrainzCatalog } from './musicbrainz';
+import { SpotifyCatalog } from './spotify';
 import type { MusicCatalog } from './types';
 
-export const musicCatalog: MusicCatalog = new MusicBrainzCatalog();
+export const musicCatalog: MusicCatalog = new SpotifyCatalog();

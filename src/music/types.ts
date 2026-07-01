@@ -1,13 +1,12 @@
 /**
- * Music catalog seam. Screens (Phase 4 search UI) talk only to the
- * `MusicCatalog` interface, so the provider can change without touching them.
+ * Music catalog seam. Screens (the search UIs) talk only to the `MusicCatalog`
+ * interface, so the provider can change without touching them.
  *
- * Shipping now: MusicBrainz (no API key, works client-side, has cover art).
- * Later: a Spotify catalog drops in behind the same interface (SPEC §7) once
- * there's a backend to hold the OAuth secret. Spotify search returns a mixed
- * track/album bag with a native popularity score — `SearchResult`'s `kind`
- * discriminant and optional `popularity` field exist so that swap doesn't
- * require reshaping call sites.
+ * Shipping now: Spotify (`src/music/spotify.ts`), which gives real popularity
+ * ranking and a mixed album/track search in a single request. It needs a
+ * client secret, embedded here via `EXPO_PUBLIC_*` for lack of a backend — see
+ * the SECURITY note in `spotify.ts`. The `musicbrainz`/`spotify` provider
+ * discriminant is kept so a second provider (e.g. Apple Music) could coexist.
  */
 
 export type MusicProvider = 'musicbrainz' | 'spotify';
@@ -27,8 +26,14 @@ export interface SearchResult {
   primaryType?: string;
   /** Parent album title — song-kind only. */
   albumTitle?: string;
-  /** 0-100 normalized popularity, when the provider has one. MusicBrainz never sets this. */
+  /** 0-100 normalized popularity, when the provider has one. Spotify sets this on tracks. */
   popularity?: number;
+  /**
+   * 30-second preview MP3, when Spotify provides one. Banked for a future
+   * tap-to-preview affordance; often null on newer apps (Spotify has been
+   * deprecating `preview_url`), so treat it as best-effort.
+   */
+  previewUrl?: string;
   provider: MusicProvider;
 }
 
