@@ -40,7 +40,7 @@ const API = 'https://api.spotify.com/v1';
  */
 const MAX_SEARCH_LIMIT = 10;
 
-interface SpotifyImage {
+export interface SpotifyImage {
   url: string;
   width?: number | null;
   height?: number | null;
@@ -59,7 +59,7 @@ interface SpotifyAlbumObject {
   artists?: SpotifyArtist[];
 }
 
-interface SpotifyTrackObject {
+export interface SpotifyTrackObject {
   id: string;
   name: string;
   popularity?: number;
@@ -75,7 +75,7 @@ interface SpotifyAlbumTracksResponse {
   items?: SpotifyTrackObject[];
 }
 
-interface SpotifyArtistObject {
+export interface SpotifyArtistObject {
   id: string;
   name: string;
   images?: SpotifyImage[];
@@ -178,13 +178,12 @@ export function parseAlbumResults(json: SpotifySearchResponse): SearchResult[] {
 }
 
 /**
- * Pure: map a Spotify search response's tracks to song results, ranked by
- * Spotify's native popularity (highest first) — the signal MusicBrainz never
- * had (SPEC §5). Cover art and album title come from the track's album.
+ * Pure: one Spotify track object → a song SearchResult. Shared by catalog
+ * search here and the user library (recently played / top tracks), so both
+ * surfaces render tracks identically.
  */
-export function parseTrackResults(json: SpotifySearchResponse): SearchResult[] {
-  const items = json.tracks?.items ?? [];
-  const results: SearchResult[] = items.map((t) => ({
+export function trackToSearchResult(t: SpotifyTrackObject): SearchResult {
+  return {
     id: t.id,
     kind: 'song',
     title: t.name,
@@ -195,7 +194,30 @@ export function parseTrackResults(json: SpotifySearchResponse): SearchResult[] {
     popularity: t.popularity,
     previewUrl: t.preview_url ?? undefined,
     provider: 'spotify',
-  }));
+  };
+}
+
+/** Pure: one Spotify artist object → an artist SearchResult (name in `title`). */
+export function artistToSearchResult(a: SpotifyArtistObject): SearchResult {
+  return {
+    id: a.id,
+    kind: 'artist',
+    title: a.name,
+    artist: '',
+    // Largest image: the artist hero (banner/record) fills more space than a thumbnail.
+    coverUrl: pickLargest(a.images),
+    popularity: a.popularity,
+    provider: 'spotify',
+  };
+}
+
+/**
+ * Pure: map a Spotify search response's tracks to song results, ranked by
+ * Spotify's native popularity (highest first) — the signal MusicBrainz never
+ * had (SPEC §5). Cover art and album title come from the track's album.
+ */
+export function parseTrackResults(json: SpotifySearchResponse): SearchResult[] {
+  const results = (json.tracks?.items ?? []).map(trackToSearchResult);
   return results.sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0));
 }
 
@@ -206,16 +228,7 @@ export function parseTrackResults(json: SpotifySearchResponse): SearchResult[] {
  * page leads with the discography rather than those stats.
  */
 export function parseArtistResults(json: SpotifySearchResponse): SearchResult[] {
-  const results: SearchResult[] = (json.artists?.items ?? []).map((a) => ({
-    id: a.id,
-    kind: 'artist',
-    title: a.name,
-    artist: '',
-    // Largest image: the artist hero (banner/record) fills more space than a thumbnail.
-    coverUrl: pickLargest(a.images),
-    popularity: a.popularity,
-    provider: 'spotify',
-  }));
+  const results = (json.artists?.items ?? []).map(artistToSearchResult);
   return results.sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0));
 }
 

@@ -1,6 +1,8 @@
 # Heard
 
-A social music-rating app. See `SPEC.md` for the full product spec and rationale.
+A social music-rating app. See `SPEC.md` for the full product spec and rationale,
+and `PRODUCT_BLUEPRINT.md` for the feature roadmap (priorities, data models,
+build order) that current work follows.
 
 ## Stack
 - Expo (SDK 56) + expo-router (file-based routing, `src/app/`)
@@ -42,6 +44,17 @@ A social music-rating app. See `SPEC.md` for the full product spec and rationale
   (album + track search in one request, popularity-ranked tracks, cached app
   token). `cover-art.ts` builds Cover Art Archive URLs — used only by the mock
   seed data (`catalog.ts`, `seed.ts`), independent of live search.
+  Also the **`UserLibrary` seam** (`user-library.ts`) — the viewer's own Spotify
+  data (recently played / top tracks / top artists) via **user OAuth**
+  (`spotify-auth.ts`, Authorization Code + PKCE, client-ID-only, tokens in
+  AsyncStorage). Kept separate from `MusicCatalog` so search never needs a user
+  login. Singletons wire up in `provider.ts` (never import `spotify-auth.ts`
+  from test-reachable modules — it pulls expo-auth-session, which node tests
+  can't load). Powers the Rate tab's "Recently played" import tray
+  (`src/components/recent-plays-tray.tsx`) — an *active-log* on-ramp: imported
+  plays are candidates, never auto-logged (PRODUCT_BLUEPRINT §2.A). Requires the
+  device's redirect URI registered in the Spotify dashboard; Spotify rejects
+  `localhost`, so on web use `http://127.0.0.1:<port>`.
 - `src/comments/` — `CommentsBackend` seam; `SupabaseCommentsBackend` is the
   only implementation (ships Supabase-backed from day one — see "Comments,
   likes & Supabase" below).

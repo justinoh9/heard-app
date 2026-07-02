@@ -13,6 +13,7 @@ import {
 import { AlbumCover } from '@/components/album-cover';
 import { EmptyState } from '@/components/empty-state';
 import { PageContainer } from '@/components/page-container';
+import { RecentPlaysTray } from '@/components/recent-plays-tray';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -97,7 +98,12 @@ export default function RateSearchScreen() {
       </PageContainer>
 
       {!trimmed ? (
-        <EmptyState icon="search" message="Search an artist, song, or album." />
+        // Idle search = the import on-ramp: recent Spotify plays, one tap from
+        // the log flow (plays are candidates, never auto-logged — blueprint §2.A).
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.list}>
+          <RecentPlaysTray onPick={openRate} />
+          <EmptyState icon="search" message="Search an artist, song, or album." />
+        </ScrollView>
       ) : loading && results.length === 0 ? (
         <View style={styles.center}>
           <ActivityIndicator />

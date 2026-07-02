@@ -219,7 +219,9 @@ test('parses an artist: name in title, blank artist, cover, popularity', () => {
   assert.equal(a.kind, 'artist');
   assert.equal(a.title, 'Tame Impala');
   assert.equal(a.artist, '');
-  assert.equal(a.coverUrl, 'ti300');
+  // Artists carry the LARGEST image (pickLargest): the artist hero fills far
+  // more space than a list thumbnail, so resolution wins over bytes there.
+  assert.equal(a.coverUrl, 'ti640');
   assert.equal(a.popularity, 90);
   assert.equal(a.provider, 'spotify');
 });
