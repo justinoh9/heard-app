@@ -66,6 +66,7 @@ export function toDisplayEvent(e: SocialEvent): FeedEvent {
     itemId: p.itemId,
     itemType: p.itemType,
     createdAt: e.createdAt,
+    userId: e.userId,
   };
   if (e.type === 'rated') {
     return { ...base, kind: 'rated', title: p.title ?? '', score: p.score };

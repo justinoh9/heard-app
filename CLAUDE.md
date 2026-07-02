@@ -68,8 +68,12 @@ build order) that current work follows.
   **Every log path emits a feed event** (blueprint §1.3): `commitPlacement`
   publishes `rated`, `postDrop` publishes `drop`. `src/app/people.tsx` is the
   directory with follow toggles; the Feed tab renders real events above the
-  mock "From the community" filler. `scores.ts` (mock friend-score chrome)
-  predates this and still backs the item page's fake breakdowns.
+  mock "From the community" filler. `compatibility.ts` is the pure taste-match
+  algorithm (blueprint §2.C) shown on `src/app/user/[id].tsx` — another user's
+  profile (% match + shared favorites + their ranked list via
+  `ratingsBackend.load`), reached from People rows and feed avatars.
+  `scores.ts` (mock friend-score chrome) predates this and still backs the
+  item page's fake breakdowns.
 - `src/comments/` — `CommentsBackend` seam; `SupabaseCommentsBackend` is the
   only implementation (ships Supabase-backed from day one — see "Comments,
   likes & Supabase" below).

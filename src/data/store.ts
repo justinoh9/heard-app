@@ -12,15 +12,13 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 import { useAuth } from '@/auth/store';
-import { isSupabaseConfigured } from '@/lib/supabase';
 import { RatingTiebreakEngine, sortRanked, type RankingEngine } from '@/ranking/engine';
 import type { ComparisonEvent, Item, RankedItem } from '@/ranking/types';
 import { useSocial } from '@/social/store';
 import { useStreaks } from '@/streaks/store';
 
 import { INITIAL_RANKED } from './catalog';
-import { LocalRatingsBackend, type RatingsBackend } from './ratings-backend';
-import { SupabaseRatingsBackend } from './supabase-ratings-backend';
+import { ratingsBackend } from './ratings-provider';
 
 export interface RatingsApi {
   engine: RankingEngine;
@@ -50,10 +48,7 @@ export function useRatingsState(): RatingsApi {
   const { user } = useAuth();
   const userId = user?.id ?? null;
   const engine = useMemo(() => new RatingTiebreakEngine(), []);
-  const backend = useMemo<RatingsBackend>(
-    () => (isSupabaseConfigured() ? new SupabaseRatingsBackend() : new LocalRatingsBackend()),
-    [],
-  );
+  const backend = ratingsBackend;
   const [ranked, setRanked] = useState<RankedItem[]>([]);
   const [comparisonLog, setComparisonLog] = useState<ComparisonEvent[]>([]);
   const [loading, setLoading] = useState(true);

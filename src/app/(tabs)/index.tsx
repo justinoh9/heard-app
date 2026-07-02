@@ -85,7 +85,19 @@ export default function FeedScreen() {
           )}
 
           {realEvents.map((event) => (
-            <FeedRow key={event.id} event={event} theme={theme} onPress={() => openItem(event)} />
+            <FeedRow
+              key={event.id}
+              event={event}
+              theme={theme}
+              onPress={() => openItem(event)}
+              onOpenUser={() =>
+                event.userId &&
+                router.push({
+                  pathname: '/user/[id]',
+                  params: { id: event.userId, name: event.user },
+                })
+              }
+            />
           ))}
 
           {/* Mock filler so the feed never looks dead — clearly separated. */}
@@ -209,10 +221,13 @@ function FeedRow({
   event,
   theme,
   onPress,
+  onOpenUser,
 }: {
   event: FeedEvent;
   theme: ReturnType<typeof useTheme>;
   onPress: () => void;
+  /** Set on real events — tapping the avatar opens the actor's profile. */
+  onOpenUser?: () => void;
 }) {
   const headerVerb =
     event.kind === 'rated' ? 'rated' : event.kind === 'drop' ? 'is listening to' : event.title;
@@ -226,9 +241,13 @@ function FeedRow({
       onPress={event.itemId ? onPress : undefined}
       style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
       <View style={styles.cardHeader}>
-        <View style={[styles.avatar, { backgroundColor: theme.backgroundSelected }]}>
+        <Pressable
+          onPress={event.userId ? onOpenUser : undefined}
+          disabled={!event.userId}
+          accessibilityLabel={event.userId ? `View ${event.user}'s profile` : undefined}
+          style={[styles.avatar, { backgroundColor: theme.backgroundSelected }]}>
           <ThemedText type="smallBold">{event.initials}</ThemedText>
-        </View>
+        </Pressable>
         <ThemedText type="small" style={{ flex: 1 }}>
           <ThemedText type="smallBold">{event.user}</ThemedText> {headerVerb}
           {event.kind !== 'streak' ? (

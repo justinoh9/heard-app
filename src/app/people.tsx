@@ -48,6 +48,12 @@ export default function PeopleScreen() {
                 person={p}
                 following={followingIds.has(p.userId)}
                 onToggle={() => toggleFollow(p.userId)}
+                onOpen={() =>
+                  router.push({
+                    pathname: '/user/[id]',
+                    params: { id: p.userId, name: p.displayName },
+                  })
+                }
                 theme={theme}
               />
             ))}
@@ -62,21 +68,29 @@ function PersonRow({
   person,
   following,
   onToggle,
+  onOpen,
   theme,
 }: {
   person: Profile;
   following: boolean;
   onToggle: () => void;
+  onOpen: () => void;
   theme: ReturnType<typeof useTheme>;
 }) {
   return (
     <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
-      <View style={[styles.avatar, { backgroundColor: theme.backgroundSelected }]}>
-        <ThemedText type="smallBold">{initialsOf(person.displayName)}</ThemedText>
-      </View>
-      <ThemedText type="smallBold" style={styles.name} numberOfLines={1}>
-        {person.displayName}
-      </ThemedText>
+      <Pressable
+        testID={`person-${person.userId}`}
+        onPress={onOpen}
+        accessibilityLabel={`View ${person.displayName}'s profile`}
+        style={({ pressed }) => [styles.personBody, { opacity: pressed ? 0.6 : 1 }]}>
+        <View style={[styles.avatar, { backgroundColor: theme.backgroundSelected }]}>
+          <ThemedText type="smallBold">{initialsOf(person.displayName)}</ThemedText>
+        </View>
+        <ThemedText type="smallBold" style={styles.name} numberOfLines={1}>
+          {person.displayName}
+        </ThemedText>
+      </Pressable>
       <Pressable
         testID={`follow-${person.userId}`}
         onPress={onToggle}
@@ -111,6 +125,7 @@ const styles = StyleSheet.create({
     padding: Spacing.three,
   },
   avatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  personBody: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   name: { flex: 1 },
   followButton: {
     borderRadius: 999,
