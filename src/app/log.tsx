@@ -90,6 +90,20 @@ export default function LogModal() {
     }, 220);
   }
 
+  /** "Too close to call" — settle here without recording a preference. */
+  function tooClose() {
+    if (pendingChoice) return;
+    placement.current!.tooClose();
+    advance();
+  }
+
+  /** "Haven't heard it" — drop this opponent and ask about another. */
+  function skipOpponent() {
+    if (pendingChoice) return;
+    placement.current!.skip();
+    advance();
+  }
+
   function finish() {
     const { list, events } = placement.current!.commit();
     commitPlacement(list, events, { item: album, score });
@@ -178,6 +192,30 @@ export default function LogModal() {
               theme={theme}
               state={pendingChoice === null ? 'idle' : pendingChoice === 'existing' ? 'won' : 'lost'}
             />
+          </View>
+          <View style={styles.escapeRow}>
+            <Pressable
+              testID="too-close"
+              onPress={tooClose}
+              style={({ pressed }) => [
+                styles.escapeButton,
+                { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.6 : 1 },
+              ]}>
+              <ThemedText type="small" themeColor="textSecondary">
+                Too close to call
+              </ThemedText>
+            </Pressable>
+            <Pressable
+              testID="havent-heard"
+              onPress={skipOpponent}
+              style={({ pressed }) => [
+                styles.escapeButton,
+                { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.6 : 1 },
+              ]}>
+              <ThemedText type="small" themeColor="textSecondary">
+                Haven&apos;t heard it
+              </ThemedText>
+            </Pressable>
           </View>
         </Animated.View>
       )}
@@ -309,6 +347,12 @@ const styles = StyleSheet.create({
   },
   body: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.three, padding: Spacing.four },
   center: { textAlign: 'center' },
+  escapeRow: { flexDirection: 'row', gap: Spacing.two, marginTop: Spacing.two },
+  escapeButton: {
+    borderRadius: 999,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
+  },
   primary: {
     backgroundColor: '#1D9E75',
     paddingVertical: Spacing.three,

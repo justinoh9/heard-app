@@ -30,6 +30,16 @@ export interface Placement {
   next(): Comparison | null;
   /** Record the user's pick for the comparison `next()` just returned. */
   choose(winner: 'new' | 'existing'): void;
+  /**
+   * "Haven't heard it" (SPEC §3 escape hatch): drop the current opponent from
+   * the search — it keeps its existing slot — and offer another. Logs nothing.
+   */
+  skip(): void;
+  /**
+   * "Too close to call": stop comparing and settle the new item directly
+   * below the current opponent. Logs nothing (a shrug is not a preference).
+   */
+  tooClose(): void;
   /** Whether placement is finished (no ties, or all comparisons answered). */
   isDone(): boolean;
   /**
@@ -62,12 +72,19 @@ export class RatingTiebreakEngine implements RankingEngine {
 }
 
 class TiebreakPlacement implements Placement {
-  /** Items already at the same score, ranked high → low (by tiebreak desc). */
+  /** The original tie group, ranked high → low (by tiebreak desc). */
   private tied: RankedItem[];
-  /** Binary-search window over insertion positions [0, tied.length]. */
+  /**
+   * The searchable opponents — starts as the whole tie group; "haven't heard
+   * it" removes entries here (they keep their slot via `skipped`).
+   */
+  private working: RankedItem[];
+  /** Skipped opponents + the item ORIGINALLY directly above them (null = top). */
+  private skipped: { ranked: RankedItem; prevId: string | null }[] = [];
+  /** Binary-search window over insertion positions [0, working.length]. */
   private lo = 0;
   private hi: number;
-  /** Index in `tied` currently being compared, or -1 when settled. */
+  /** Index in `working` currently being compared, or -1 when settled. */
   private mid = -1;
   private events: ComparisonEvent[] = [];
   private done = false;
@@ -82,8 +99,9 @@ class TiebreakPlacement implements Placement {
     this.tied = list
       .filter((r) => r.score === score)
       .sort((a, b) => b.tiebreak - a.tiebreak);
-    this.hi = this.tied.length;
-    if (this.tied.length === 0) {
+    this.working = [...this.tied];
+    this.hi = this.working.length;
+    if (this.working.length === 0) {
       this.finalPos = 0;
       this.done = true;
     }
@@ -98,12 +116,12 @@ class TiebreakPlacement implements Placement {
       return null;
     }
     this.mid = Math.floor((this.lo + this.hi) / 2);
-    return { newItem: this.item, against: this.tied[this.mid].item };
+    return { newItem: this.item, against: this.working[this.mid].item };
   }
 
   choose(winner: 'new' | 'existing'): void {
     if (this.mid < 0) return;
-    const opponent = this.tied[this.mid];
+    const opponent = this.working[this.mid];
     const newWins = winner === 'new';
     this.events.push({
       winnerId: newWins ? this.item.id : opponent.item.id,
@@ -119,15 +137,46 @@ class TiebreakPlacement implements Placement {
     this.mid = -1;
   }
 
+  skip(): void {
+    if (this.mid < 0) return;
+    const opponent = this.working[this.mid];
+    const originalIdx = this.tied.indexOf(opponent);
+    this.skipped.push({
+      ranked: opponent,
+      prevId: originalIdx > 0 ? this.tied[originalIdx - 1].item.id : null,
+    });
+    // Shrink the window in place; positions after mid shift down by one.
+    this.working.splice(this.mid, 1);
+    this.hi -= 1;
+    this.mid = -1;
+  }
+
+  tooClose(): void {
+    if (this.mid < 0) return;
+    // Settle directly below the opponent — "about equal" keeps the incumbent
+    // ahead. No event: a shrug must not train a future Elo engine.
+    this.finalPos = this.mid + 1;
+    this.done = true;
+    this.mid = -1;
+  }
+
   isDone(): boolean {
     return this.done;
   }
 
   commit(): { list: RankedItem[]; events: ComparisonEvent[] } {
-    // Rebuild the tied group's order with the new item spliced in at finalPos,
-    // then renumber tiebreaks to clean consecutive integers (top = highest).
-    const order = this.tied.map((r) => r.item);
+    // Rebuild the tie group: the searched (heard) items with the new item
+    // spliced at finalPos, then skipped items restored next to their original
+    // upper neighbour (top-down, so chained skips resolve in order).
+    const order = this.working.map((r) => r.item);
     order.splice(this.finalPos, 0, this.item);
+    const byOriginalRank = [...this.skipped].sort(
+      (a, b) => this.tied.indexOf(a.ranked) - this.tied.indexOf(b.ranked),
+    );
+    for (const { ranked, prevId } of byOriginalRank) {
+      const prevIdx = prevId === null ? -1 : order.findIndex((it) => it.id === prevId);
+      order.splice(prevIdx + 1, 0, ranked.item);
+    }
     const n = order.length;
     const renumbered: RankedItem[] = order.map((it, i) => ({
       item: it,

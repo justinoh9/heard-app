@@ -38,7 +38,9 @@ build order) that current work follows.
   - `types.ts` — `Item`, `ItemType`, `RankedItem`, `Comparison`, `ComparisonEvent`.
   - `engine.ts` — `RankingEngine` interface (swappable) + `RatingTiebreakEngine`
     (ships now). Score does the coarse sort; comparisons binary-insert within a tie
-    group. See SPEC §5.
+    group. Escape hatches on `Placement`: `skip()` ("haven't heard it" — opponent
+    keeps its slot) and `tooClose()` (settle below the opponent); neither logs a
+    comparison event. See SPEC §5.
   - `engine.test.ts` — unit tests for the tie-break logic.
 - `src/data/` — `catalog.ts` (mock songs/feed/profile), `store.ts`
   (`useRatings()` hook: hydrates from the backend on sign-in, optimistic
