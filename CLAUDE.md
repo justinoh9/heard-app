@@ -8,10 +8,14 @@ build order) that current work follows.
 - Expo (SDK 56) + expo-router (file-based routing, `src/app/`)
 - React Native 0.85, TypeScript (strict)
 - Icons: `@expo/vector-icons` (Ionicons)
-- Auth and ratings are still local/in-memory (no backend) — mock seed data in
-  `src/data/`. Supabase is wired up, but **scoped only to comments and likes**
-  (see `src/comments/` and `src/likes/` below); a Supabase auth/ratings
-  migration is still planned (SPEC §7).
+- Auth is still local (no backend) — `LocalAuthBackend` in `src/auth/`.
+  **Ratings persist** behind the `RatingsBackend` seam (`src/data/`):
+  `SupabaseRatingsBackend` when Supabase env vars are set
+  (`supabase/migrations/0003_ratings.sql` — items/ratings/comparisons),
+  else an AsyncStorage `LocalRatingsBackend` fallback, so ratings survive
+  reloads with zero config. Mock seed data in `src/data/catalog.ts` seeds
+  brand-new users. A Supabase Auth migration is still planned
+  (PRODUCT_BLUEPRINT §3.4).
 - Music search runs on the **Spotify Web API** (`src/music/spotify.ts`, Client
   Credentials flow). Two token modes (see `requestToken`): **proxy** — set
   `EXPO_PUBLIC_SPOTIFY_TOKEN_URL` to the `supabase/functions/spotify-token` Edge
@@ -36,8 +40,11 @@ build order) that current work follows.
     (ships now). Score does the coarse sort; comparisons binary-insert within a tie
     group. See SPEC §5.
   - `engine.test.ts` — unit tests for the tie-break logic.
-- `src/data/` — `catalog.ts` (mock songs/feed/profile) and `store.ts` (in-memory
-  ratings store + `useRatings()` hook). This is the seam the backend replaces.
+- `src/data/` — `catalog.ts` (mock songs/feed/profile), `store.ts`
+  (`useRatings()` hook: hydrates from the backend on sign-in, optimistic
+  commits), `ratings-backend.ts` (`RatingsBackend` interface +
+  `LocalRatingsBackend`), `supabase-ratings-backend.ts`, and
+  `ratings-rows.ts` (pure row↔model mapping, unit-tested).
 - `src/auth/` — `useAuth()`/`AuthBackend` seam; `LocalAuthBackend` ships now
   (AsyncStorage + expo-crypto).
 - `src/music/` — `MusicCatalog` seam; `SpotifyCatalog` (`spotify.ts`) ships now
@@ -94,8 +101,9 @@ already underway.
   throws at module load — search/rating still work, only comments and likes
   break. (The same `.env` also holds the Spotify keys that power search — see
   the Stack section.)
-- Run `supabase/migrations/0001_comments.sql` and `0002_likes.sql` in the
-  project's SQL Editor to create the `comments` and `likes` tables.
+- Run `supabase/migrations/0001_comments.sql`, `0002_likes.sql`, and
+  `0003_ratings.sql` in the project's SQL Editor to create the `comments`,
+  `likes`, `items`, `ratings`, and `comparisons` tables.
 - **Known trust gap**: auth is `LocalAuthBackend`, not Supabase Auth, so RLS
   cannot cryptographically verify who's posting a comment or toggling a like.
   Both tables' RLS policies allow public read and trust client-supplied
