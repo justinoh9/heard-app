@@ -79,6 +79,10 @@ export function toDisplayEvent(e: SocialEvent): FeedEvent {
       review: p.caption,
     };
   }
+  if (e.type === 'concert') {
+    // title = artist name, artist = "venue · city" (see SocialEventPayload).
+    return { ...base, kind: 'concert', title: p.title ?? '', score: p.score };
+  }
   return {
     ...base,
     kind: 'streak',

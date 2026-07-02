@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { PageContainer } from '@/components/page-container';
 import { QuickMatchCard } from '@/components/quick-match-card';
 import { Segmented } from '@/components/segmented';
+import { useConcerts } from '@/concerts/store';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -30,6 +31,7 @@ export default function LeaderboardScreen() {
   const { isWide } = useResponsive();
   const { user } = useAuth();
   const { ranked } = useRatings();
+  const { concerts } = useConcerts();
   const { current: streak } = useStreaks();
   const [scope, setScope] = useState<Scope>('global');
   const [metricKey, setMetricKey] = useState<MetricKey>('reviews');
@@ -44,12 +46,12 @@ export default function LeaderboardScreen() {
       initials: initialsFrom(user?.displayName ?? 'You'),
       isFriend: true,
       reviews: ranked.length,
-      concerts: PROFILE.shows,
+      concerts: concerts.length,
       streak,
     };
     const pool = scope === 'friends' ? LEADERBOARD_USERS.filter((u) => u.isFriend) : LEADERBOARD_USERS;
     return [...pool, you].sort((a, b) => metric.get(b) - metric.get(a));
-  }, [scope, metric, ranked.length, user, youId, streak]);
+  }, [scope, metric, ranked.length, user, youId, streak, concerts.length]);
 
   return (
     <ThemedView style={styles.screen}>

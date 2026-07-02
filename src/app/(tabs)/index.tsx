@@ -230,7 +230,13 @@ function FeedRow({
   onOpenUser?: () => void;
 }) {
   const headerVerb =
-    event.kind === 'rated' ? 'rated' : event.kind === 'drop' ? 'is listening to' : event.title;
+    event.kind === 'rated'
+      ? 'rated'
+      : event.kind === 'drop'
+        ? 'is listening to'
+        : event.kind === 'concert'
+          ? 'saw'
+          : event.title;
   // Show the art+score body whenever there's something to show — AlbumCover
   // falls back to a disc icon, so a missing artUrl shouldn't hide the score.
   const showBody = event.kind !== 'streak' && (!!event.coverUrl || event.score != null);
@@ -253,6 +259,7 @@ function FeedRow({
           {event.kind !== 'streak' ? (
             <ThemedText type="smallBold"> {event.title}</ThemedText>
           ) : null}
+          {event.kind === 'concert' ? ' live' : ''}
         </ThemedText>
         {event.kind === 'streak' && <Ionicons name="flame" size={16} color="#EF9F27" />}
         {event.createdAt && (
@@ -264,7 +271,12 @@ function FeedRow({
 
       {showBody && (
         <View style={styles.ratedBody}>
-          <AlbumCover uri={event.coverUrl} size={64} radius={8} />
+          <AlbumCover
+            uri={event.coverUrl}
+            size={64}
+            radius={8}
+            fallbackIcon={event.kind === 'concert' ? 'mic' : 'disc-outline'}
+          />
           <View style={{ flex: 1, gap: 3 }}>
             <View style={styles.scoreRow}>
               {event.score != null && (

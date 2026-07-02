@@ -85,6 +85,14 @@ build order) that current work follows.
   a top-of-ranked fallback until chosen) and shown on `/user/[id]`.
   `scores.ts` (mock friend-score chrome) predates this and still backs the
   item page's fake breakdowns.
+- `src/concerts/` — live show logging (blueprint §2.C, the "map" mechanic):
+  `useConcerts()` in `store.tsx`, `ConcertsBackend` seam (Supabase
+  `0006_concerts.sql` / AsyncStorage, chosen in `provider.ts`), pure
+  `rows.ts` (unit-tested). Logged via `src/app/concert/new.tsx` (modal:
+  artist/venue/date/score + friend-tag chips); tagged friends see the show on
+  their own profile (`concertsFor`). Publishes a `'concert'` feed event; the
+  Profile tab's SHOWS badges + shows stat and the leaderboard's concerts
+  metric are real counts now.
 - `src/comments/` — `CommentsBackend` seam; `SupabaseCommentsBackend` is the
   only implementation (ships Supabase-backed from day one — see "Comments,
   likes & Supabase" below).
@@ -124,9 +132,10 @@ already underway.
   throws at module load — search/rating still work, only comments and likes
   break. (The same `.env` also holds the Spotify keys that power search — see
   the Stack section.)
-- Run `supabase/migrations/0001_comments.sql` through `0004_social.sql` in the
-  project's SQL Editor to create the `comments`, `likes`, `items`, `ratings`,
-  `comparisons`, `profiles`, `follows`, and `feed_events` tables.
+- Run `supabase/migrations/0001_comments.sql` through `0006_concerts.sql` in
+  the project's SQL Editor to create the `comments`, `likes`, `items`,
+  `ratings`, `comparisons`, `profiles`, `follows`, `feed_events`, `concerts`,
+  and `concert_tags` tables.
 - **Known trust gap**: auth is `LocalAuthBackend`, not Supabase Auth, so RLS
   cannot cryptographically verify who's posting a comment or toggling a like.
   Both tables' RLS policies allow public read and trust client-supplied

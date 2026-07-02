@@ -4,6 +4,7 @@ import { ActivityIndicator, useColorScheme } from 'react-native';
 
 import { ThemedView } from '@/components/themed-view';
 import { AuthProvider, useAuth } from '@/auth/store';
+import { ConcertsContext, useConcertsState } from '@/concerts/store';
 import { RatingsContext, useRatingsState } from '@/data/store';
 import { FeedContext, useFeedState } from '@/feed/store';
 import { PlaylistsContext, usePlaylistsState } from '@/playlists/store';
@@ -20,11 +21,13 @@ export default function RootLayout() {
         <SocialBridge>
           <RatingsBridge>
             <FeedBridge>
-              <PlaylistsBridge>
-                <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
-                  <RootNavigator />
-                </ThemeProvider>
-              </PlaylistsBridge>
+              <ConcertsBridge>
+                <PlaylistsBridge>
+                  <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
+                    <RootNavigator />
+                  </ThemeProvider>
+                </PlaylistsBridge>
+              </ConcertsBridge>
             </FeedBridge>
           </RatingsBridge>
         </SocialBridge>
@@ -41,6 +44,11 @@ function StreaksBridge({ children }: { children: React.ReactNode }) {
 function SocialBridge({ children }: { children: React.ReactNode }) {
   const social = useSocialState();
   return <SocialContext.Provider value={social}>{children}</SocialContext.Provider>;
+}
+
+function ConcertsBridge({ children }: { children: React.ReactNode }) {
+  const concerts = useConcertsState();
+  return <ConcertsContext.Provider value={concerts}>{children}</ConcertsContext.Provider>;
 }
 
 function RatingsBridge({ children }: { children: React.ReactNode }) {
@@ -87,6 +95,7 @@ function RootNavigator() {
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="log" options={{ presentation: 'modal' }} />
       <Stack.Screen name="drop" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="concert/new" options={{ presentation: 'modal' }} />
       <Stack.Screen name="playlist/[id]" />
       <Stack.Screen name="playlist/new" options={{ presentation: 'modal' }} />
       <Stack.Screen name="artist/[id]" />

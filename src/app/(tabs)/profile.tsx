@@ -9,6 +9,7 @@ import { PageContainer } from '@/components/page-container';
 import { PlaylistCover } from '@/components/playlist-cover';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useConcerts } from '@/concerts/store';
 import { Spacing } from '@/constants/theme';
 import { PROFILE } from '@/data/catalog';
 import { useAuth } from '@/auth/store';
@@ -37,6 +38,7 @@ export default function ProfileScreen() {
   const { playlists } = usePlaylists();
   const { current: streak } = useStreaks();
   const { myFavorites, saveFavorites } = useSocial();
+  const { concerts } = useConcerts();
   const [editingTop4, setEditingTop4] = useState(false);
   const [picking, setPicking] = useState(false);
 
@@ -106,7 +108,7 @@ export default function ProfileScreen() {
 
           <View style={styles.stats}>
             <Stat value={String(ranked.length)} label="rated" theme={theme} />
-            <Stat value={String(PROFILE.shows)} label="shows" theme={theme} />
+            <Stat value={String(concerts.length)} label="shows" theme={theme} />
             <Stat
               value={`${streak}🔥`}
               label="streak"
@@ -291,19 +293,47 @@ export default function ProfileScreen() {
             </Pressable>
           ))}
 
-          <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
-            CONCERT BADGES
-          </ThemedText>
-          <View style={styles.badges}>
-            {PROFILE.badges.map((b, i) => (
-              <View key={b.id} style={[styles.badge, { backgroundColor: theme.backgroundElement }]}>
-                <Ionicons name="mic" size={22} color={BADGE_TINTS[i % BADGE_TINTS.length]} />
-                <ThemedText type="small" style={{ marginTop: 4 }}>
-                  {b.artist} &apos;{b.year}
-                </ThemedText>
-              </View>
-            ))}
+          <View style={styles.top4Header}>
+            <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
+              SHOWS
+            </ThemedText>
+            <Pressable testID="log-show" onPress={() => router.push('/concert/new')} hitSlop={8}>
+              <ThemedText type="smallBold" style={{ color: '#1D9E75' }}>
+                + Log a show
+              </ThemedText>
+            </Pressable>
           </View>
+          {concerts.length === 0 ? (
+            <EmptyState
+              icon="mic-outline"
+              message="No shows yet — log a concert and start your badge wall."
+              ctaLabel="Log a show"
+              onPressCta={() => router.push('/concert/new')}
+            />
+          ) : (
+            <View style={styles.badges}>
+              {concerts.map((c, i) => (
+                <View
+                  key={c.id}
+                  style={[styles.badge, { backgroundColor: theme.backgroundElement }]}>
+                  <Ionicons name="mic" size={22} color={BADGE_TINTS[i % BADGE_TINTS.length]} />
+                  <ThemedText type="small" numberOfLines={1} style={{ marginTop: 4 }}>
+                    {c.artistName} &apos;{c.showDate.slice(2, 4)}
+                  </ThemedText>
+                  {c.venue ? (
+                    <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+                      {c.venue}
+                    </ThemedText>
+                  ) : null}
+                  {c.score != null ? (
+                    <ThemedText type="smallBold" style={{ color: '#1D9E75' }}>
+                      {c.score.toFixed(1)}
+                    </ThemedText>
+                  ) : null}
+                </View>
+              ))}
+            </View>
+          )}
         </PageContainer>
       </ScrollView>
     </ThemedView>
@@ -399,6 +429,14 @@ const styles = StyleSheet.create({
   },
   rankRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, padding: Spacing.two, borderRadius: 10 },
   rankNum: { width: 16, textAlign: 'center' },
-  badges: { flexDirection: 'row', gap: Spacing.two },
-  badge: { flex: 1, alignItems: 'center', paddingVertical: Spacing.three, borderRadius: 12 },
+  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+  badge: {
+    flexBasis: '30%',
+    flexGrow: 1,
+    maxWidth: '48%',
+    alignItems: 'center',
+    paddingVertical: Spacing.three,
+    paddingHorizontal: Spacing.two,
+    borderRadius: 12,
+  },
 });
