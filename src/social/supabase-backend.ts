@@ -17,6 +17,7 @@ import {
 interface ProfileRow {
   user_id: string;
   display_name: string;
+  favorites?: string[] | null;
 }
 
 export class SupabaseSocialBackend implements SocialBackend {
@@ -33,10 +34,23 @@ export class SupabaseSocialBackend implements SocialBackend {
   async listProfiles(): Promise<Profile[]> {
     const { data, error } = await getSupabase()
       .from('profiles')
-      .select('user_id, display_name')
+      .select('user_id, display_name, favorites')
       .order('display_name');
     if (error) throw new SocialError(error.message);
-    return (data as ProfileRow[]).map((r) => ({ userId: r.user_id, displayName: r.display_name }));
+    return (data as ProfileRow[]).map((r) => ({
+      userId: r.user_id,
+      displayName: r.display_name,
+      favorites: r.favorites ?? undefined,
+    }));
+  }
+
+  async setFavorites(userId: string, itemIds: string[]): Promise<void> {
+    // The profile row always exists by now (upserted at sign-in).
+    const { error } = await getSupabase()
+      .from('profiles')
+      .update({ favorites: itemIds.slice(0, 4) })
+      .eq('user_id', userId);
+    if (error) throw new SocialError(error.message);
   }
 
   async following(userId: string): Promise<string[]> {

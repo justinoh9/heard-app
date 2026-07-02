@@ -29,8 +29,18 @@ async function readJson<T>(key: string, fallback: T): Promise<T> {
 export class LocalSocialBackend implements SocialBackend {
   async upsertProfile(profile: Profile): Promise<void> {
     const profiles = await readJson<Profile[]>(PROFILES_KEY, []);
+    const existing = profiles.find((p) => p.userId === profile.userId);
     const next = profiles.filter((p) => p.userId !== profile.userId);
-    next.push(profile);
+    // Preserve fields the sign-in upsert doesn't carry (favorites).
+    next.push({ ...existing, ...profile, favorites: profile.favorites ?? existing?.favorites });
+    await AsyncStorage.setItem(PROFILES_KEY, JSON.stringify(next));
+  }
+
+  async setFavorites(userId: string, itemIds: string[]): Promise<void> {
+    const profiles = await readJson<Profile[]>(PROFILES_KEY, []);
+    const next = profiles.map((p) =>
+      p.userId === userId ? { ...p, favorites: itemIds.slice(0, 4) } : p,
+    );
     await AsyncStorage.setItem(PROFILES_KEY, JSON.stringify(next));
   }
 

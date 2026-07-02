@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AlbumCover } from '@/components/album-cover';
 import { EmptyState } from '@/components/empty-state';
@@ -16,6 +17,8 @@ import { useTheme } from '@/hooks/use-theme';
 import { playlistCoverUrls, songCountLabel } from '@/playlists/helpers';
 import { usePlaylists } from '@/playlists/store';
 import type { RankedItem } from '@/ranking/types';
+import { resolveFavorites, TOP_FAVORITES } from '@/social/favorites';
+import { useSocial } from '@/social/store';
 import { useStreaks } from '@/streaks/store';
 
 const BADGE_TINTS = ['#993556', '#854F0B', '#185FA5'];
@@ -33,6 +36,29 @@ export default function ProfileScreen() {
   const { user } = useAuth();
   const { playlists } = usePlaylists();
   const { current: streak } = useStreaks();
+  const { myFavorites, saveFavorites } = useSocial();
+  const [editingTop4, setEditingTop4] = useState(false);
+  const [picking, setPicking] = useState(false);
+
+  // The showcase: chosen Top 4, falling back to the top of the ranked list.
+  const { items: top4, chosen } = resolveFavorites(myFavorites, ranked);
+  const emptySlots = editingTop4 ? TOP_FAVORITES - top4.length : 0;
+
+  /** Editing an unchosen (fallback) grid first materializes what's on screen. */
+  function currentIds(): string[] {
+    return chosen
+      ? myFavorites.filter((id) => ranked.some((r) => r.item.id === id))
+      : top4.map((r) => r.item.id);
+  }
+
+  function addFavorite(itemId: string) {
+    saveFavorites([...currentIds(), itemId]);
+    setPicking(false);
+  }
+
+  function removeFavorite(itemId: string) {
+    saveFavorites(currentIds().filter((id) => id !== itemId));
+  }
 
   const displayName = user?.displayName ?? PROFILE.username;
   const initials = user ? initialsFrom(user.displayName) : PROFILE.initials;
@@ -92,13 +118,36 @@ export default function ProfileScreen() {
 
           {ranked.length > 0 && (
             <>
-              <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
-                FAVORITES
-              </ThemedText>
+              <View style={styles.top4Header}>
+                <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
+                  TOP 4
+                </ThemedText>
+                <Pressable
+                  testID="edit-top4"
+                  onPress={() => setEditingTop4((e) => !e)}
+                  hitSlop={8}>
+                  <ThemedText type="smallBold" style={{ color: '#1D9E75' }}>
+                    {editingTop4 ? 'Done' : 'Edit'}
+                  </ThemedText>
+                </Pressable>
+              </View>
               <View style={styles.favorites}>
-                {ranked.slice(0, 3).map((r) => (
-                  <Pressable key={r.item.id} style={styles.favorite} onPress={() => reRate(r)}>
-                    <AlbumCover uri={r.item.artUrl} fill radius={10} />
+                {top4.map((r) => (
+                  <Pressable
+                    key={r.item.id}
+                    style={styles.favorite}
+                    onPress={() => (editingTop4 ? removeFavorite(r.item.id) : reRate(r))}
+                    accessibilityLabel={
+                      editingTop4 ? `Remove ${r.item.title} from Top 4` : `Re-rate ${r.item.title}`
+                    }>
+                    <View>
+                      <AlbumCover uri={r.item.artUrl} fill radius={10} />
+                      {editingTop4 && (
+                        <View style={styles.removeBadge}>
+                          <Ionicons name="close" size={14} color="#fff" />
+                        </View>
+                      )}
+                    </View>
                     <ThemedText type="small" numberOfLines={1} style={styles.favTitle}>
                       {r.item.title}
                     </ThemedText>
@@ -107,9 +156,64 @@ export default function ProfileScreen() {
                     </ThemedText>
                   </Pressable>
                 ))}
+                {Array.from({ length: emptySlots }).map((_, i) => (
+                  <Pressable
+                    key={`empty-${i}`}
+                    testID="add-favorite"
+                    onPress={() => setPicking(true)}
+                    accessibilityLabel="Add a favorite"
+                    style={[styles.favorite, styles.emptySlot, { borderColor: theme.backgroundSelected }]}>
+                    <Ionicons name="add" size={28} color={theme.textSecondary} />
+                  </Pressable>
+                ))}
               </View>
+              {!chosen && !editingTop4 && (
+                <ThemedText type="small" themeColor="textSecondary">
+                  Showing your top rated — tap Edit to choose your defining four.
+                </ThemedText>
+              )}
             </>
           )}
+
+          <Modal visible={picking} animationType="slide" transparent onRequestClose={() => setPicking(false)}>
+            <View style={styles.pickerBackdrop}>
+              <View style={[styles.pickerSheet, { backgroundColor: theme.background }]}>
+                <View style={styles.pickerHeader}>
+                  <ThemedText type="subtitle">Pick a favorite</ThemedText>
+                  <Pressable onPress={() => setPicking(false)} accessibilityLabel="Close picker" hitSlop={8}>
+                    <Ionicons name="close" size={24} color={theme.text} />
+                  </Pressable>
+                </View>
+                <ScrollView contentContainerStyle={{ gap: Spacing.two }}>
+                  {ranked
+                    .filter((r) => !currentIds().includes(r.item.id))
+                    .map((r) => (
+                      <Pressable
+                        key={r.item.id}
+                        testID={`pick-${r.item.id}`}
+                        onPress={() => addFavorite(r.item.id)}
+                        style={({ pressed }) => [
+                          styles.rankRow,
+                          { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.6 : 1 },
+                        ]}>
+                        <AlbumCover uri={r.item.artUrl} size={44} radius={6} />
+                        <View style={{ flex: 1 }}>
+                          <ThemedText type="small" numberOfLines={1}>
+                            {r.item.title}
+                          </ThemedText>
+                          <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+                            {r.item.artist}
+                          </ThemedText>
+                        </View>
+                        <ThemedText type="smallBold" style={{ color: '#1D9E75' }}>
+                          {r.score.toFixed(1)}
+                        </ThemedText>
+                      </Pressable>
+                    ))}
+                </ScrollView>
+              </View>
+            </View>
+          </Modal>
 
           <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
             PLAYLISTS
@@ -245,9 +349,42 @@ const styles = StyleSheet.create({
   stats: { flexDirection: 'row', gap: Spacing.two },
   stat: { flex: 1, alignItems: 'center', paddingVertical: Spacing.three, borderRadius: 10, gap: 2 },
   sectionLabel: { marginTop: Spacing.two },
+  top4Header: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+  },
   favorites: { flexDirection: 'row', gap: Spacing.two },
   favorite: { flex: 1, gap: 4 },
   favTitle: { marginTop: 2 },
+  emptySlot: {
+    aspectRatio: 1,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  removeBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#E24B4A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pickerBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
+  pickerSheet: {
+    maxHeight: '70%',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    padding: Spacing.three,
+    gap: Spacing.three,
+  },
+  pickerHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   playlists: { gap: Spacing.three, paddingRight: Spacing.three },
   playlistCard: { width: 120, gap: 4 },
   playlistName: { marginTop: 2 },

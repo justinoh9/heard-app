@@ -12,6 +12,8 @@ import type { ItemType } from '@/ranking/types';
 export interface Profile {
   userId: string;
   displayName: string;
+  /** Ordered Top 4 item ids (PRODUCT_BLUEPRINT §2.D). Empty until chosen. */
+  favorites?: string[];
 }
 
 export type SocialEventType = 'rated' | 'drop' | 'streak';
@@ -59,6 +61,8 @@ export interface SocialBackend {
   /** Ids the user follows. */
   following(userId: string): Promise<string[]>;
   setFollowing(followerId: string, followeeId: string, follow: boolean): Promise<void>;
+  /** Replace the user's Top 4 (ordered item ids, at most 4). */
+  setFavorites(userId: string, itemIds: string[]): Promise<void>;
   /** Append one event to the activity log. Returns it with id + timestamp. */
   publishEvent(event: NewSocialEvent): Promise<SocialEvent>;
   /** Recent events by these users (self + followees), newest first. */

@@ -17,6 +17,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { sortRanked } from '@/ranking/engine';
 import type { RankedItem } from '@/ranking/types';
 import { compatibility, type Compatibility } from '@/social/compatibility';
+import { resolveFavorites } from '@/social/favorites';
 import { initialsOf } from '@/social/feed-rows';
 import { socialBackend } from '@/social/provider';
 import { useSocial } from '@/social/store';
@@ -38,7 +39,7 @@ export default function UserProfileScreen() {
   const userId = String(params.id);
   const displayName = params.name || 'Someone';
   const { ranked: mine } = useRatings();
-  const { followingIds, toggleFollow } = useSocial();
+  const { followingIds, toggleFollow, people } = useSocial();
 
   const [theirs, setTheirs] = useState<RankedItem[] | null>(null);
   const [activity, setActivity] = useState<SocialEvent[]>([]);
@@ -68,6 +69,10 @@ export default function UserProfileScreen() {
 
   const following = followingIds.has(userId);
   const compat: Compatibility | null = theirs ? compatibility(mine, theirs) : null;
+  // Their chosen Top 4 (only when explicitly picked — the ranked list below
+  // already covers the fallback).
+  const favoriteIds = people.find((p) => p.userId === userId)?.favorites;
+  const theirTop4 = theirs ? resolveFavorites(favoriteIds, theirs) : null;
 
   return (
     <ThemedView style={[styles.screen, { paddingTop: insets.top }]}>
@@ -140,6 +145,24 @@ export default function UserProfileScreen() {
                   </>
                 )}
               </View>
+
+              {theirTop4?.chosen && (
+                <>
+                  <ThemedText type="subtitle" style={styles.sectionHeader}>
+                    Top 4
+                  </ThemedText>
+                  <View style={styles.top4Row}>
+                    {theirTop4.items.map((r) => (
+                      <View key={r.item.id} style={styles.top4Slot}>
+                        <AlbumCover uri={r.item.artUrl} fill radius={10} />
+                        <ThemedText type="small" numberOfLines={1} style={styles.favoriteTitle}>
+                          {r.item.title}
+                        </ThemedText>
+                      </View>
+                    ))}
+                  </View>
+                </>
+              )}
 
               {theirs && theirs.length > 0 && (
                 <>
@@ -224,6 +247,8 @@ const styles = StyleSheet.create({
   favoritesRow: { flexDirection: 'row', gap: Spacing.three },
   favorite: { width: 72 },
   favoriteTitle: { marginTop: 4 },
+  top4Row: { flexDirection: 'row', gap: Spacing.two },
+  top4Slot: { flex: 1, gap: 2 },
   sectionHeader: { marginTop: Spacing.two },
   rankRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   rankNum: { width: 18, textAlign: 'center' },

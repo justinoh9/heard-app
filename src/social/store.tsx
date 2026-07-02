@@ -23,7 +23,11 @@ export interface SocialApi {
   /** Recent events by the viewer + followees, newest first. */
   feed: SocialEvent[];
   feedLoading: boolean;
+  /** The viewer's chosen Top 4 item ids (empty until picked). */
+  myFavorites: string[];
   toggleFollow: (userId: string) => void;
+  /** Replace the viewer's Top 4 (optimistic; at most 4 ids). */
+  saveFavorites: (itemIds: string[]) => void;
   /** Append an event to the log (stamped with the signed-in user). */
   publish: (type: SocialEventType, payload: SocialEventPayload) => void;
   refresh: () => void;
@@ -39,6 +43,7 @@ export function useSocialState(): SocialApi {
   const [followingIds, setFollowingIds] = useState<Set<string>>(new Set());
   const [feed, setFeed] = useState<SocialEvent[]>([]);
   const [feedLoading, setFeedLoading] = useState(true);
+  const [myFavorites, setMyFavorites] = useState<string[]>([]);
 
   const refresh = useCallback(() => {
     if (!userId) return;
@@ -52,6 +57,7 @@ export function useSocialState(): SocialApi {
           socialBackend.feedFor([userId, ...ids]),
         ]);
         setPeople(profiles.filter((p) => p.userId !== userId));
+        setMyFavorites(profiles.find((p) => p.userId === userId)?.favorites ?? []);
         setFeed(events);
       })
       .catch((e: unknown) => console.warn('[social] refresh failed:', e))
@@ -63,6 +69,7 @@ export function useSocialState(): SocialApi {
       setPeople([]);
       setFollowingIds(new Set());
       setFeed([]);
+      setMyFavorites([]);
       setFeedLoading(false);
       return;
     }
@@ -79,7 +86,18 @@ export function useSocialState(): SocialApi {
       followingIds,
       feed,
       feedLoading,
+      myFavorites,
       refresh,
+      saveFavorites: (itemIds) => {
+        if (!userId) return;
+        const capped = itemIds.slice(0, 4);
+        const previous = myFavorites;
+        setMyFavorites(capped);
+        socialBackend.setFavorites(userId, capped).catch((e: unknown) => {
+          console.warn('[social] saving favorites failed:', e);
+          setMyFavorites(previous);
+        });
+      },
       toggleFollow: (targetId) => {
         if (!userId || targetId === userId) return;
         const willFollow = !followingIds.has(targetId);
@@ -111,7 +129,7 @@ export function useSocialState(): SocialApi {
           .catch((e: unknown) => console.warn('[social] publish failed:', e));
       },
     }),
-    [people, followingIds, feed, feedLoading, refresh, userId, displayName],
+    [people, followingIds, feed, feedLoading, myFavorites, refresh, userId, displayName],
   );
 }
 

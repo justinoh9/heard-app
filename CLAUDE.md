@@ -72,6 +72,10 @@ build order) that current work follows.
   algorithm (blueprint §2.C) shown on `src/app/user/[id].tsx` — another user's
   profile (% match + shared favorites + their ranked list via
   `ratingsBackend.load`), reached from People rows and feed avatars.
+  `favorites.ts` resolves the **Top 4 showcase** (blueprint §2.D): chosen ids
+  live on `Profile.favorites` (`0005_favorites.sql`; `saveFavorites` in the
+  store), edited on the Profile tab (Edit → remove/add via picker sheet, with
+  a top-of-ranked fallback until chosen) and shown on `/user/[id]`.
   `scores.ts` (mock friend-score chrome) predates this and still backs the
   item page's fake breakdowns.
 - `src/comments/` — `CommentsBackend` seam; `SupabaseCommentsBackend` is the
