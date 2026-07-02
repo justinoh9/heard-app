@@ -62,6 +62,14 @@ build order) that current work follows.
   plays are candidates, never auto-logged (PRODUCT_BLUEPRINT §2.A). Requires the
   device's redirect URI registered in the Spotify dashboard; Spotify rejects
   `localhost`, so on web use `http://127.0.0.1:<port>`.
+- `src/social/` — the follow graph + activity feed (`useSocial()` in
+  `store.tsx`; `SocialBackend` seam with Supabase/AsyncStorage impls, chosen in
+  `provider.ts` like ratings). `feed-rows.ts` is the pure, unit-tested mapping.
+  **Every log path emits a feed event** (blueprint §1.3): `commitPlacement`
+  publishes `rated`, `postDrop` publishes `drop`. `src/app/people.tsx` is the
+  directory with follow toggles; the Feed tab renders real events above the
+  mock "From the community" filler. `scores.ts` (mock friend-score chrome)
+  predates this and still backs the item page's fake breakdowns.
 - `src/comments/` — `CommentsBackend` seam; `SupabaseCommentsBackend` is the
   only implementation (ships Supabase-backed from day one — see "Comments,
   likes & Supabase" below).
@@ -101,9 +109,9 @@ already underway.
   throws at module load — search/rating still work, only comments and likes
   break. (The same `.env` also holds the Spotify keys that power search — see
   the Stack section.)
-- Run `supabase/migrations/0001_comments.sql`, `0002_likes.sql`, and
-  `0003_ratings.sql` in the project's SQL Editor to create the `comments`,
-  `likes`, `items`, `ratings`, and `comparisons` tables.
+- Run `supabase/migrations/0001_comments.sql` through `0004_social.sql` in the
+  project's SQL Editor to create the `comments`, `likes`, `items`, `ratings`,
+  `comparisons`, `profiles`, `follows`, and `feed_events` tables.
 - **Known trust gap**: auth is `LocalAuthBackend`, not Supabase Auth, so RLS
   cannot cryptographically verify who's posting a comment or toggling a like.
   Both tables' RLS policies allow public read and trust client-supplied

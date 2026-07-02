@@ -14,7 +14,8 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/auth/store';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { RatingTiebreakEngine, sortRanked, type RankingEngine } from '@/ranking/engine';
-import type { ComparisonEvent, RankedItem } from '@/ranking/types';
+import type { ComparisonEvent, Item, RankedItem } from '@/ranking/types';
+import { useSocial } from '@/social/store';
 import { useStreaks } from '@/streaks/store';
 
 import { INITIAL_RANKED } from './catalog';
@@ -29,8 +30,16 @@ export interface RatingsApi {
   loading: boolean;
   /** Look up the user's existing rating for an item, if any. */
   ratingFor: (itemId: string) => RankedItem | undefined;
-  /** Apply a finished placement: replace the list and append to the log. */
-  commitPlacement: (list: RankedItem[], events: ComparisonEvent[]) => void;
+  /**
+   * Apply a finished placement: replace the list and append to the log.
+   * Pass `rated` (the item just placed + its score) so the activity feed
+   * event fires — the blueprint invariant is that every log path emits one.
+   */
+  commitPlacement: (
+    list: RankedItem[],
+    events: ComparisonEvent[],
+    rated?: { item: Item; score: number },
+  ) => void;
   /** Every head-to-head ever recorded (banked for a future smarter engine). */
   comparisonLog: ComparisonEvent[];
 }
@@ -49,6 +58,7 @@ export function useRatingsState(): RatingsApi {
   const [comparisonLog, setComparisonLog] = useState<ComparisonEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const streaks = useStreaks();
+  const social = useSocial();
 
   useEffect(() => {
     if (!userId) {
@@ -92,11 +102,21 @@ export function useRatingsState(): RatingsApi {
       loading,
       comparisonLog,
       ratingFor: (itemId) => sorted.find((r) => r.item.id === itemId),
-      commitPlacement: (list, events) => {
+      commitPlacement: (list, events, rated) => {
         // Optimistic: the UI settles immediately; the backend syncs behind it.
         setRanked(list);
         if (events.length) setComparisonLog((log) => [...log, ...events]);
         streaks.recordActivity();
+        if (rated) {
+          social.publish('rated', {
+            itemId: rated.item.id,
+            itemType: rated.item.type,
+            title: rated.item.title,
+            artist: rated.item.artist,
+            artUrl: rated.item.artUrl,
+            score: rated.score,
+          });
+        }
         if (userId) {
           backend.commit(userId, list, events).catch((e: unknown) => {
             console.warn('[ratings] sync failed (kept locally for this session):', e);
@@ -104,7 +124,7 @@ export function useRatingsState(): RatingsApi {
         }
       },
     };
-  }, [engine, backend, ranked, loading, comparisonLog, streaks, userId]);
+  }, [engine, backend, ranked, loading, comparisonLog, streaks, social, userId]);
 }
 
 export function useRatings(): RatingsApi {

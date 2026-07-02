@@ -48,6 +48,8 @@ export interface FeedEvent {
   /** Set for 'rated'/'drop' events — links the card to /item/[id]. */
   itemId?: string;
   itemType?: ItemType;
+  /** ISO timestamp — set on real events (src/social), absent on mock rows. */
+  createdAt?: string;
 }
 
 export const FEED: FeedEvent[] = [
