@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from '@/auth/store';
 import { RatingsContext, useRatingsState } from '@/data/store';
 import { FeedContext, useFeedState } from '@/feed/store';
 import { PlaylistsContext, usePlaylistsState } from '@/playlists/store';
+import { SocialContext, useSocialState } from '@/social/store';
 import { StreaksContext, useStreaksState } from '@/streaks/store';
 
 export default function RootLayout() {
@@ -15,15 +16,18 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <StreaksBridge>
-        <RatingsBridge>
-          <FeedBridge>
-            <PlaylistsBridge>
-              <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
-                <RootNavigator />
-              </ThemeProvider>
-            </PlaylistsBridge>
-          </FeedBridge>
-        </RatingsBridge>
+        {/* Social sits above ratings + feed: both publish activity events. */}
+        <SocialBridge>
+          <RatingsBridge>
+            <FeedBridge>
+              <PlaylistsBridge>
+                <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
+                  <RootNavigator />
+                </ThemeProvider>
+              </PlaylistsBridge>
+            </FeedBridge>
+          </RatingsBridge>
+        </SocialBridge>
       </StreaksBridge>
     </AuthProvider>
   );
@@ -32,6 +36,11 @@ export default function RootLayout() {
 function StreaksBridge({ children }: { children: React.ReactNode }) {
   const streaks = useStreaksState();
   return <StreaksContext.Provider value={streaks}>{children}</StreaksContext.Provider>;
+}
+
+function SocialBridge({ children }: { children: React.ReactNode }) {
+  const social = useSocialState();
+  return <SocialContext.Provider value={social}>{children}</SocialContext.Provider>;
 }
 
 function RatingsBridge({ children }: { children: React.ReactNode }) {
@@ -80,6 +89,7 @@ function RootNavigator() {
       <Stack.Screen name="drop" options={{ presentation: 'modal' }} />
       <Stack.Screen name="playlist/[id]" />
       <Stack.Screen name="playlist/new" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="artist/[id]" />
       <Stack.Screen name="streak" />
     </Stack>
   );

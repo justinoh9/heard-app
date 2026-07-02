@@ -4,7 +4,8 @@
  * one-line change in provider.ts.
  */
 
-export { musicCatalog } from './provider';
-export { coverArtUrl } from './musicbrainz';
+export { musicCatalog, userLibrary } from './provider';
+export { coverArtUrl } from './cover-art';
 export { useMusicSearch, type MusicSearchKind, type MusicSearchState } from './useMusicSearch';
+export type { UserLibrary } from './user-library';
 export * from './types';

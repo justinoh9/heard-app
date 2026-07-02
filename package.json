@@ -8,6 +8,7 @@
     "@react-native-async-storage/async-storage": "2.2.0",
     "@supabase/supabase-js": "^2.110.0",
     "expo": "~56.0.12",
+    "expo-auth-session": "~56.0.14",
     "expo-constants": "~56.0.18",
     "expo-crypto": "~56.0.4",
     "expo-device": "~56.0.4",
@@ -46,7 +47,7 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test src/ranking/engine.test.ts src/ranking/score.test.ts src/social/scores.test.ts src/feed/time.test.ts src/comments/filter.test.ts src/playlists/helpers.test.ts src/music/musicbrainz.test.ts src/streaks/logic.test.ts src/likes/aggregate.test.ts"
+    "test": "tsx --test src/ranking/engine.test.ts src/ranking/score.test.ts src/social/scores.test.ts src/social/feed-rows.test.ts src/social/compatibility.test.ts src/feed/time.test.ts src/comments/filter.test.ts src/data/ratings-rows.test.ts src/playlists/helpers.test.ts src/music/spotify.test.ts src/music/user-library.test.ts src/streaks/logic.test.ts src/likes/aggregate.test.ts"
   },
   "private": true
 }

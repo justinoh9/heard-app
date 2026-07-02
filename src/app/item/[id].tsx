@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { useAuth } from '@/auth/store';
 import { AlbumCover } from '@/components/album-cover';
@@ -19,6 +19,7 @@ import { useRatings } from '@/data/store';
 import { useHaptics } from '@/hooks/use-haptics';
 import { useTheme } from '@/hooks/use-theme';
 import { useLikeSummaries, useLikeSummary } from '@/likes';
+import { musicCatalog, MusicCatalogError, type AlbumTrack } from '@/music';
 import type { ItemType } from '@/ranking/types';
 
 export default function ItemProfileScreen() {
@@ -50,6 +51,44 @@ export default function ItemProfileScreen() {
   const [scope, setScope] = useState<CommentScope>('everyone');
   const [sort, setSort] = useState<CommentSort>('newest');
   const visibleComments = filterSortComments(comments, { scope, sort });
+
+  // Album tracklist (songs). Only albums have one; songs skip the fetch.
+  const [tracks, setTracks] = useState<AlbumTrack[]>([]);
+  const [tracksLoading, setTracksLoading] = useState(type === 'album');
+  const [tracksError, setTracksError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (type !== 'album') return;
+    const controller = new AbortController();
+    setTracksLoading(true);
+    setTracksError(null);
+    musicCatalog
+      .getAlbumTracks(id, { signal: controller.signal })
+      .then((t) => {
+        setTracks(t);
+        setTracksLoading(false);
+      })
+      .catch((e: unknown) => {
+        if ((e as Error)?.name === 'AbortError') return;
+        setTracksError(e instanceof MusicCatalogError ? e.message : 'Could not load tracks.');
+        setTracksLoading(false);
+      });
+    return () => controller.abort();
+  }, [id, type]);
+
+  function openTrack(track: AlbumTrack) {
+    router.push({
+      pathname: '/log',
+      params: {
+        id: track.id,
+        type: 'song',
+        title: track.title,
+        artist: track.artist || artist,
+        year: '',
+        artUrl: artUrl ?? '',
+      },
+    });
+  }
 
   function rate() {
     router.push({
@@ -139,6 +178,50 @@ export default function ItemProfileScreen() {
             </View>
           </View>
 
+          {type === 'album' && (
+            <>
+              <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
+                TRACKS
+              </ThemedText>
+              {tracksLoading && <ActivityIndicator style={{ marginTop: Spacing.two }} />}
+              {tracksError && (
+                <ThemedText type="small" style={styles.error}>
+                  {tracksError}
+                </ThemedText>
+              )}
+              {!tracksLoading &&
+                !tracksError &&
+                tracks.map((track) => {
+                  const rated = ratingFor(track.id);
+                  return (
+                    <Pressable
+                      key={track.id}
+                      testID="album-track"
+                      onPress={() => openTrack(track)}
+                      style={({ pressed }) => [styles.trackRow, { opacity: pressed ? 0.6 : 1 }]}>
+                      <ThemedText type="small" themeColor="textSecondary" style={styles.trackNum}>
+                        {track.trackNumber}
+                      </ThemedText>
+                      <ThemedText type="small" numberOfLines={1} style={styles.trackTitle}>
+                        {track.title}
+                      </ThemedText>
+                      {rated ? (
+                        <View style={styles.trackScore}>
+                          <ThemedText type="small" style={{ color: '#fff', fontWeight: '700' }}>
+                            {rated.score.toFixed(1)}
+                          </ThemedText>
+                        </View>
+                      ) : (
+                        <ThemedText type="small" themeColor="textSecondary">
+                          {formatDuration(track.durationMs)}
+                        </ThemedText>
+                      )}
+                    </Pressable>
+                  );
+                })}
+            </>
+          )}
+
           <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
             SCORES
           </ThemedText>
@@ -227,6 +310,14 @@ export default function ItemProfileScreen() {
   );
 }
 
+/** ms → "m:ss". */
+function formatDuration(ms: number): string {
+  const total = Math.round(ms / 1000);
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   topBar: {
@@ -275,4 +366,20 @@ const styles = StyleSheet.create({
   commentBox: { gap: Spacing.two, alignItems: 'flex-start' },
   commentInput: { minHeight: 70, textAlignVertical: 'top', alignSelf: 'stretch' },
   error: { color: '#E24B4A' },
+  trackRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    paddingVertical: Spacing.two,
+  },
+  trackNum: { minWidth: 20, textAlign: 'center' },
+  trackTitle: { flex: 1 },
+  trackScore: {
+    backgroundColor: '#1D9E75',
+    borderRadius: 999,
+    minWidth: 34,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: 2,
+    alignItems: 'center',
+  },
 });

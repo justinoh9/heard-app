@@ -1,7 +1,7 @@
 /**
- * Supabase client, used only by the comments seam (src/comments/). Auth and
- * ratings stay on their existing local/in-memory backends — this is scoped
- * to backing durable, public comments across devices.
+ * Supabase client, used by the comments (src/comments/), likes (src/likes/),
+ * and ratings (src/data/supabase-ratings-backend.ts) seams. Auth stays on
+ * LocalAuthBackend — a Supabase Auth migration is planned (blueprint §3.4).
  *
  * No Supabase Auth session exists here (LocalAuthBackend stays authoritative
  * for identity), so session persistence is explicitly disabled below.
@@ -17,6 +17,15 @@ import 'react-native-url-polyfill/auto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 let client: SupabaseClient | null = null;
+
+/**
+ * Whether Supabase env vars are present — for seams that can degrade to a
+ * local backend instead of throwing (ratings). Comments/likes have no local
+ * fallback, so they call getSupabase() directly and surface its error.
+ */
+export function isSupabaseConfigured(): boolean {
+  return !!process.env.EXPO_PUBLIC_SUPABASE_URL && !!process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+}
 
 export function getSupabase(): SupabaseClient {
   if (client) return client;

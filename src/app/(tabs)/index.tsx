@@ -11,13 +11,19 @@ import { FEED, type FeedEvent } from '@/data/catalog';
 import { useFeed, type DailyDrop } from '@/feed/store';
 import { relativeTime } from '@/feed/time';
 import { useTheme } from '@/hooks/use-theme';
+import { toDisplayEvent } from '@/social/feed-rows';
+import { useSocial } from '@/social/store';
 
 export default function FeedScreen() {
   const theme = useTheme();
   const router = useRouter();
   const { myDrop } = useFeed();
-  const drop = FEED.find((e) => e.kind === 'drop');
-  const rest = FEED.filter((e) => e.kind !== 'drop');
+  const { feed, followingIds } = useSocial();
+
+  // Real activity (you + people you follow), rendered above the mock filler.
+  const realEvents = feed.map(toDisplayEvent);
+  const mockDrop = FEED.find((e) => e.kind === 'drop');
+  const mockRest = FEED.filter((e) => e.kind !== 'drop');
 
   function openItem(event: FeedEvent) {
     if (!event.itemId || !event.itemType) return;
@@ -57,33 +63,85 @@ export default function FeedScreen() {
             onOpen={() => myDrop && openDropItem(myDrop)}
           />
 
-          {drop && (
+          {followingIds.size === 0 && (
+            <Pressable
+              testID="find-friends"
+              onPress={() => router.push('/people')}
+              style={({ pressed }) => [
+                styles.promptCard,
+                { borderColor: '#1D9E75', opacity: pressed ? 0.7 : 1 },
+              ]}>
+              <View style={[styles.promptIcon, { backgroundColor: theme.backgroundElement }]}>
+                <Ionicons name="people" size={20} color="#1D9E75" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <ThemedText type="smallBold">Find friends</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">
+                  Follow people to fill this feed with their ratings and drops
+                </ThemedText>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
+            </Pressable>
+          )}
+
+          {realEvents.map((event) => (
+            <FeedRow
+              key={event.id}
+              event={event}
+              theme={theme}
+              onPress={() => openItem(event)}
+              onOpenUser={() =>
+                event.userId &&
+                router.push({
+                  pathname: '/user/[id]',
+                  params: { id: event.userId, name: event.user },
+                })
+              }
+            />
+          ))}
+
+          {/* Mock filler so the feed never looks dead — clearly separated. */}
+          <ThemedText type="small" themeColor="textSecondary" style={styles.sectionLabel}>
+            From the community
+          </ThemedText>
+
+          {mockDrop && (
             <Pressable
               testID="feed-drop"
-              onPress={() => openItem(drop)}
+              onPress={() => openItem(mockDrop)}
               style={[styles.dropCard, { borderColor: '#378ADD', backgroundColor: theme.backgroundElement }]}>
               <View style={styles.dropHeader}>
                 <Ionicons name="radio" size={16} color="#378ADD" />
                 <ThemedText type="small" style={{ color: '#378ADD' }}>
-                  {drop.user}&apos;s drop · 2h left
+                  {mockDrop.user}&apos;s drop · 2h left
                 </ThemedText>
               </View>
               <View style={styles.dropBody}>
-                <AlbumCover uri={drop.coverUrl} size={48} radius={8} />
+                <AlbumCover uri={mockDrop.coverUrl} size={48} radius={8} />
                 <View style={{ flex: 1 }}>
-                  <ThemedText type="smallBold">{drop.user} is listening to</ThemedText>
+                  <ThemedText type="smallBold">{mockDrop.user} is listening to</ThemedText>
                   <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-                    {drop.title}
-                    {drop.artist ? ` — ${drop.artist}` : ''}
+                    {mockDrop.title}
+                    {mockDrop.artist ? ` — ${mockDrop.artist}` : ''}
                   </ThemedText>
                 </View>
               </View>
             </Pressable>
           )}
 
-          {rest.map((event) => (
+          {mockRest.map((event) => (
             <FeedRow key={event.id} event={event} theme={theme} onPress={() => openItem(event)} />
           ))}
+
+          <Pressable
+            testID="find-friends-footer"
+            onPress={() => router.push('/people')}
+            style={({ pressed }) => [styles.footerLink, { opacity: pressed ? 0.6 : 1 }]}>
+            <Ionicons name="person-add-outline" size={15} color={theme.textSecondary} />
+            <ThemedText type="small" themeColor="textSecondary">
+              Find more friends
+            </ThemedText>
+          </Pressable>
         </PageContainer>
       </ScrollView>
     </ThemedView>
@@ -158,16 +216,24 @@ function YourDrop({
   );
 }
 
+/** One activity card. Renders both real events (with timestamps) and mock rows. */
 function FeedRow({
   event,
   theme,
   onPress,
+  onOpenUser,
 }: {
   event: FeedEvent;
   theme: ReturnType<typeof useTheme>;
   onPress: () => void;
+  /** Set on real events — tapping the avatar opens the actor's profile. */
+  onOpenUser?: () => void;
 }) {
-  const isRated = event.kind === 'rated';
+  const headerVerb =
+    event.kind === 'rated' ? 'rated' : event.kind === 'drop' ? 'is listening to' : event.title;
+  // Show the art+score body whenever there's something to show — AlbumCover
+  // falls back to a disc icon, so a missing artUrl shouldn't hide the score.
+  const showBody = event.kind !== 'streak' && (!!event.coverUrl || event.score != null);
   const Container = event.itemId ? Pressable : View;
   return (
     <Container
@@ -175,29 +241,39 @@ function FeedRow({
       onPress={event.itemId ? onPress : undefined}
       style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
       <View style={styles.cardHeader}>
-        <View style={[styles.avatar, { backgroundColor: theme.backgroundSelected }]}>
+        <Pressable
+          onPress={event.userId ? onOpenUser : undefined}
+          disabled={!event.userId}
+          accessibilityLabel={event.userId ? `View ${event.user}'s profile` : undefined}
+          style={[styles.avatar, { backgroundColor: theme.backgroundSelected }]}>
           <ThemedText type="smallBold">{event.initials}</ThemedText>
-        </View>
+        </Pressable>
         <ThemedText type="small" style={{ flex: 1 }}>
-          <ThemedText type="smallBold">{event.user}</ThemedText>{' '}
-          {isRated ? 'rated' : event.title}
-          {isRated ? (
+          <ThemedText type="smallBold">{event.user}</ThemedText> {headerVerb}
+          {event.kind !== 'streak' ? (
             <ThemedText type="smallBold"> {event.title}</ThemedText>
           ) : null}
         </ThemedText>
         {event.kind === 'streak' && <Ionicons name="flame" size={16} color="#EF9F27" />}
+        {event.createdAt && (
+          <ThemedText type="small" themeColor="textSecondary">
+            {relativeTime(event.createdAt)}
+          </ThemedText>
+        )}
       </View>
 
-      {isRated && (
+      {showBody && (
         <View style={styles.ratedBody}>
           <AlbumCover uri={event.coverUrl} size={64} radius={8} />
           <View style={{ flex: 1, gap: 3 }}>
             <View style={styles.scoreRow}>
-              <View style={styles.scorePill}>
-                <ThemedText type="smallBold" style={{ color: '#fff' }}>
-                  {event.score?.toFixed(1)}
-                </ThemedText>
-              </View>
+              {event.score != null && (
+                <View style={styles.scorePill}>
+                  <ThemedText type="smallBold" style={{ color: '#fff' }}>
+                    {event.score.toFixed(1)}
+                  </ThemedText>
+                </View>
+              )}
               <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
                 {event.artist}
               </ThemedText>
@@ -233,6 +309,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { padding: Spacing.three },
   inner: { gap: Spacing.three },
+  sectionLabel: { marginTop: Spacing.two },
   dropCard: { borderWidth: 1, borderRadius: 12, padding: Spacing.three, gap: Spacing.two },
   dropHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   dropBody: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
@@ -262,4 +339,11 @@ const styles = StyleSheet.create({
   review: { fontStyle: 'italic' },
   actions: { flexDirection: 'row', gap: Spacing.four },
   action: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
+  footerLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.one,
+    paddingVertical: Spacing.two,
+  },
 });

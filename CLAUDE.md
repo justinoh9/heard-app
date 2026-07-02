@@ -1,15 +1,29 @@
 # Heard
 
-A social music-rating app. See `SPEC.md` for the full product spec and rationale.
+A social music-rating app. See `SPEC.md` for the full product spec and rationale,
+and `PRODUCT_BLUEPRINT.md` for the feature roadmap (priorities, data models,
+build order) that current work follows.
 
 ## Stack
 - Expo (SDK 56) + expo-router (file-based routing, `src/app/`)
 - React Native 0.85, TypeScript (strict)
 - Icons: `@expo/vector-icons` (Ionicons)
-- Auth and ratings are still local/in-memory (no backend) — mock seed data in
-  `src/data/`. Supabase is wired up, but **scoped only to comments and likes**
-  (see `src/comments/` and `src/likes/` below); a full Spotify catalog and
-  Supabase auth/ratings migration are still planned (SPEC §7).
+- Auth is still local (no backend) — `LocalAuthBackend` in `src/auth/`.
+  **Ratings persist** behind the `RatingsBackend` seam (`src/data/`):
+  `SupabaseRatingsBackend` when Supabase env vars are set
+  (`supabase/migrations/0003_ratings.sql` — items/ratings/comparisons),
+  else an AsyncStorage `LocalRatingsBackend` fallback, so ratings survive
+  reloads with zero config. Mock seed data in `src/data/catalog.ts` seeds
+  brand-new users. A Supabase Auth migration is still planned
+  (PRODUCT_BLUEPRINT §3.4).
+- Music search runs on the **Spotify Web API** (`src/music/spotify.ts`, Client
+  Credentials flow). Two token modes (see `requestToken`): **proxy** — set
+  `EXPO_PUBLIC_SPOTIFY_TOKEN_URL` to the `supabase/functions/spotify-token` Edge
+  Function so the secret stays server-side (recommended); or **direct** — set
+  `EXPO_PUBLIC_SPOTIFY_CLIENT_ID` / `EXPO_PUBLIC_SPOTIFY_CLIENT_SECRET` for a
+  zero-backend quick start (the secret then ships in the bundle, same trust
+  level as the Supabase anon key). With neither set, search shows a friendly
+  "not configured" message instead of crashing.
 - Streak state (`src/streaks/`) is the one exception to "ratings are
   in-memory": it persists per-user to `AsyncStorage` (like `src/auth/`),
   because a streak that resets every app reload is meaningless.
@@ -26,13 +40,40 @@ A social music-rating app. See `SPEC.md` for the full product spec and rationale
     (ships now). Score does the coarse sort; comparisons binary-insert within a tie
     group. See SPEC §5.
   - `engine.test.ts` — unit tests for the tie-break logic.
-- `src/data/` — `catalog.ts` (mock songs/feed/profile) and `store.ts` (in-memory
-  ratings store + `useRatings()` hook). This is the seam the backend replaces.
+- `src/data/` — `catalog.ts` (mock songs/feed/profile), `store.ts`
+  (`useRatings()` hook: hydrates from the backend on sign-in, optimistic
+  commits), `ratings-backend.ts` (`RatingsBackend` interface +
+  `LocalRatingsBackend`), `supabase-ratings-backend.ts`, and
+  `ratings-rows.ts` (pure row↔model mapping, unit-tested).
 - `src/auth/` — `useAuth()`/`AuthBackend` seam; `LocalAuthBackend` ships now
   (AsyncStorage + expo-crypto).
-- `src/music/` — `MusicCatalog` seam; `MusicBrainzCatalog` ships now (album +
-  track/recording search, no API key). Spotify drops in behind the same
-  interface later.
+- `src/music/` — `MusicCatalog` seam; `SpotifyCatalog` (`spotify.ts`) ships now
+  (album + track search in one request, popularity-ranked tracks, cached app
+  token). `cover-art.ts` builds Cover Art Archive URLs — used only by the mock
+  seed data (`catalog.ts`, `seed.ts`), independent of live search.
+  Also the **`UserLibrary` seam** (`user-library.ts`) — the viewer's own Spotify
+  data (recently played / top tracks / top artists) via **user OAuth**
+  (`spotify-auth.ts`, Authorization Code + PKCE, client-ID-only, tokens in
+  AsyncStorage). Kept separate from `MusicCatalog` so search never needs a user
+  login. Singletons wire up in `provider.ts` (never import `spotify-auth.ts`
+  from test-reachable modules — it pulls expo-auth-session, which node tests
+  can't load). Powers the Rate tab's "Recently played" import tray
+  (`src/components/recent-plays-tray.tsx`) — an *active-log* on-ramp: imported
+  plays are candidates, never auto-logged (PRODUCT_BLUEPRINT §2.A). Requires the
+  device's redirect URI registered in the Spotify dashboard; Spotify rejects
+  `localhost`, so on web use `http://127.0.0.1:<port>`.
+- `src/social/` — the follow graph + activity feed (`useSocial()` in
+  `store.tsx`; `SocialBackend` seam with Supabase/AsyncStorage impls, chosen in
+  `provider.ts` like ratings). `feed-rows.ts` is the pure, unit-tested mapping.
+  **Every log path emits a feed event** (blueprint §1.3): `commitPlacement`
+  publishes `rated`, `postDrop` publishes `drop`. `src/app/people.tsx` is the
+  directory with follow toggles; the Feed tab renders real events above the
+  mock "From the community" filler. `compatibility.ts` is the pure taste-match
+  algorithm (blueprint §2.C) shown on `src/app/user/[id].tsx` — another user's
+  profile (% match + shared favorites + their ranked list via
+  `ratingsBackend.load`), reached from People rows and feed avatars.
+  `scores.ts` (mock friend-score chrome) predates this and still backs the
+  item page's fake breakdowns.
 - `src/comments/` — `CommentsBackend` seam; `SupabaseCommentsBackend` is the
   only implementation (ships Supabase-backed from day one — see "Comments,
   likes & Supabase" below).
@@ -70,9 +111,11 @@ already underway.
   `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY` from a Supabase
   project (Project Settings → API). Without these, `src/lib/supabase.ts`
   throws at module load — search/rating still work, only comments and likes
-  break.
-- Run `supabase/migrations/0001_comments.sql` and `0002_likes.sql` in the
-  project's SQL Editor to create the `comments` and `likes` tables.
+  break. (The same `.env` also holds the Spotify keys that power search — see
+  the Stack section.)
+- Run `supabase/migrations/0001_comments.sql` through `0004_social.sql` in the
+  project's SQL Editor to create the `comments`, `likes`, `items`, `ratings`,
+  `comparisons`, `profiles`, `follows`, and `feed_events` tables.
 - **Known trust gap**: auth is `LocalAuthBackend`, not Supabase Auth, so RLS
   cannot cryptographically verify who's posting a comment or toggling a like.
   Both tables' RLS policies allow public read and trust client-supplied

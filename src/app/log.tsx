@@ -92,7 +92,7 @@ export default function LogModal() {
 
   function finish() {
     const { list, events } = placement.current!.commit();
-    commitPlacement(list, events);
+    commitPlacement(list, events, { item: album, score });
     const sorted = sortRanked(list);
     const idx = sorted.findIndex((r) => r.item.id === album.id);
     setResult({ rank: idx + 1, total: sorted.length });

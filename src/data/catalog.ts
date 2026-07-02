@@ -48,6 +48,10 @@ export interface FeedEvent {
   /** Set for 'rated'/'drop' events — links the card to /item/[id]. */
   itemId?: string;
   itemType?: ItemType;
+  /** ISO timestamp — set on real events (src/social), absent on mock rows. */
+  createdAt?: string;
+  /** The actor's user id — set on real events; links the avatar to /user/[id]. */
+  userId?: string;
 }
 
 export const FEED: FeedEvent[] = [
