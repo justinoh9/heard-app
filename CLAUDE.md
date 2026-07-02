@@ -41,7 +41,12 @@ build order) that current work follows.
     group. Escape hatches on `Placement`: `skip()` ("haven't heard it" — opponent
     keeps its slot) and `tooClose()` (settle below the opponent); neither logs a
     comparison event. See SPEC §5.
-  - `engine.test.ts` — unit tests for the tie-break logic.
+  - `nudge.ts` — the re-rank "quick match" (blueprint §2.B): picks an adjacent
+    never-compared pair (same-score pairs preferred — those can actually swap;
+    cross-score answers are banked only). Rendered by
+    `src/components/quick-match-card.tsx` at the top of the Ranks tab, applied
+    through `commitPlacement`.
+  - `engine.test.ts`, `nudge.test.ts` — unit tests for tie-break + nudge logic.
 - `src/data/` — `catalog.ts` (mock songs/feed/profile), `store.ts`
   (`useRatings()` hook: hydrates from the backend on sign-in, optimistic
   commits), `ratings-backend.ts` (`RatingsBackend` interface +

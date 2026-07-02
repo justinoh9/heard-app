@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { PageContainer } from '@/components/page-container';
+import { QuickMatchCard } from '@/components/quick-match-card';
 import { Segmented } from '@/components/segmented';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -54,6 +55,8 @@ export default function LeaderboardScreen() {
     <ThemedView style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
         <PageContainer style={styles.inner}>
+          <QuickMatchCard />
+
           <Segmented
             options={[
               { key: 'global', label: 'Global' },
