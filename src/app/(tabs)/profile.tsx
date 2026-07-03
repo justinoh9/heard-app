@@ -125,7 +125,7 @@ export default function ProfileScreen() {
               styles.wrappedCard,
               { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.7 : 1 },
             ]}>
-            <Ionicons name="sparkles" size={18} color="#1D9E75" />
+            <Ionicons name="sparkles" size={18} color={theme.accent} />
             <View style={{ flex: 1 }}>
               <ThemedText type="smallBold">Your Wrapped</ThemedText>
               <ThemedText type="small" themeColor="textSecondary">
@@ -145,7 +145,7 @@ export default function ProfileScreen() {
                   testID="edit-top4"
                   onPress={() => setEditingTop4((e) => !e)}
                   hitSlop={8}>
-                  <ThemedText type="smallBold" style={{ color: '#1D9E75' }}>
+                  <ThemedText type="smallBold" style={{ color: theme.accent }}>
                     {editingTop4 ? 'Done' : 'Edit'}
                   </ThemedText>
                 </Pressable>
@@ -162,7 +162,7 @@ export default function ProfileScreen() {
                     <View>
                       <AlbumCover uri={r.item.artUrl} fill radius={10} />
                       {editingTop4 && (
-                        <View style={styles.removeBadge}>
+                        <View style={[styles.removeBadge, { backgroundColor: theme.danger }]}>
                           <Ionicons name="close" size={14} color="#fff" />
                         </View>
                       )}
@@ -170,7 +170,7 @@ export default function ProfileScreen() {
                     <ThemedText type="small" numberOfLines={1} style={styles.favTitle}>
                       {r.item.title}
                     </ThemedText>
-                    <ThemedText type="smallBold" style={{ color: '#1D9E75' }}>
+                    <ThemedText type="smallBold" style={{ color: theme.accent }}>
                       {r.score.toFixed(1)}
                     </ThemedText>
                   </Pressable>
@@ -224,7 +224,7 @@ export default function ProfileScreen() {
                             {r.item.artist}
                           </ThemedText>
                         </View>
-                        <ThemedText type="smallBold" style={{ color: '#1D9E75' }}>
+                        <ThemedText type="smallBold" style={{ color: theme.accent }}>
                           {r.score.toFixed(1)}
                         </ThemedText>
                       </Pressable>
@@ -304,7 +304,7 @@ export default function ProfileScreen() {
                   {r.item.artist}
                 </ThemedText>
               </View>
-              <ThemedText type="smallBold" style={{ color: '#1D9E75' }}>
+              <ThemedText type="smallBold" style={{ color: theme.accent }}>
                 {r.score.toFixed(1)}
               </ThemedText>
             </Pressable>
@@ -315,7 +315,7 @@ export default function ProfileScreen() {
               SHOWS
             </ThemedText>
             <Pressable testID="log-show" onPress={() => router.push('/concert/new')} hitSlop={8}>
-              <ThemedText type="smallBold" style={{ color: '#1D9E75' }}>
+              <ThemedText type="smallBold" style={{ color: theme.accent }}>
                 + Log a show
               </ThemedText>
             </Pressable>
@@ -343,7 +343,7 @@ export default function ProfileScreen() {
                     </ThemedText>
                   ) : null}
                   {c.score != null ? (
-                    <ThemedText type="smallBold" style={{ color: '#1D9E75' }}>
+                    <ThemedText type="smallBold" style={{ color: theme.accent }}>
                       {c.score.toFixed(1)}
                     </ThemedText>
                   ) : null}
@@ -426,7 +426,6 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: '#E24B4A',
     alignItems: 'center',
     justifyContent: 'center',
   },

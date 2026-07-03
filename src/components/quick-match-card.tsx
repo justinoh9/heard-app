@@ -43,8 +43,8 @@ export function QuickMatchCard() {
   return (
     <View style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
       <View style={styles.header}>
-        <Ionicons name="swap-vertical" size={14} color="#1D9E75" />
-        <ThemedText type="small" style={{ color: '#1D9E75', flex: 1 }}>
+        <Ionicons name="swap-vertical" size={14} color={theme.accent} />
+        <ThemedText type="small" style={{ color: theme.accent, flex: 1 }}>
           QUICK MATCH · sharpen your ranks
         </ThemedText>
         <Pressable

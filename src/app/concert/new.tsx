@@ -113,7 +113,7 @@ export default function NewConcertModal() {
           placeholder="YYYY-MM-DD"
         />
         {!dateOk && showDate.trim().length > 0 && (
-          <ThemedText type="small" style={styles.error}>
+          <ThemedText type="small" style={[styles.error, { color: theme.danger }]}>
             Use YYYY-MM-DD, e.g. {todayKey()}
           </ThemedText>
         )}
@@ -139,11 +139,11 @@ export default function NewConcertModal() {
                     accessibilityLabel={on ? `Untag ${p.displayName}` : `Tag ${p.displayName}`}
                     style={[
                       styles.chip,
-                      { backgroundColor: on ? '#1D9E75' : theme.backgroundElement },
+                      { backgroundColor: on ? theme.accent : theme.backgroundElement },
                     ]}>
                     <ThemedText
                       type="small"
-                      style={{ color: on ? '#fff' : theme.textSecondary }}>
+                      style={{ color: on ? theme.onAccent : theme.textSecondary }}>
                       {p.displayName}
                     </ThemedText>
                   </Pressable>
@@ -169,9 +169,9 @@ export default function NewConcertModal() {
           disabled={!canSave}
           style={({ pressed }) => [
             styles.primary,
-            { opacity: !canSave ? 0.4 : pressed ? 0.7 : 1 },
+            { backgroundColor: theme.accent, opacity: !canSave ? 0.4 : pressed ? 0.7 : 1 },
           ]}>
-          <ThemedText type="smallBold" style={{ color: '#fff' }}>
+          <ThemedText type="smallBold" style={{ color: theme.onAccent }}>
             Log show
           </ThemedText>
         </Pressable>
@@ -191,9 +191,8 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: Spacing.three },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   chip: { paddingVertical: 6, paddingHorizontal: Spacing.three, borderRadius: 999 },
-  error: { color: '#E24B4A' },
+  error: {},
   primary: {
-    backgroundColor: '#1D9E75',
     paddingVertical: Spacing.three,
     borderRadius: 12,
     alignItems: 'center',

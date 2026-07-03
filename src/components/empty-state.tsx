@@ -23,8 +23,11 @@ export function EmptyState({ icon, message, ctaLabel, onPressCta }: Props) {
       {ctaLabel && onPressCta && (
         <Pressable
           onPress={onPressCta}
-          style={({ pressed }) => [styles.cta, { backgroundColor: '#1D9E75', opacity: pressed ? 0.7 : 1 }]}>
-          <ThemedText type="smallBold" style={{ color: '#fff' }}>
+          style={({ pressed }) => [
+            styles.cta,
+            { backgroundColor: theme.accent, opacity: pressed ? 0.7 : 1 },
+          ]}>
+          <ThemedText type="smallBold" style={{ color: theme.onAccent }}>
             {ctaLabel}
           </ThemedText>
         </Pressable>

@@ -57,8 +57,8 @@ export default function DropModal() {
       {selected ? (
         <View style={styles.confirm}>
           <View style={styles.dropHeader}>
-            <Ionicons name="radio" size={16} color="#378ADD" />
-            <ThemedText type="small" style={{ color: '#378ADD' }}>
+            <Ionicons name="radio" size={16} color={theme.accentAlt} />
+            <ThemedText type="small" style={{ color: theme.accentAlt }}>
               You&apos;re listening to
             </ThemedText>
           </View>
@@ -82,8 +82,11 @@ export default function DropModal() {
           <Pressable
             testID="drop-share"
             onPress={share}
-            style={({ pressed }) => [styles.primary, { opacity: pressed ? 0.7 : 1 }]}>
-            <ThemedText type="smallBold" style={{ color: '#fff' }}>
+            style={({ pressed }) => [
+              styles.primary,
+              { backgroundColor: theme.accent, opacity: pressed ? 0.7 : 1 },
+            ]}>
+            <ThemedText type="smallBold" style={{ color: theme.onAccent }}>
               Share drop
             </ThemedText>
           </Pressable>
@@ -115,7 +118,7 @@ export default function DropModal() {
           </View>
 
           {error && (
-            <ThemedText type="small" style={styles.error}>
+            <ThemedText type="small" style={[styles.error, { color: theme.danger }]}>
               {error}
             </ThemedText>
           )}
@@ -182,7 +185,6 @@ const styles = StyleSheet.create({
   center: { textAlign: 'center' },
   caption: { alignSelf: 'stretch' },
   primary: {
-    backgroundColor: '#1D9E75',
     paddingVertical: Spacing.three,
     paddingHorizontal: Spacing.five,
     borderRadius: 12,
@@ -197,7 +199,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   searchInput: { flex: 1, paddingVertical: Spacing.three, fontSize: 16 },
-  error: { color: '#E24B4A', paddingHorizontal: Spacing.four, marginBottom: Spacing.two },
+  error: { paddingHorizontal: Spacing.four, marginBottom: Spacing.two },
   list: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.four, gap: Spacing.two },
   row: {
     flexDirection: 'row',

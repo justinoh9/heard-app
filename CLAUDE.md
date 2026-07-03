@@ -110,7 +110,15 @@ build order) that current work follows.
   `src/comments/` and `src/likes/`.
 - `src/components/`, `src/constants/theme.ts`, `src/hooks/` — shared UI
   primitives (`ThemedText`, `ThemedView`, `EmptyState`, `Skeleton`,
-  `CommentCard`, `useTheme`, `useHaptics`, `Colors`, `Spacing`).
+  `CommentCard`, `useTheme`, `useHaptics`, `Spacing`).
+  **Theming:** `constants/theme.ts` defines named `Palettes` (`vinyl` — the
+  default dark-crimson look — and `cream`, warm paper) with accent tokens
+  (`accent`/`onAccent`/`accentSoft`/`accentAlt`/`danger`/`warning`).
+  `useTheme()` reads the selected palette from `ThemePreferenceContext`
+  (persisted to AsyncStorage, picker in Settings → Appearance). **Never
+  hardcode accent hexes in screens** — everything goes through the palette.
+  The two deliberate exceptions (semantic bad→great scales, not chrome):
+  `ranking/score.ts` gradient anchors and `wrapped.tsx` `BAR_TINTS`.
 
 ## Commands
 - `npm run web` — run in browser (easiest local check on Windows)

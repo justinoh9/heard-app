@@ -69,10 +69,10 @@ export default function FeedScreen() {
               onPress={() => router.push('/people')}
               style={({ pressed }) => [
                 styles.promptCard,
-                { borderColor: '#1D9E75', opacity: pressed ? 0.7 : 1 },
+                { borderColor: theme.accent, opacity: pressed ? 0.7 : 1 },
               ]}>
               <View style={[styles.promptIcon, { backgroundColor: theme.backgroundElement }]}>
-                <Ionicons name="people" size={20} color="#1D9E75" />
+                <Ionicons name="people" size={20} color={theme.accent} />
               </View>
               <View style={{ flex: 1 }}>
                 <ThemedText type="smallBold">Find friends</ThemedText>
@@ -109,10 +109,10 @@ export default function FeedScreen() {
             <Pressable
               testID="feed-drop"
               onPress={() => openItem(mockDrop)}
-              style={[styles.dropCard, { borderColor: '#378ADD', backgroundColor: theme.backgroundElement }]}>
+              style={[styles.dropCard, { borderColor: theme.accentAlt, backgroundColor: theme.backgroundElement }]}>
               <View style={styles.dropHeader}>
-                <Ionicons name="radio" size={16} color="#378ADD" />
-                <ThemedText type="small" style={{ color: '#378ADD' }}>
+                <Ionicons name="radio" size={16} color={theme.accentAlt} />
+                <ThemedText type="small" style={{ color: theme.accentAlt }}>
                   {mockDrop.user}&apos;s drop · 2h left
                 </ThemedText>
               </View>
@@ -166,10 +166,10 @@ function YourDrop({
         onPress={onCompose}
         style={({ pressed }) => [
           styles.promptCard,
-          { borderColor: '#378ADD', opacity: pressed ? 0.7 : 1 },
+          { borderColor: theme.accentAlt, opacity: pressed ? 0.7 : 1 },
         ]}>
         <View style={[styles.promptIcon, { backgroundColor: theme.backgroundElement }]}>
-          <Ionicons name="radio" size={20} color="#378ADD" />
+          <Ionicons name="radio" size={20} color={theme.accentAlt} />
         </View>
         <View style={{ flex: 1 }}>
           <ThemedText type="smallBold">Share your daily drop</ThemedText>
@@ -177,16 +177,16 @@ function YourDrop({
             Post what you&apos;re listening to right now
           </ThemedText>
         </View>
-        <Ionicons name="add-circle" size={26} color="#378ADD" />
+        <Ionicons name="add-circle" size={26} color={theme.accentAlt} />
       </Pressable>
     );
   }
 
   return (
-    <View style={[styles.dropCard, { borderColor: '#378ADD', backgroundColor: theme.backgroundElement }]}>
+    <View style={[styles.dropCard, { borderColor: theme.accentAlt, backgroundColor: theme.backgroundElement }]}>
       <View style={styles.dropHeader}>
-        <Ionicons name="radio" size={16} color="#378ADD" />
-        <ThemedText type="small" style={{ color: '#378ADD', flex: 1 }}>
+        <Ionicons name="radio" size={16} color={theme.accentAlt} />
+        <ThemedText type="small" style={{ color: theme.accentAlt, flex: 1 }}>
           Your daily drop · {relativeTime(drop.createdAt)}
         </ThemedText>
         <Pressable testID="replace-drop" onPress={onCompose} hitSlop={8} accessibilityLabel="Replace drop">
@@ -261,7 +261,7 @@ function FeedRow({
           ) : null}
           {event.kind === 'concert' ? ' live' : ''}
         </ThemedText>
-        {event.kind === 'streak' && <Ionicons name="flame" size={16} color="#EF9F27" />}
+        {event.kind === 'streak' && <Ionicons name="flame" size={16} color={theme.warning} />}
         {event.createdAt && (
           <ThemedText type="small" themeColor="textSecondary">
             {relativeTime(event.createdAt)}
@@ -280,8 +280,8 @@ function FeedRow({
           <View style={{ flex: 1, gap: 3 }}>
             <View style={styles.scoreRow}>
               {event.score != null && (
-                <View style={styles.scorePill}>
-                  <ThemedText type="smallBold" style={{ color: '#fff' }}>
+                <View style={[styles.scorePill, { backgroundColor: theme.accent }]}>
+                  <ThemedText type="smallBold" style={{ color: theme.onAccent }}>
                     {event.score.toFixed(1)}
                   </ThemedText>
                 </View>
@@ -341,7 +341,6 @@ const styles = StyleSheet.create({
   ratedBody: { flexDirection: 'row', gap: Spacing.three, alignItems: 'center' },
   scoreRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   scorePill: {
-    backgroundColor: '#1D9E75',
     borderRadius: 999,
     minWidth: 40,
     paddingHorizontal: Spacing.two,

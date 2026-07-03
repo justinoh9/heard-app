@@ -51,8 +51,11 @@ export default function NewPlaylistModal() {
           testID="create-playlist"
           onPress={create}
           disabled={!name.trim()}
-          style={({ pressed }) => [styles.primary, { opacity: pressed || !name.trim() ? 0.6 : 1 }]}>
-          <ThemedText type="smallBold" style={{ color: '#fff' }}>
+          style={({ pressed }) => [
+            styles.primary,
+            { backgroundColor: theme.accent, opacity: pressed || !name.trim() ? 0.6 : 1 },
+          ]}>
+          <ThemedText type="smallBold" style={{ color: theme.onAccent }}>
             Create
           </ThemedText>
         </Pressable>
@@ -70,7 +73,6 @@ const styles = StyleSheet.create({
   },
   body: { padding: Spacing.four, gap: Spacing.three },
   primary: {
-    backgroundColor: '#1D9E75',
     paddingVertical: Spacing.three,
     borderRadius: 12,
     alignItems: 'center',

@@ -99,12 +99,12 @@ function PersonRow({
           styles.followButton,
           following
             ? { backgroundColor: 'transparent', borderColor: theme.textSecondary, borderWidth: 1 }
-            : { backgroundColor: '#1D9E75' },
+            : { backgroundColor: theme.accent },
           { opacity: pressed ? 0.7 : 1 },
         ]}>
         <ThemedText
           type="smallBold"
-          style={{ color: following ? theme.textSecondary : '#fff' }}>
+          style={{ color: following ? theme.textSecondary : theme.onAccent }}>
           {following ? 'Following' : 'Follow'}
         </ThemedText>
       </Pressable>

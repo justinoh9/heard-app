@@ -105,7 +105,7 @@ export default function ArtistProfileScreen() {
         )}
 
         {error && (
-          <ThemedText type="small" style={[styles.error, styles.pad]}>
+          <ThemedText type="small" style={[styles.error, styles.pad, { color: theme.danger }]}>
             {error}
           </ThemedText>
         )}
@@ -161,8 +161,10 @@ export default function ArtistProfileScreen() {
                       <View>
                         <AlbumCover uri={album.coverUrl} size={132} radius={10} />
                         {existing && (
-                          <View style={styles.scorePill}>
-                            <ThemedText type="small" style={{ color: '#fff', fontWeight: '700' }}>
+                          <View style={[styles.scorePill, { backgroundColor: theme.accent }]}>
+                            <ThemedText
+                              type="small"
+                              style={{ color: theme.onAccent, fontWeight: '700' }}>
                               {existing.score.toFixed(1)}
                             </ThemedText>
                           </View>
@@ -300,8 +302,8 @@ function SongRow({
         )}
       </View>
       {score != null ? (
-        <View style={styles.scorePillInline}>
-          <ThemedText type="small" style={{ color: '#fff', fontWeight: '700' }}>
+        <View style={[styles.scorePillInline, { backgroundColor: theme.accent }]}>
+          <ThemedText type="small" style={{ color: theme.onAccent, fontWeight: '700' }}>
             {score.toFixed(1)}
           </ThemedText>
         </View>
@@ -340,7 +342,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   loading: { paddingVertical: Spacing.six, alignItems: 'center' },
-  error: { color: '#E24B4A', marginTop: Spacing.three },
+  error: { marginTop: Spacing.three },
   pad: { paddingHorizontal: Spacing.four },
   section: { marginTop: Spacing.four, gap: Spacing.two },
   songRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.one },
@@ -354,7 +356,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: Spacing.one,
     right: Spacing.one,
-    backgroundColor: '#1D9E75',
     borderRadius: 999,
     minWidth: 34,
     paddingHorizontal: Spacing.two,
@@ -362,7 +363,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   scorePillInline: {
-    backgroundColor: '#1D9E75',
     borderRadius: 999,
     minWidth: 34,
     paddingHorizontal: Spacing.two,

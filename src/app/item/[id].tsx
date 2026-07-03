@@ -143,8 +143,8 @@ export default function ItemProfileScreen() {
             </ThemedText>
 
             {existing ? (
-              <View style={styles.scorePill}>
-                <ThemedText type="smallBold" style={{ color: '#fff' }}>
+              <View style={[styles.scorePill, { backgroundColor: theme.accent }]}>
+                <ThemedText type="smallBold" style={{ color: theme.onAccent }}>
                   {existing.score.toFixed(1)}
                 </ThemedText>
               </View>
@@ -153,8 +153,11 @@ export default function ItemProfileScreen() {
             <View style={styles.actionsRow}>
               <Pressable
                 onPress={rate}
-                style={({ pressed }) => [styles.primary, { opacity: pressed ? 0.7 : 1 }]}>
-                <ThemedText type="smallBold" style={{ color: '#fff' }}>
+                style={({ pressed }) => [
+                  styles.primary,
+                  { backgroundColor: theme.accent, opacity: pressed ? 0.7 : 1 },
+                ]}>
+                <ThemedText type="smallBold" style={{ color: theme.onAccent }}>
                   {existing ? 'Update rating' : 'Rate'}
                 </ThemedText>
               </Pressable>
@@ -169,7 +172,7 @@ export default function ItemProfileScreen() {
                 <Ionicons
                   name={itemLike.likedByMe ? 'heart' : 'heart-outline'}
                   size={18}
-                  color={itemLike.likedByMe ? '#E24B4A' : theme.textSecondary}
+                  color={itemLike.likedByMe ? theme.accent : theme.textSecondary}
                 />
                 <ThemedText type="smallBold" themeColor="textSecondary">
                   {itemLike.count}
@@ -185,7 +188,7 @@ export default function ItemProfileScreen() {
               </ThemedText>
               {tracksLoading && <ActivityIndicator style={{ marginTop: Spacing.two }} />}
               {tracksError && (
-                <ThemedText type="small" style={styles.error}>
+                <ThemedText type="small" style={[styles.error, { color: theme.danger }]}>
                   {tracksError}
                 </ThemedText>
               )}
@@ -206,8 +209,10 @@ export default function ItemProfileScreen() {
                         {track.title}
                       </ThemedText>
                       {rated ? (
-                        <View style={styles.trackScore}>
-                          <ThemedText type="small" style={{ color: '#fff', fontWeight: '700' }}>
+                        <View style={[styles.trackScore, { backgroundColor: theme.accent }]}>
+                          <ThemedText
+                            type="small"
+                            style={{ color: theme.onAccent, fontWeight: '700' }}>
                             {rated.score.toFixed(1)}
                           </ThemedText>
                         </View>
@@ -247,16 +252,19 @@ export default function ItemProfileScreen() {
               disabled={!body.trim() || posting}
               style={({ pressed }) => [
                 styles.primary,
-                { opacity: pressed || !body.trim() || posting ? 0.6 : 1 },
+                {
+                  backgroundColor: theme.accent,
+                  opacity: pressed || !body.trim() || posting ? 0.6 : 1,
+                },
               ]}>
-              <ThemedText type="smallBold" style={{ color: '#fff' }}>
+              <ThemedText type="smallBold" style={{ color: theme.onAccent }}>
                 Post
               </ThemedText>
             </Pressable>
           </View>
 
           {error && (
-            <ThemedText type="small" style={styles.error}>
+            <ThemedText type="small" style={[styles.error, { color: theme.danger }]}>
               {error}
             </ThemedText>
           )}
@@ -331,7 +339,6 @@ const styles = StyleSheet.create({
   header: { alignItems: 'center', gap: Spacing.two },
   center: { textAlign: 'center' },
   scorePill: {
-    backgroundColor: '#1D9E75',
     borderRadius: 999,
     minWidth: 48,
     paddingHorizontal: Spacing.three,
@@ -340,7 +347,6 @@ const styles = StyleSheet.create({
   },
   actionsRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, marginTop: Spacing.one },
   primary: {
-    backgroundColor: '#1D9E75',
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.four,
     borderRadius: 12,
@@ -365,7 +371,7 @@ const styles = StyleSheet.create({
   },
   commentBox: { gap: Spacing.two, alignItems: 'flex-start' },
   commentInput: { minHeight: 70, textAlignVertical: 'top', alignSelf: 'stretch' },
-  error: { color: '#E24B4A' },
+  error: {},
   trackRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -375,7 +381,6 @@ const styles = StyleSheet.create({
   trackNum: { minWidth: 20, textAlign: 'center' },
   trackTitle: { flex: 1 },
   trackScore: {
-    backgroundColor: '#1D9E75',
     borderRadius: 999,
     minWidth: 34,
     paddingHorizontal: Spacing.two,

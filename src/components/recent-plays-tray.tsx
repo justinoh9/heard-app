@@ -69,7 +69,7 @@ export function RecentPlaysTray({ onPick }: { onPick: (item: SearchResult) => vo
   if (status === 'disconnected') {
     return (
       <View style={[styles.connectCard, { backgroundColor: theme.backgroundElement }]}>
-        <Ionicons name="musical-notes" size={22} color="#1D9E75" />
+        <Ionicons name="musical-notes" size={22} color={theme.accent} />
         <View style={styles.connectText}>
           <ThemedText type="smallBold">See what you've been playing</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
@@ -82,14 +82,14 @@ export function RecentPlaysTray({ onPick }: { onPick: (item: SearchResult) => vo
           accessibilityLabel="Connect Spotify"
           style={({ pressed }) => [
             styles.connectButton,
-            { opacity: pressed || connecting ? 0.7 : 1 },
+            { backgroundColor: theme.accent, opacity: pressed || connecting ? 0.7 : 1 },
           ]}>
-          <ThemedText type="smallBold" style={{ color: '#fff' }}>
+          <ThemedText type="smallBold" style={{ color: theme.onAccent }}>
             {connecting ? 'Connecting…' : 'Connect'}
           </ThemedText>
         </Pressable>
         {error && (
-          <ThemedText type="small" style={styles.error}>
+          <ThemedText type="small" style={[styles.error, { color: theme.danger }]}>
             {error}
           </ThemedText>
         )}
@@ -163,10 +163,9 @@ const styles = StyleSheet.create({
   },
   connectText: { flex: 1, gap: 2, minWidth: 160 },
   connectButton: {
-    backgroundColor: '#1D9E75',
     borderRadius: 999,
     paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.two,
   },
-  error: { color: '#E24B4A', width: '100%' },
+  error: { width: '100%' },
 });

@@ -1,14 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
-import { useColorScheme, View } from 'react-native';
+import { View } from 'react-native';
 
 import { TopNavBar } from '@/components/top-nav-bar';
-import { Colors } from '@/constants/theme';
 import { useResponsive } from '@/hooks/use-responsive';
+import { useTheme } from '@/hooks/use-theme';
 
 export default function TabsLayout() {
-  const scheme = useColorScheme() ?? 'light';
-  const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const colors = useTheme();
   const { isWide } = useResponsive();
 
   return (
@@ -25,7 +24,7 @@ export default function TabsLayout() {
           headerStyle: { backgroundColor: colors.background },
           headerTitleStyle: { color: colors.text },
           headerShadowVisible: false,
-          tabBarActiveTintColor: colors.text,
+          tabBarActiveTintColor: colors.accent,
           tabBarInactiveTintColor: colors.textSecondary,
           tabBarStyle: {
             backgroundColor: colors.background,

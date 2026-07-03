@@ -98,12 +98,12 @@ export default function UserProfileScreen() {
                 styles.followButton,
                 following
                   ? { borderColor: theme.textSecondary, borderWidth: 1 }
-                  : { backgroundColor: '#1D9E75' },
+                  : { backgroundColor: theme.accent },
                 { opacity: pressed ? 0.7 : 1 },
               ]}>
               <ThemedText
                 type="smallBold"
-                style={{ color: following ? theme.textSecondary : '#fff' }}>
+                style={{ color: following ? theme.textSecondary : theme.onAccent }}>
                 {following ? 'Following' : 'Follow'}
               </ThemedText>
             </Pressable>
@@ -117,7 +117,9 @@ export default function UserProfileScreen() {
             <>
               <View style={[styles.matchCard, { backgroundColor: theme.backgroundElement }]}>
                 <View style={styles.matchHeader}>
-                  <ThemedText style={styles.matchPercent}>{compat.percent}%</ThemedText>
+                  <ThemedText style={[styles.matchPercent, { color: theme.accent }]}>
+                    {compat.percent}%
+                  </ThemedText>
                   <View style={{ flex: 1 }}>
                     <ThemedText type="smallBold">taste match</ThemedText>
                     <ThemedText type="small" themeColor="textSecondary">
@@ -183,8 +185,8 @@ export default function UserProfileScreen() {
                           {r.item.artist}
                         </ThemedText>
                       </View>
-                      <View style={styles.scorePill}>
-                        <ThemedText type="smallBold" style={{ color: '#fff' }}>
+                      <View style={[styles.scorePill, { backgroundColor: theme.accent }]}>
+                        <ThemedText type="smallBold" style={{ color: theme.onAccent }}>
                           {r.score.toFixed(1)}
                         </ThemedText>
                       </View>
@@ -243,7 +245,7 @@ const styles = StyleSheet.create({
   center: { paddingVertical: Spacing.six, alignItems: 'center' },
   matchCard: { borderRadius: 12, padding: Spacing.three, gap: Spacing.two },
   matchHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
-  matchPercent: { fontSize: 34, fontWeight: '800', color: '#1D9E75' },
+  matchPercent: { fontSize: 34, fontWeight: '800' },
   favoritesRow: { flexDirection: 'row', gap: Spacing.three },
   favorite: { width: 72 },
   favoriteTitle: { marginTop: 4 },
@@ -253,7 +255,6 @@ const styles = StyleSheet.create({
   rankRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   rankNum: { width: 18, textAlign: 'center' },
   scorePill: {
-    backgroundColor: '#1D9E75',
     borderRadius: 999,
     minWidth: 40,
     paddingHorizontal: Spacing.two,

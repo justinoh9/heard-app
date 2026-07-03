@@ -14,7 +14,7 @@ import { useRatings } from '@/data/store';
 import { useTheme } from '@/hooks/use-theme';
 import { useStreaks } from '@/streaks/store';
 
-const ACCENT = '#1D9E75';
+/** Histogram tints stay literal: a semantic bad→great scale, not theme chrome. */
 const BAR_TINTS = ['#E24B4A', '#EF9F27', '#EFD927', '#8FD14F', '#1D9E75'];
 
 /**
@@ -30,6 +30,7 @@ export default function WrappedScreen() {
   const { concerts } = useConcerts();
   const { current: streak, longest } = useStreaks();
 
+  const ACCENT = theme.accent;
   const stats = computeStats(ranked, concerts);
   const maxBucket = Math.max(1, ...stats.histogram.map((b) => b.count));
   const maxDecade = Math.max(1, ...stats.topDecades.map((b) => b.count));
@@ -151,7 +152,7 @@ export default function WrappedScreen() {
                     <View
                       style={[
                         styles.barFill,
-                        { backgroundColor: '#378ADD', width: `${(d.count / maxDecade) * 100}%` },
+                        { backgroundColor: theme.accentAlt, width: `${(d.count / maxDecade) * 100}%` },
                       ]}
                     />
                   </View>

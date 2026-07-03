@@ -1,38 +1,72 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, useRouter, useSegments } from 'expo-router';
 import { useEffect } from 'react';
-import { ActivityIndicator, useColorScheme } from 'react-native';
+import { ActivityIndicator } from 'react-native';
 
 import { ThemedView } from '@/components/themed-view';
 import { AuthProvider, useAuth } from '@/auth/store';
 import { ConcertsContext, useConcertsState } from '@/concerts/store';
 import { RatingsContext, useRatingsState } from '@/data/store';
 import { FeedContext, useFeedState } from '@/feed/store';
+import { useTheme, ThemePreferenceContext, useThemePreferenceState } from '@/hooks/use-theme';
 import { PlaylistsContext, usePlaylistsState } from '@/playlists/store';
 import { SocialContext, useSocialState } from '@/social/store';
 import { StreaksContext, useStreaksState } from '@/streaks/store';
 
 export default function RootLayout() {
-  const scheme = useColorScheme() ?? 'light';
-
   return (
-    <AuthProvider>
-      <StreaksBridge>
-        {/* Social sits above ratings + feed: both publish activity events. */}
-        <SocialBridge>
-          <RatingsBridge>
-            <FeedBridge>
-              <ConcertsBridge>
-                <PlaylistsBridge>
-                  <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
-                    <RootNavigator />
-                  </ThemeProvider>
-                </PlaylistsBridge>
-              </ConcertsBridge>
-            </FeedBridge>
-          </RatingsBridge>
-        </SocialBridge>
-      </StreaksBridge>
-    </AuthProvider>
+    <AppThemeBridge>
+      <AuthProvider>
+        <StreaksBridge>
+          {/* Social sits above ratings + feed: both publish activity events. */}
+          <SocialBridge>
+            <RatingsBridge>
+              <FeedBridge>
+                <ConcertsBridge>
+                  <PlaylistsBridge>
+                    <NavThemeProvider>
+                      <RootNavigator />
+                    </NavThemeProvider>
+                  </PlaylistsBridge>
+                </ConcertsBridge>
+              </FeedBridge>
+            </RatingsBridge>
+          </SocialBridge>
+        </StreaksBridge>
+      </AuthProvider>
+    </AppThemeBridge>
+  );
+}
+
+/** Outermost: the selected palette (vinyl/cream) for every useTheme() below. */
+function AppThemeBridge({ children }: { children: React.ReactNode }) {
+  const themePreference = useThemePreferenceState();
+  return (
+    <ThemePreferenceContext.Provider value={themePreference}>
+      {children}
+    </ThemePreferenceContext.Provider>
+  );
+}
+
+/** React Navigation chrome (headers, transitions) follows the app palette. */
+function NavThemeProvider({ children }: { children: React.ReactNode }) {
+  const palette = useTheme();
+  const base = palette.isDark ? DarkTheme : DefaultTheme;
+  return (
+    <ThemeProvider
+      value={{
+        ...base,
+        colors: {
+          ...base.colors,
+          primary: palette.accent,
+          background: palette.background,
+          card: palette.background,
+          text: palette.text,
+          border: palette.backgroundElement,
+          notification: palette.accent,
+        },
+      }}>
+      {children}
+    </ThemeProvider>
   );
 }
 

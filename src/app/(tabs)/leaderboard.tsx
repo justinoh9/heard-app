@@ -80,9 +80,9 @@ export default function LeaderboardScreen() {
                   onPress={() => setMetricKey(m.key)}
                   style={[
                     styles.chip,
-                    { backgroundColor: active ? '#1D9E75' : theme.backgroundElement },
+                    { backgroundColor: active ? theme.accent : theme.backgroundElement },
                   ]}>
-                  <ThemedText type="small" style={{ color: active ? '#fff' : theme.textSecondary }}>
+                  <ThemedText type="small" style={{ color: active ? theme.onAccent : theme.textSecondary }}>
                     {m.label}
                   </ThemedText>
                 </Pressable>
@@ -98,8 +98,8 @@ export default function LeaderboardScreen() {
                 style={[
                   styles.row,
                   {
-                    backgroundColor: isYou ? '#1D9E7522' : theme.backgroundElement,
-                    borderColor: isYou ? '#1D9E75' : 'transparent',
+                    backgroundColor: isYou ? theme.accentSoft : theme.backgroundElement,
+                    borderColor: isYou ? theme.accent : 'transparent',
                   },
                 ]}>
                 <ThemedText
@@ -115,8 +115,8 @@ export default function LeaderboardScreen() {
                     {u.username}
                   </ThemedText>
                   {isYou && (
-                    <View style={styles.youBadge}>
-                      <ThemedText type="small" style={{ color: '#1D9E75', fontSize: 11 }}>
+                    <View style={[styles.youBadge, { backgroundColor: theme.accentSoft }]}>
+                      <ThemedText type="small" style={{ color: theme.accent, fontSize: 11 }}>
                         you
                       </ThemedText>
                     </View>
@@ -154,7 +154,6 @@ const styles = StyleSheet.create({
   rank: { width: 22, textAlign: 'center', fontSize: 16 },
   avatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   youBadge: {
-    backgroundColor: '#1D9E7522',
     borderRadius: 999,
     paddingHorizontal: Spacing.two,
     paddingVertical: 1,

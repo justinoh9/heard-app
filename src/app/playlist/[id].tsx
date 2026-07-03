@@ -86,7 +86,7 @@ export default function PlaylistDetailScreen() {
         </View>
 
         {error && (
-          <ThemedText type="small" style={styles.error}>
+          <ThemedText type="small" style={[styles.error, { color: theme.danger }]}>
             {error}
           </ThemedText>
         )}
@@ -210,7 +210,7 @@ function ResultRow({
       <Ionicons
         name={added ? 'checkmark-circle' : 'add-circle-outline'}
         size={24}
-        color={added ? '#1D9E75' : theme.textSecondary}
+        color={added ? theme.accent : theme.textSecondary}
       />
     </Pressable>
   );
@@ -262,7 +262,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   searchInput: { flex: 1, paddingVertical: Spacing.three, fontSize: 16 },
-  error: { color: '#E24B4A', paddingHorizontal: Spacing.four, marginTop: Spacing.two },
+  error: { paddingHorizontal: Spacing.four, marginTop: Spacing.two },
   list: { padding: Spacing.three, gap: Spacing.two },
   countLabel: { marginBottom: Spacing.one },
   row: {

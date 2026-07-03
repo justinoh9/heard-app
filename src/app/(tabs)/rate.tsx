@@ -91,7 +91,7 @@ export default function RateSearchScreen() {
         </View>
 
         {error && (
-          <ThemedText type="small" style={styles.error}>
+          <ThemedText type="small" style={[styles.error, { color: theme.danger }]}>
             {error}
           </ThemedText>
         )}
@@ -188,9 +188,10 @@ function subtitleFor(item: SearchResult): string {
 }
 
 function ScorePill({ score }: { score: number }) {
+  const theme = useTheme();
   return (
-    <View style={styles.scorePill}>
-      <ThemedText type="smallBold" style={{ color: '#fff' }}>
+    <View style={[styles.scorePill, { backgroundColor: theme.accent }]}>
+      <ThemedText type="smallBold" style={{ color: theme.onAccent }}>
         {score.toFixed(1)}
       </ThemedText>
     </View>
@@ -310,7 +311,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   searchInput: { flex: 1, paddingVertical: Spacing.three, fontSize: 16 },
-  error: { color: '#E24B4A', paddingHorizontal: Spacing.four, marginBottom: Spacing.two },
+  error: { paddingHorizontal: Spacing.four, marginBottom: Spacing.two },
   center: { flex: 1, alignItems: 'center', paddingTop: Spacing.six },
   list: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.six, gap: Spacing.two },
   sectionHeader: { marginTop: Spacing.three, marginBottom: Spacing.one },
@@ -325,7 +326,6 @@ const styles = StyleSheet.create({
   },
   rowText: { flex: 1, gap: 2 },
   scorePill: {
-    backgroundColor: '#1D9E75',
     borderRadius: 999,
     minWidth: 40,
     paddingHorizontal: Spacing.two,

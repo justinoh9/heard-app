@@ -1,30 +1,84 @@
 /**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
+ * The app's named themes. Every color a screen needs comes off one `Palette`
+ * — no hardcoded accents in components — so switching themes is a single
+ * context change (see src/hooks/use-theme.ts) and adding a theme is one new
+ * entry here.
+ *
+ * Shipping palettes:
+ *   vinyl (default) — near-black with red undertones + deep crimson accent
+ *     and a brass secondary; the moody concert-photo look.
+ *   cream           — warm paper + rust/olive; the HEYTEA-style light theme.
  */
 
 import '@/global.css';
 
 import { Platform } from 'react-native';
 
-export const Colors = {
-  light: {
-    text: '#000000',
-    background: '#ffffff',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
-  },
-  dark: {
-    text: '#ffffff',
-    background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
-  },
-} as const;
+export interface Palette {
+  /** Drives the navigation chrome + status bar (dark vs light treatment). */
+  isDark: boolean;
+  background: string;
+  /** Cards, rows, input fields. */
+  backgroundElement: string;
+  /** Pressed/selected fills, skeletons, avatar circles. */
+  backgroundSelected: string;
+  text: string;
+  textSecondary: string;
+  /** The brand accent: score pills, primary buttons, active tab, links. */
+  accent: string;
+  /** Text/icons placed on an `accent` fill. */
+  onAccent: string;
+  /** Low-emphasis accent fill (badges, highlighted card washes). */
+  accentSoft: string;
+  /** Secondary accent for the daily-drop/live surfaces. */
+  accentAlt: string;
+  /** Text/icons placed on an `accentAlt` fill. */
+  onAccentAlt: string;
+  danger: string;
+  /** Streak flames and caution accents. */
+  warning: string;
+}
 
-export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
+export const Palettes = {
+  vinyl: {
+    isDark: true,
+    background: '#140D0E',
+    backgroundElement: '#211517',
+    backgroundSelected: '#301D21',
+    text: '#F4E3E3',
+    textSecondary: '#A98F92',
+    accent: '#C42847',
+    onAccent: '#FFF1F1',
+    accentSoft: '#3A1520',
+    accentAlt: '#C9974C',
+    onAccentAlt: '#140D0E',
+    danger: '#E8604C',
+    warning: '#EFA72A',
+  },
+  cream: {
+    isDark: false,
+    background: '#F6F1E7',
+    backgroundElement: '#EDE5D4',
+    backgroundSelected: '#E1D6BE',
+    text: '#2B2620',
+    textSecondary: '#7A705F',
+    accent: '#C1512B',
+    onAccent: '#FBF6EC',
+    accentSoft: '#F0D9CC',
+    accentAlt: '#6E7A4E',
+    onAccentAlt: '#F6F1E7',
+    danger: '#B23A2E',
+    warning: '#9A6A10',
+  },
+} as const satisfies Record<string, Palette>;
+
+export type ThemeName = keyof typeof Palettes;
+export const DEFAULT_THEME: ThemeName = 'vinyl';
+
+/** Keys of `Palette` that hold a color (excludes the `isDark` flag). */
+export type ThemeColor = {
+  [K in keyof Palette]: Palette[K] extends string ? K : never;
+}[keyof Palette];
 
 export const Fonts = Platform.select({
   ios: {
