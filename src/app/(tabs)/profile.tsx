@@ -10,7 +10,7 @@ import { PlaylistCover } from '@/components/playlist-cover';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useConcerts } from '@/concerts/store';
-import { Spacing } from '@/constants/theme';
+import { DisplayFont, Spacing, Stage } from '@/constants/theme';
 import { PROFILE } from '@/data/catalog';
 import { useAuth } from '@/auth/store';
 import { useRatings } from '@/data/store';
@@ -22,12 +22,20 @@ import { resolveFavorites, TOP_FAVORITES } from '@/social/favorites';
 import { useSocial } from '@/social/store';
 import { useStreaks } from '@/streaks/store';
 
-const BADGE_TINTS = ['#993556', '#854F0B', '#185FA5'];
-
 function initialsFrom(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return '?';
   return (parts[0][0] + (parts[1]?.[0] ?? '')).toUpperCase();
+}
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** '2026-07-02' → 'Jul 2, 2026' (year dropped when it's the current one). */
+function showDateLabel(showDate: string): string {
+  const [y, m, d] = showDate.split('-').map((p) => Number.parseInt(p, 10));
+  if (!y || !m || !d) return showDate;
+  const base = `${MONTHS[m - 1]} ${d}`;
+  return y === new Date().getFullYear() ? base : `${base}, ${y}`;
 }
 
 export default function ProfileScreen() {
@@ -85,12 +93,10 @@ export default function ProfileScreen() {
         <PageContainer style={styles.inner}>
           <View style={styles.header}>
             <View style={[styles.avatar, { backgroundColor: theme.backgroundSelected }]}>
-              <ThemedText type="smallBold">{initials}</ThemedText>
+              <ThemedText style={styles.avatarInitial}>{initials}</ThemedText>
             </View>
             <View style={{ flex: 1 }}>
-              <ThemedText type="smallBold" style={{ fontSize: 18 }}>
-                {displayName}
-              </ThemedText>
+              <ThemedText style={styles.displayName}>{displayName}</ThemedText>
               <ThemedText type="small" themeColor="textSecondary">
                 {PROFILE.tags} · {ranked.length} rated
               </ThemedText>
@@ -107,11 +113,17 @@ export default function ProfileScreen() {
           </View>
 
           <View style={styles.stats}>
-            <Stat value={String(ranked.length)} label="rated" theme={theme} />
-            <Stat value={String(concerts.length)} label="shows" theme={theme} />
+            <Stat value={String(ranked.length)} label="rated" tint={theme.accent} theme={theme} />
             <Stat
-              value={`${streak}🔥`}
-              label="streak"
+              value={String(concerts.length)}
+              label="shows"
+              tint={theme.accentAlt}
+              theme={theme}
+            />
+            <Stat
+              value={String(streak)}
+              label="streak 🔥"
+              tint={theme.accent}
               theme={theme}
               onPress={() => router.push('/streak')}
               testID="streak-stat"
@@ -167,10 +179,8 @@ export default function ProfileScreen() {
                         </View>
                       )}
                     </View>
-                    <ThemedText type="small" numberOfLines={1} style={styles.favTitle}>
-                      {r.item.title}
-                    </ThemedText>
-                    <ThemedText type="smallBold" style={{ color: theme.accent }}>
+                    {/* Mockup style: the art speaks — just the score, centered. */}
+                    <ThemedText type="smallBold" style={[styles.favScore, { color: theme.accent }]}>
                       {r.score.toFixed(1)}
                     </ThemedText>
                   </Pressable>
@@ -311,63 +321,67 @@ export default function ProfileScreen() {
             </Pressable>
           ))}
 
-          <View style={styles.top4Header}>
-            <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
-              SHOWS
-            </ThemedText>
-            <Pressable testID="log-show" onPress={() => router.push('/concert/new')} hitSlop={8}>
-              <ThemedText type="smallBold" style={{ color: theme.accent }}>
-                + Log a show
+          <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
+            LIVE SHOWS
+          </ThemedText>
+          {/* The stage: a fixed dark venue-at-night pocket in every theme. */}
+          <View style={styles.stage}>
+            {concerts.length === 0 ? (
+              <ThemedText type="small" style={[styles.stageEmpty, { color: Stage.textMuted }]}>
+                No shows yet — your nights out will live here.
+              </ThemedText>
+            ) : (
+              concerts.map((c) => (
+                <View key={c.id} style={styles.stageRow}>
+                  <View style={styles.stageMic}>
+                    <Ionicons name="mic-outline" size={16} color={Stage.text} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <ThemedText type="smallBold" numberOfLines={1} style={{ color: Stage.text }}>
+                      {c.artistName}
+                    </ThemedText>
+                    <ThemedText type="small" numberOfLines={1} style={{ color: Stage.textMuted }}>
+                      {[c.venue, showDateLabel(c.showDate)].filter(Boolean).join(' · ')}
+                    </ThemedText>
+                  </View>
+                  {c.score != null && (
+                    <View style={styles.stagePill}>
+                      <ThemedText type="smallBold" style={{ color: Stage.onPill, fontSize: 13 }}>
+                        {c.score.toFixed(1)}
+                      </ThemedText>
+                    </View>
+                  )}
+                </View>
+              ))
+            )}
+            <Pressable
+              testID="log-show"
+              onPress={() => router.push('/concert/new')}
+              style={({ pressed }) => [styles.stageButton, { opacity: pressed ? 0.7 : 1 }]}>
+              <Ionicons name="add" size={15} color={Stage.text} />
+              <ThemedText type="small" style={{ color: Stage.text }}>
+                Log a show
               </ThemedText>
             </Pressable>
           </View>
-          {concerts.length === 0 ? (
-            <EmptyState
-              icon="mic-outline"
-              doodle="mic"
-              message="No shows yet — log a concert and start your badge wall."
-              ctaLabel="Log a show"
-              onPressCta={() => router.push('/concert/new')}
-            />
-          ) : (
-            <View style={styles.badges}>
-              {concerts.map((c, i) => (
-                <View
-                  key={c.id}
-                  style={[styles.badge, { backgroundColor: theme.backgroundElement }]}>
-                  <Ionicons name="mic" size={22} color={BADGE_TINTS[i % BADGE_TINTS.length]} />
-                  <ThemedText type="small" numberOfLines={1} style={{ marginTop: 4 }}>
-                    {c.artistName} &apos;{c.showDate.slice(2, 4)}
-                  </ThemedText>
-                  {c.venue ? (
-                    <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-                      {c.venue}
-                    </ThemedText>
-                  ) : null}
-                  {c.score != null ? (
-                    <ThemedText type="smallBold" style={{ color: theme.accent }}>
-                      {c.score.toFixed(1)}
-                    </ThemedText>
-                  ) : null}
-                </View>
-              ))}
-            </View>
-          )}
         </PageContainer>
       </ScrollView>
     </ThemedView>
   );
 }
 
+/** Mockup-style stat card: big serif number in an accent tint, quiet label. */
 function Stat({
   value,
   label,
+  tint,
   theme,
   onPress,
   testID,
 }: {
   value: string;
   label: string;
+  tint: string;
   theme: ReturnType<typeof useTheme>;
   onPress?: () => void;
   testID?: string;
@@ -377,11 +391,12 @@ function Stat({
       testID={testID}
       disabled={!onPress}
       onPress={onPress}
-      style={({ pressed }) => [styles.stat, { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.7 : 1 }]}>
-      <ThemedText type="subtitle" style={{ fontSize: 22 }}>
-        {value}
-      </ThemedText>
-      <ThemedText type="small" themeColor="textSecondary">
+      style={({ pressed }) => [
+        styles.stat,
+        { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.7 : 1 },
+      ]}>
+      <ThemedText style={[styles.statValue, { color: tint }]}>{value}</ThemedText>
+      <ThemedText type="small" themeColor="textSecondary" style={styles.statLabel}>
         {label}
       </ThemedText>
     </Pressable>
@@ -394,9 +409,13 @@ const styles = StyleSheet.create({
   inner: { gap: Spacing.three },
   header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   avatar: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
+  avatarInitial: { fontFamily: DisplayFont, fontSize: 18 },
+  displayName: { fontFamily: DisplayFont, fontSize: 19 },
   settingsBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   stats: { flexDirection: 'row', gap: Spacing.two },
-  stat: { flex: 1, alignItems: 'center', paddingVertical: Spacing.three, borderRadius: 10, gap: 2 },
+  stat: { flex: 1, alignItems: 'center', paddingVertical: Spacing.three, borderRadius: 12, gap: 2 },
+  statValue: { fontFamily: DisplayFont, fontSize: 24, lineHeight: 30 },
+  statLabel: { fontSize: 11, letterSpacing: 0.6 },
   wrappedCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -404,7 +423,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: Spacing.three,
   },
-  sectionLabel: { marginTop: Spacing.two },
+  sectionLabel: { marginTop: Spacing.two, fontSize: 12, letterSpacing: 1.1 },
   top4Header: {
     flexDirection: 'row',
     alignItems: 'baseline',
@@ -412,7 +431,7 @@ const styles = StyleSheet.create({
   },
   favorites: { flexDirection: 'row', gap: Spacing.two },
   favorite: { flex: 1, gap: 4 },
-  favTitle: { marginTop: 2 },
+  favScore: { textAlign: 'center', marginTop: 2 },
   emptySlot: {
     aspectRatio: 1,
     borderRadius: 10,
@@ -454,14 +473,39 @@ const styles = StyleSheet.create({
   },
   rankRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, padding: Spacing.two, borderRadius: 10 },
   rankNum: { width: 16, textAlign: 'center' },
-  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
-  badge: {
-    flexBasis: '30%',
-    flexGrow: 1,
-    maxWidth: '48%',
+  stage: {
+    backgroundColor: Stage.background,
+    borderRadius: 14,
+    padding: Spacing.three,
+    gap: Spacing.three,
+  },
+  stageEmpty: { textAlign: 'center', paddingVertical: Spacing.two },
+  stageRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  stageMic: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: Stage.line,
     alignItems: 'center',
-    paddingVertical: Spacing.three,
+    justifyContent: 'center',
+  },
+  stagePill: {
+    backgroundColor: Stage.pill,
+    borderRadius: 999,
     paddingHorizontal: Spacing.two,
-    borderRadius: 12,
+    paddingVertical: 3,
+    minWidth: 38,
+    alignItems: 'center',
+  },
+  stageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.one,
+    borderWidth: 1,
+    borderColor: Stage.line,
+    borderRadius: 999,
+    paddingVertical: Spacing.two,
   },
 });

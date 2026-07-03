@@ -87,6 +87,21 @@ export type ThemeColor = {
  */
 export const DisplayFont = 'Fraunces_600SemiBold';
 
+/**
+ * The "stage" pocket — the Live shows card on the profile. Deliberately
+ * theme-independent: a dark warm venue-at-night surface that reads as a
+ * contrast pocket inside both palettes (per the design mockup). Not part of
+ * `Palette` on purpose; nothing else should use these.
+ */
+export const Stage = {
+  background: '#241A17',
+  line: '#6B5A50',
+  text: '#F3E9DC',
+  textMuted: '#B3A296',
+  pill: '#D9714A',
+  onPill: '#241A17',
+} as const;
+
 export const Fonts = Platform.select({
   ios: {
     /** iOS `UIFontDescriptorSystemDesignDefault` */
