@@ -8,20 +8,21 @@ import { coverArtUrl } from '@/music';
 import type { Item, ItemType, RankedItem } from '@/ranking/types';
 
 /** Build an album Item from a real MusicBrainz release-group id (with cover). */
-const album = (mbid: string, title: string, artist: string): Item => ({
+const album = (mbid: string, title: string, artist: string, year: string): Item => ({
   id: mbid,
   type: 'album',
   title,
   artist,
   artUrl: coverArtUrl(mbid, 500),
+  year,
 });
 
-const BLONDE = album('0da340a0-6ad7-4fc2-a272-6f94393a7831', 'Blonde', 'Frank Ocean');
-const CHANNEL_ORANGE = album('f8f4167d-897c-4b25-a171-638374d1dfa4', 'channel ORANGE', 'Frank Ocean');
-const SOS = album('1646286a-d0ad-4288-bfab-34b0fb7b22c1', 'SOS', 'SZA');
-const IGOR = album('0f1b9e07-b38b-4bba-9794-55e0924d7177', 'IGOR', 'Tyler, The Creator');
-const GKMC = album('499c19c8-0dab-4824-884b-6191d145e95b', 'good kid, m.A.A.d city', 'Kendrick Lamar');
-const CURRENTS = album('08aa7a6c-3e43-4459-87b2-e47faf3a088a', 'Currents', 'Tame Impala');
+const BLONDE = album('0da340a0-6ad7-4fc2-a272-6f94393a7831', 'Blonde', 'Frank Ocean', '2016');
+const CHANNEL_ORANGE = album('f8f4167d-897c-4b25-a171-638374d1dfa4', 'channel ORANGE', 'Frank Ocean', '2012');
+const SOS = album('1646286a-d0ad-4288-bfab-34b0fb7b22c1', 'SOS', 'SZA', '2022');
+const IGOR = album('0f1b9e07-b38b-4bba-9794-55e0924d7177', 'IGOR', 'Tyler, The Creator', '2019');
+const GKMC = album('499c19c8-0dab-4824-884b-6191d145e95b', 'good kid, m.A.A.d city', 'Kendrick Lamar', '2012');
+const CURRENTS = album('08aa7a6c-3e43-4459-87b2-e47faf3a088a', 'Currents', 'Tame Impala', '2015');
 
 /** The user's starting ranked list. Note the tie at 8.5 to show the tie-break. */
 export const INITIAL_RANKED: RankedItem[] = [

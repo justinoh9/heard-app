@@ -13,6 +13,7 @@ export interface ItemRow {
   title: string;
   artist: string;
   art_url: string | null;
+  release_year: number | null;
 }
 
 /** public.ratings upsert shape. */
@@ -33,6 +34,7 @@ export interface RatingSelectRow {
     title: string;
     artist: string;
     art_url: string | null;
+    release_year: number | null;
   };
 }
 
@@ -46,12 +48,14 @@ export interface ComparisonRow {
 }
 
 export function toItemRow(item: Item): ItemRow {
+  const year = item.year ? Number.parseInt(item.year, 10) : NaN;
   return {
     id: item.id,
     type: item.type,
     title: item.title,
     artist: item.artist,
     art_url: item.artUrl ?? null,
+    release_year: Number.isFinite(year) ? year : null,
   };
 }
 
@@ -72,6 +76,7 @@ export function fromRatingRow(row: RatingSelectRow): RankedItem {
       title: row.items.title,
       artist: row.items.artist,
       artUrl: row.items.art_url ?? undefined,
+      year: row.items.release_year != null ? String(row.items.release_year) : undefined,
     },
     score: row.score,
     tiebreak: row.tiebreak,

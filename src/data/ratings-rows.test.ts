@@ -13,21 +13,31 @@ import {
 } from './ratings-rows';
 
 const ranked: RankedItem = {
-  item: { id: 'sp-123', type: 'album', title: 'Blonde', artist: 'Frank Ocean', artUrl: 'https://img/b.jpg' },
+  item: {
+    id: 'sp-123',
+    type: 'album',
+    title: 'Blonde',
+    artist: 'Frank Ocean',
+    artUrl: 'https://img/b.jpg',
+    year: '2016',
+  },
   score: 9.6,
   tiebreak: 2,
 };
 
 describe('ratings rows', () => {
-  it('toItemRow maps the item, null-ing a missing art url', () => {
+  it('toItemRow maps the item, null-ing a missing art url and unparseable year', () => {
     assert.deepEqual(toItemRow(ranked.item), {
       id: 'sp-123',
       type: 'album',
       title: 'Blonde',
       artist: 'Frank Ocean',
       art_url: 'https://img/b.jpg',
+      release_year: 2016,
     });
     assert.equal(toItemRow({ ...ranked.item, artUrl: undefined }).art_url, null);
+    assert.equal(toItemRow({ ...ranked.item, year: undefined }).release_year, null);
+    assert.equal(toItemRow({ ...ranked.item, year: 'soonish' }).release_year, null);
   });
 
   it('toRatingRow carries user, item, score, and tiebreak', () => {
@@ -43,14 +53,32 @@ describe('ratings rows', () => {
     const row = {
       score: 9.6,
       tiebreak: 2,
-      items: { id: 'sp-123', type: 'album', title: 'Blonde', artist: 'Frank Ocean', art_url: null },
+      items: {
+        id: 'sp-123',
+        type: 'album',
+        title: 'Blonde',
+        artist: 'Frank Ocean',
+        art_url: null,
+        release_year: 2016,
+      },
     };
     const out = fromRatingRow(row);
     assert.deepEqual(out, {
-      item: { id: 'sp-123', type: 'album', title: 'Blonde', artist: 'Frank Ocean', artUrl: undefined },
+      item: {
+        id: 'sp-123',
+        type: 'album',
+        title: 'Blonde',
+        artist: 'Frank Ocean',
+        artUrl: undefined,
+        year: '2016',
+      },
       score: 9.6,
       tiebreak: 2,
     });
+    assert.equal(
+      fromRatingRow({ ...row, items: { ...row.items, release_year: null } }).item.year,
+      undefined,
+    );
   });
 
   it('comparison events round-trip through ISO timestamps losslessly', () => {

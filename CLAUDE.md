@@ -50,8 +50,12 @@ build order) that current work follows.
 - `src/data/` — `catalog.ts` (mock songs/feed/profile), `store.ts`
   (`useRatings()` hook: hydrates from the backend on sign-in, optimistic
   commits), `ratings-backend.ts` (`RatingsBackend` interface +
-  `LocalRatingsBackend`), `supabase-ratings-backend.ts`, and
-  `ratings-rows.ts` (pure row↔model mapping, unit-tested).
+  `LocalRatingsBackend`), `supabase-ratings-backend.ts`,
+  `ratings-rows.ts` (pure row↔model mapping, unit-tested), and `stats.ts`
+  (pure Wrapped rollup — histogram / top artists / decades / top venue —
+  rendered by `src/app/wrapped.tsx`, pushed from the Profile tab's "Your
+  Wrapped" card). `Item.year` powers the decades; the log flow threads it
+  from search params and `items.release_year` persists it.
 - `src/auth/` — `useAuth()`/`AuthBackend` seam; `LocalAuthBackend` ships now
   (AsyncStorage + expo-crypto).
 - `src/music/` — `MusicCatalog` seam; `SpotifyCatalog` (`spotify.ts`) ships now

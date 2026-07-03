@@ -50,6 +50,7 @@ export default function LogModal() {
     title: String(params.title),
     artist: String(params.artist),
     artUrl: params.artUrl || undefined,
+    year: params.year || undefined,
   };
   const existing = ratingFor(album.id);
   // Capture at open time so the header doesn't flip to "Update" after committing.

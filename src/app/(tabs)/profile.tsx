@@ -118,6 +118,23 @@ export default function ProfileScreen() {
             />
           </View>
 
+          <Pressable
+            testID="open-wrapped"
+            onPress={() => router.push('/wrapped')}
+            style={({ pressed }) => [
+              styles.wrappedCard,
+              { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.7 : 1 },
+            ]}>
+            <Ionicons name="sparkles" size={18} color="#1D9E75" />
+            <View style={{ flex: 1 }}>
+              <ThemedText type="smallBold">Your Wrapped</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                Live stats — top artists, decades, how you rate
+              </ThemedText>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
+          </Pressable>
+
           {ranked.length > 0 && (
             <>
               <View style={styles.top4Header}>
@@ -378,6 +395,13 @@ const styles = StyleSheet.create({
   settingsBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   stats: { flexDirection: 'row', gap: Spacing.two },
   stat: { flex: 1, alignItems: 'center', paddingVertical: Spacing.three, borderRadius: 10, gap: 2 },
+  wrappedCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    borderRadius: 12,
+    padding: Spacing.three,
+  },
   sectionLabel: { marginTop: Spacing.two },
   top4Header: {
     flexDirection: 'row',
