@@ -102,7 +102,7 @@ export default function RateSearchScreen() {
         // the log flow (plays are candidates, never auto-logged — blueprint §2.A).
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.list}>
           <RecentPlaysTray onPick={openRate} />
-          <EmptyState icon="search" message="Search an artist, song, or album." />
+          <EmptyState icon="search" doodle="cassette" message="Search an artist, song, or album." />
         </ScrollView>
       ) : loading && results.length === 0 ? (
         <View style={styles.center}>

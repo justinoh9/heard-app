@@ -3,6 +3,7 @@ import { Tabs } from 'expo-router';
 import { View } from 'react-native';
 
 import { TopNavBar } from '@/components/top-nav-bar';
+import { DisplayFont } from '@/constants/theme';
 import { useResponsive } from '@/hooks/use-responsive';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -22,7 +23,7 @@ export default function TabsLayout() {
           // bottom tabs' own per-screen header would be redundant above it.
           headerShown: !isWide,
           headerStyle: { backgroundColor: colors.background },
-          headerTitleStyle: { color: colors.text },
+          headerTitleStyle: { color: colors.text, fontFamily: DisplayFont, fontSize: 20 },
           headerShadowVisible: false,
           tabBarActiveTintColor: colors.accent,
           tabBarInactiveTintColor: colors.textSecondary,

@@ -80,6 +80,13 @@ export type ThemeColor = {
   [K in keyof Palette]: Palette[K] extends string ? K : never;
 }[keyof Palette];
 
+/**
+ * The editorial display face (wordmark, titles, subtitles) — Fraunces, loaded
+ * in the root layout via @expo-google-fonts/fraunces. Body text stays on the
+ * system sans for legibility; the serif is the brand voice.
+ */
+export const DisplayFont = 'Fraunces_600SemiBold';
+
 export const Fonts = Platform.select({
   ios: {
     /** iOS `UIFontDescriptorSystemDesignDefault` */

@@ -119,6 +119,13 @@ build order) that current work follows.
   hardcode accent hexes in screens** — everything goes through the palette.
   The two deliberate exceptions (semantic bad→great scales, not chrome):
   `ranking/score.ts` gradient anchors and `wrapped.tsx` `BAR_TINTS`.
+  **Typography:** `DisplayFont` (Fraunces, loaded in the root layout) is the
+  editorial serif for the wordmark, tab headers, and `ThemedText`
+  title/subtitle; body text stays system sans. Don't pair `fontWeight` with
+  the custom family (Android falls back to system).
+  **Doodles:** `components/doodles.tsx` — hand-drawn SVG empty-state art
+  (vinyl/mic/cassette, react-native-svg), one accent detail each, passed to
+  `EmptyState` via the `doodle` prop.
 
 ## Commands
 - `npm run web` — run in browser (easiest local check on Windows)

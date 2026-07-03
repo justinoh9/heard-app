@@ -1,3 +1,4 @@
+import { Fraunces_600SemiBold, useFonts } from '@expo-google-fonts/fraunces';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, useRouter, useSegments } from 'expo-router';
 import { useEffect } from 'react';
 import { ActivityIndicator } from 'react-native';
@@ -13,6 +14,11 @@ import { SocialContext, useSocialState } from '@/social/store';
 import { StreaksContext, useStreaksState } from '@/streaks/store';
 
 export default function RootLayout() {
+  // The display serif (wordmark + titles). Render waits for it so headings
+  // never flash the system font first.
+  const [fontsLoaded] = useFonts({ Fraunces_600SemiBold });
+  if (!fontsLoaded) return null;
+
   return (
     <AppThemeBridge>
       <AuthProvider>

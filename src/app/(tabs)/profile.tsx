@@ -279,6 +279,7 @@ export default function ProfileScreen() {
           {ranked.length === 0 && (
             <EmptyState
               icon="disc-outline"
+              doodle="vinyl"
               message="Nothing rated yet."
               ctaLabel="Rate your first album"
               onPressCta={() => router.push('/(tabs)/rate')}
@@ -323,6 +324,7 @@ export default function ProfileScreen() {
           {concerts.length === 0 ? (
             <EmptyState
               icon="mic-outline"
+              doodle="mic"
               message="No shows yet — log a concert and start your badge wall."
               ctaLabel="Log a show"
               onPressCta={() => router.push('/concert/new')}
