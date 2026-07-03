@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { DisplayFont, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 const SPOTIFY_GREEN = '#1DB954';
@@ -53,7 +53,7 @@ export function OrDivider() {
 
 const styles = StyleSheet.create({
   brand: { alignItems: 'center', gap: Spacing.one, marginBottom: Spacing.two },
-  logo: { fontSize: 40, fontWeight: 700, lineHeight: 46 },
+  logo: { fontSize: 42, lineHeight: 50, fontFamily: DisplayFont },
   spotify: {
     flexDirection: 'row',
     alignItems: 'center',

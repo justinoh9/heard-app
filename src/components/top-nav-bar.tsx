@@ -12,7 +12,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { PageContainer } from '@/components/page-container';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { DisplayFont, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 const LINKS = [
@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
     height: 60,
     paddingHorizontal: Spacing.three,
   },
-  logo: { fontSize: 20, fontWeight: 700 },
+  logo: { fontSize: 22, fontFamily: DisplayFont },
   links: { flexDirection: 'row', gap: Spacing.one },
   link: { paddingVertical: Spacing.two, paddingHorizontal: Spacing.three, borderRadius: 8 },
   settingsBtn: {

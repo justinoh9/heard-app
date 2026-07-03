@@ -11,6 +11,7 @@
 import { createContext, useContext, useMemo, useState } from 'react';
 
 import type { ItemType } from '@/ranking/types';
+import { useSocial } from '@/social/store';
 import { useStreaks } from '@/streaks/store';
 
 export interface DropItem {
@@ -48,22 +49,33 @@ export const FeedContext = createContext<FeedApi | null>(null);
 export function useFeedState(): FeedApi {
   const [myDrop, setMyDrop] = useState<DailyDrop | null>(null);
   const streaks = useStreaks();
+  const social = useSocial();
 
   return useMemo<FeedApi>(
     () => ({
       myDrop,
       postDrop: ({ item, caption }) => {
+        const trimmed = caption?.trim() ? caption.trim() : undefined;
         setMyDrop({
           id: `drop-${Date.now()}`,
           item,
-          caption: caption?.trim() ? caption.trim() : undefined,
+          caption: trimmed,
           createdAt: new Date().toISOString(),
         });
         streaks.recordActivity();
+        // Every log path emits a feed event (blueprint §1.3).
+        social.publish('drop', {
+          itemId: item.id,
+          itemType: item.type,
+          title: item.title,
+          artist: item.artist,
+          artUrl: item.artUrl,
+          caption: trimmed,
+        });
       },
       clearDrop: () => setMyDrop(null),
     }),
-    [myDrop, streaks],
+    [myDrop, streaks, social],
   );
 }
 

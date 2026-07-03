@@ -50,6 +50,7 @@ export default function LogModal() {
     title: String(params.title),
     artist: String(params.artist),
     artUrl: params.artUrl || undefined,
+    year: params.year || undefined,
   };
   const existing = ratingFor(album.id);
   // Capture at open time so the header doesn't flip to "Update" after committing.
@@ -90,9 +91,23 @@ export default function LogModal() {
     }, 220);
   }
 
+  /** "Too close to call" — settle here without recording a preference. */
+  function tooClose() {
+    if (pendingChoice) return;
+    placement.current!.tooClose();
+    advance();
+  }
+
+  /** "Haven't heard it" — drop this opponent and ask about another. */
+  function skipOpponent() {
+    if (pendingChoice) return;
+    placement.current!.skip();
+    advance();
+  }
+
   function finish() {
     const { list, events } = placement.current!.commit();
-    commitPlacement(list, events);
+    commitPlacement(list, events, { item: album, score });
     const sorted = sortRanked(list);
     const idx = sorted.findIndex((r) => r.item.id === album.id);
     setResult({ rank: idx + 1, total: sorted.length });
@@ -146,8 +161,11 @@ export default function LogModal() {
           <Pressable
             testID="rate-confirm"
             onPress={confirmScore}
-            style={({ pressed }) => [styles.primary, { opacity: pressed ? 0.7 : 1 }]}>
-            <ThemedText type="smallBold" style={{ color: '#fff' }}>
+            style={({ pressed }) => [
+              styles.primary,
+              { backgroundColor: theme.accent, opacity: pressed ? 0.7 : 1 },
+            ]}>
+            <ThemedText type="smallBold" style={{ color: theme.onAccent }}>
               {isUpdate ? `Update to ${score.toFixed(1)}` : `Rate ${score.toFixed(1)}`}
             </ThemedText>
           </Pressable>
@@ -179,6 +197,30 @@ export default function LogModal() {
               state={pendingChoice === null ? 'idle' : pendingChoice === 'existing' ? 'won' : 'lost'}
             />
           </View>
+          <View style={styles.escapeRow}>
+            <Pressable
+              testID="too-close"
+              onPress={tooClose}
+              style={({ pressed }) => [
+                styles.escapeButton,
+                { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.6 : 1 },
+              ]}>
+              <ThemedText type="small" themeColor="textSecondary">
+                Too close to call
+              </ThemedText>
+            </Pressable>
+            <Pressable
+              testID="havent-heard"
+              onPress={skipOpponent}
+              style={({ pressed }) => [
+                styles.escapeButton,
+                { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.6 : 1 },
+              ]}>
+              <ThemedText type="small" themeColor="textSecondary">
+                Haven&apos;t heard it
+              </ThemedText>
+            </Pressable>
+          </View>
         </Animated.View>
       )}
 
@@ -204,8 +246,11 @@ export default function LogModal() {
           <Pressable
             testID="review-submit"
             onPress={submitReview}
-            style={({ pressed }) => [styles.primary, { opacity: pressed ? 0.7 : 1 }]}>
-            <ThemedText type="smallBold" style={{ color: '#fff' }}>
+            style={({ pressed }) => [
+              styles.primary,
+              { backgroundColor: theme.accent, opacity: pressed ? 0.7 : 1 },
+            ]}>
+            <ThemedText type="smallBold" style={{ color: theme.onAccent }}>
               {reviewText.trim() ? 'Post' : 'Skip'}
             </ThemedText>
           </Pressable>
@@ -215,7 +260,7 @@ export default function LogModal() {
       {step === 'done' && result && (
         <Animated.View style={[styles.body, { opacity: fade }]}>
           <AlbumCover uri={album.artUrl} size={140} radius={12} />
-          <Ionicons name="checkmark-circle" size={44} color="#1D9E75" />
+          <Ionicons name="checkmark-circle" size={44} color={theme.accent} />
           <ThemedText type="subtitle" style={styles.center}>
             {album.title}
           </ThemedText>
@@ -225,8 +270,11 @@ export default function LogModal() {
           <Pressable
             testID="done"
             onPress={() => router.back()}
-            style={({ pressed }) => [styles.primary, { opacity: pressed ? 0.7 : 1 }]}>
-            <ThemedText type="smallBold" style={{ color: '#fff' }}>
+            style={({ pressed }) => [
+              styles.primary,
+              { backgroundColor: theme.accent, opacity: pressed ? 0.7 : 1 },
+            ]}>
+            <ThemedText type="smallBold" style={{ color: theme.onAccent }}>
               Done
             </ThemedText>
           </Pressable>
@@ -280,7 +328,7 @@ function CompareCard({
           {
             backgroundColor: theme.backgroundElement,
             opacity: pressed ? 0.6 : 1,
-            borderColor: state === 'won' ? '#1D9E75' : 'transparent',
+            borderColor: state === 'won' ? theme.accent : 'transparent',
           },
         ]}>
         <AlbumCover uri={item.artUrl} fill radius={8} />
@@ -309,8 +357,13 @@ const styles = StyleSheet.create({
   },
   body: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.three, padding: Spacing.four },
   center: { textAlign: 'center' },
+  escapeRow: { flexDirection: 'row', gap: Spacing.two, marginTop: Spacing.two },
+  escapeButton: {
+    borderRadius: 999,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
+  },
   primary: {
-    backgroundColor: '#1D9E75',
     paddingVertical: Spacing.three,
     paddingHorizontal: Spacing.five,
     borderRadius: 12,

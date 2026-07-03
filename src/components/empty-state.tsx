@@ -1,30 +1,40 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { Doodle, type DoodleName } from '@/components/doodles';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 type Props = {
   icon: keyof typeof Ionicons.glyphMap;
+  /** Hand-drawn illustration shown instead of the icon (src/components/doodles). */
+  doodle?: DoodleName;
   message: string;
   ctaLabel?: string;
   onPressCta?: () => void;
 };
 
-export function EmptyState({ icon, message, ctaLabel, onPressCta }: Props) {
+export function EmptyState({ icon, doodle, message, ctaLabel, onPressCta }: Props) {
   const theme = useTheme();
   return (
     <View style={styles.empty}>
-      <Ionicons name={icon} size={32} color={theme.textSecondary} />
+      {doodle ? (
+        <Doodle name={doodle} />
+      ) : (
+        <Ionicons name={icon} size={32} color={theme.textSecondary} />
+      )}
       <ThemedText type="small" themeColor="textSecondary" style={styles.center}>
         {message}
       </ThemedText>
       {ctaLabel && onPressCta && (
         <Pressable
           onPress={onPressCta}
-          style={({ pressed }) => [styles.cta, { backgroundColor: '#1D9E75', opacity: pressed ? 0.7 : 1 }]}>
-          <ThemedText type="smallBold" style={{ color: '#fff' }}>
+          style={({ pressed }) => [
+            styles.cta,
+            { backgroundColor: theme.accent, opacity: pressed ? 0.7 : 1 },
+          ]}>
+          <ThemedText type="smallBold" style={{ color: theme.onAccent }}>
             {ctaLabel}
           </ThemedText>
         </Pressable>

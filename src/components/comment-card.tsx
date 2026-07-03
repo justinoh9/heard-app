@@ -48,7 +48,7 @@ export function CommentCard({ comment, likeSummary, onToggleLike }: Props) {
             <Ionicons
               name={likedByMe ? 'heart' : 'heart-outline'}
               size={14}
-              color={likedByMe ? '#E24B4A' : theme.textSecondary}
+              color={likedByMe ? theme.accent : theme.textSecondary}
             />
             <ThemedText type="small" themeColor="textSecondary">
               {likeSummary?.count ?? 0}

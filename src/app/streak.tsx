@@ -76,8 +76,8 @@ export default function StreakScreen() {
                   style={[
                     styles.cell,
                     {
-                      backgroundColor: active.has(day) ? '#1D9E75' : theme.backgroundElement,
-                      borderColor: day === today ? '#1D9E75' : 'transparent',
+                      backgroundColor: active.has(day) ? theme.accent : theme.backgroundElement,
+                      borderColor: day === today ? theme.accent : 'transparent',
                     },
                   ]}
                 />

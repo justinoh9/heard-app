@@ -17,8 +17,10 @@ import { Spacing } from '@/constants/theme';
 import { useAuth } from '@/auth/store';
 import { BrandHeader, OrDivider, SpotifyButton } from '@/auth/ui';
 import { AuthError } from '@/auth/types';
+import { useTheme } from '@/hooks/use-theme';
 
 export default function SignInScreen() {
+  const theme = useTheme();
   const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -69,7 +71,7 @@ export default function SignInScreen() {
             />
 
             {error && (
-              <ThemedText type="small" style={styles.error}>
+              <ThemedText type="small" style={{ color: theme.danger }}>
                 {error}
               </ThemedText>
             )}
@@ -77,11 +79,14 @@ export default function SignInScreen() {
             <Pressable
               testID="auth-submit"
               onPress={submit}
-              style={({ pressed }) => [styles.primary, { opacity: pressed || busy ? 0.7 : 1 }]}>
+              style={({ pressed }) => [
+                styles.primary,
+                { backgroundColor: theme.accent, opacity: pressed || busy ? 0.7 : 1 },
+              ]}>
               {busy ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={theme.onAccent} />
               ) : (
-                <ThemedText type="smallBold" style={{ color: '#fff' }}>
+                <ThemedText type="smallBold" style={{ color: theme.onAccent }}>
                   Sign in
                 </ThemedText>
               )}
@@ -89,7 +94,7 @@ export default function SignInScreen() {
 
             <ThemedText type="small" themeColor="textSecondary" style={styles.footer}>
               New here?{' '}
-              <Link href="/(auth)/sign-up" replace style={styles.link}>
+              <Link href="/(auth)/sign-up" replace style={[styles.link, { color: theme.accent }]}>
                 Create an account
               </Link>
             </ThemedText>
@@ -109,14 +114,12 @@ const styles = StyleSheet.create({
     padding: Spacing.four,
   },
   inner: { gap: Spacing.three },
-  error: { color: '#E24B4A' },
   primary: {
-    backgroundColor: '#1D9E75',
     paddingVertical: Spacing.three,
     borderRadius: 12,
     alignItems: 'center',
     alignSelf: 'stretch',
   },
   footer: { textAlign: 'center', marginTop: Spacing.two },
-  link: { color: '#1D9E75', fontWeight: '700' },
+  link: { fontWeight: '700' },
 });

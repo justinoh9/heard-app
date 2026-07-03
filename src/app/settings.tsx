@@ -12,8 +12,14 @@ import { useAuth } from '@/auth/store';
 import { PageContainer } from '@/components/page-container';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { Palettes, Spacing, type ThemeName } from '@/constants/theme';
+import { useTheme, useThemeControls } from '@/hooks/use-theme';
+
+/** Display names for the theme picker, in presentation order. */
+const THEME_LABELS: Record<ThemeName, string> = {
+  vinyl: 'Vinyl red',
+  cream: 'Cream paper',
+};
 
 export default function SettingsScreen() {
   const theme = useTheme();
@@ -46,8 +52,11 @@ export default function SettingsScreen() {
             />
           </Section>
 
+          <Section label="APPEARANCE">
+            <ThemePicker />
+          </Section>
+
           <Section label="PREFERENCES">
-            <Row icon="contrast-outline" label="Appearance" value="System" soon theme={theme} />
             <Row icon="options-outline" label="Default rating increment" value="0.1" soon theme={theme} />
             <Row icon="notifications-outline" label="Notifications" soon theme={theme} />
           </Section>
@@ -63,6 +72,49 @@ export default function SettingsScreen() {
         </PageContainer>
       </ScrollView>
     </ThemedView>
+  );
+}
+
+/** Swatch cards for each palette — tap to switch the whole app live. */
+function ThemePicker() {
+  const theme = useTheme();
+  const { name, setName } = useThemeControls();
+  return (
+    <View style={styles.swatchRow}>
+      {(Object.keys(Palettes) as ThemeName[]).map((key) => {
+        const palette = Palettes[key];
+        const active = key === name;
+        return (
+          <Pressable
+            key={key}
+            testID={`theme-${key}`}
+            onPress={() => setName(key)}
+            accessibilityLabel={`Use the ${THEME_LABELS[key]} theme`}
+            style={[
+              styles.swatch,
+              {
+                backgroundColor: palette.background,
+                borderColor: active ? theme.accent : theme.backgroundSelected,
+                borderWidth: active ? 2 : 1,
+              },
+            ]}>
+            <View style={styles.swatchChips}>
+              <View style={[styles.swatchChip, { backgroundColor: palette.accent }]} />
+              <View style={[styles.swatchChip, { backgroundColor: palette.accentAlt }]} />
+              <View style={[styles.swatchChip, { backgroundColor: palette.backgroundElement }]} />
+            </View>
+            <ThemedText type="small" style={{ color: palette.text, fontWeight: '600' }}>
+              {THEME_LABELS[key]}
+            </ThemedText>
+            {active && (
+              <View style={styles.swatchCheck}>
+                <Ionicons name="checkmark-circle" size={18} color={theme.accent} />
+              </View>
+            )}
+          </Pressable>
+        );
+      })}
+    </View>
   );
 }
 
@@ -103,8 +155,8 @@ function Row({
       onPress={onPress}
       disabled={!interactive}
       style={({ pressed }) => [styles.row, { opacity: interactive && pressed ? 0.6 : 1 }]}>
-      <Ionicons name={icon} size={19} color={danger ? '#E24B4A' : theme.textSecondary} />
-      <ThemedText type="small" style={[{ flex: 1 }, danger && { color: '#E24B4A' }]}>
+      <Ionicons name={icon} size={19} color={danger ? theme.danger : theme.textSecondary} />
+      <ThemedText type="small" style={[{ flex: 1 }, danger && { color: theme.danger }]}>
         {label}
       </ThemedText>
       {value && (
@@ -141,4 +193,14 @@ const styles = StyleSheet.create({
   sectionBody: { gap: Spacing.one },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.two },
   soon: { borderRadius: 999, paddingHorizontal: Spacing.two, paddingVertical: 1 },
+  swatchRow: { flexDirection: 'row', gap: Spacing.two },
+  swatch: {
+    flex: 1,
+    borderRadius: 12,
+    padding: Spacing.three,
+    gap: Spacing.two,
+  },
+  swatchChips: { flexDirection: 'row', gap: Spacing.one },
+  swatchChip: { width: 18, height: 18, borderRadius: 9 },
+  swatchCheck: { position: 'absolute', top: Spacing.two, right: Spacing.two },
 });

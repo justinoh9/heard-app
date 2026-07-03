@@ -13,11 +13,20 @@ type Props = {
   /** Fill the parent width as a square (for cards/modals). */
   fill?: boolean;
   radius?: number;
+  /** Icon shown when there's no artwork. Defaults to a disc; use 'person' for artists. */
+  fallbackIcon?: React.ComponentProps<typeof Ionicons>['name'];
   style?: ViewStyle;
 };
 
-/** Album artwork with a music-note fallback for missing/broken covers. */
-export function AlbumCover({ uri, size = 56, fill = false, radius = 8, style }: Props) {
+/** Album/artist artwork with an icon fallback for missing/broken images. */
+export function AlbumCover({
+  uri,
+  size = 56,
+  fill = false,
+  radius = 8,
+  fallbackIcon = 'disc-outline',
+  style,
+}: Props) {
   const theme = useTheme();
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -53,7 +62,7 @@ export function AlbumCover({ uri, size = 56, fill = false, radius = 8, style }: 
           {!loaded && <Skeleton style={StyleSheet.absoluteFill} radius={0} />}
         </>
       ) : (
-        <Ionicons name="disc-outline" size={fill ? 48 : size * 0.42} color={theme.textSecondary} />
+        <Ionicons name={fallbackIcon} size={fill ? 48 : size * 0.42} color={theme.textSecondary} />
       )}
     </View>
   );

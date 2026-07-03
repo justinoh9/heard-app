@@ -89,6 +89,78 @@ test('tiebreaks are renumbered to clean consecutive integers within the score', 
   );
 });
 
+test('skip ("haven\'t heard it"): opponent keeps its slot, no event logged', () => {
+  // Order at 8.5: a > b > c. First comparison is the midpoint (b) — skip it,
+  // then beat the follow-up. b must stay between a and c.
+  const start: RankedItem[] = [
+    { item: song('a', 'A'), score: 8.5, tiebreak: 2 },
+    { item: song('b', 'B'), score: 8.5, tiebreak: 1 },
+    { item: song('c', 'C'), score: 8.5, tiebreak: 0 },
+  ];
+  const p = engine.startPlacement(start, song('x', 'X'), 8.5);
+  const first = p.next()!;
+  assert.equal(first.against.id, 'b'); // binary-search midpoint
+  p.skip();
+  let c;
+  while ((c = p.next())) p.choose('new'); // x beats everyone it actually heard
+  const { list, events } = p.commit();
+  // x beat a (and c implicitly) → top; b restored directly below a.
+  assert.deepEqual(ids(list), ['x', 'a', 'b', 'c']);
+  // The skip logged nothing; only real choices are banked.
+  assert.ok(events.every((e) => e.winnerId !== 'b' && e.loserId !== 'b'));
+});
+
+test('skipping every opponent settles without any events', () => {
+  const start: RankedItem[] = [
+    { item: song('a', 'A'), score: 8.5, tiebreak: 1 },
+    { item: song('b', 'B'), score: 8.5, tiebreak: 0 },
+  ];
+  const p = engine.startPlacement(start, song('x', 'X'), 8.5);
+  while (p.next()) p.skip();
+  assert.equal(p.isDone(), true);
+  const { list, events } = p.commit();
+  assert.equal(events.length, 0);
+  // Everyone still present exactly once, original a > b order kept.
+  const order = ids(list);
+  assert.deepEqual([...order].sort(), ['a', 'b', 'x']);
+  assert.ok(order.indexOf('a') < order.indexOf('b'));
+});
+
+test('tooClose settles directly below the opponent, no event logged', () => {
+  const start: RankedItem[] = [
+    { item: song('a', 'A'), score: 8.5, tiebreak: 2 },
+    { item: song('b', 'B'), score: 8.5, tiebreak: 1 },
+    { item: song('c', 'C'), score: 8.5, tiebreak: 0 },
+  ];
+  const p = engine.startPlacement(start, song('x', 'X'), 8.5);
+  const first = p.next()!;
+  assert.equal(first.against.id, 'b');
+  p.tooClose();
+  assert.equal(p.isDone(), true);
+  assert.equal(p.next(), null);
+  const { list, events } = p.commit();
+  assert.deepEqual(ids(list), ['a', 'b', 'x', 'c']);
+  assert.equal(events.length, 0);
+});
+
+test('choices made before an escape hatch are still banked', () => {
+  const start: RankedItem[] = [
+    { item: song('a', 'A'), score: 8.5, tiebreak: 2 },
+    { item: song('b', 'B'), score: 8.5, tiebreak: 1 },
+    { item: song('c', 'C'), score: 8.5, tiebreak: 0 },
+  ];
+  const p = engine.startPlacement(start, song('x', 'X'), 8.5);
+  p.next();
+  p.choose('new'); // beat b → search upper half (a)
+  p.next();
+  p.tooClose(); // shrug at a → land right below a
+  const { list, events } = p.commit();
+  assert.deepEqual(ids(list), ['a', 'x', 'b', 'c']);
+  assert.equal(events.length, 1);
+  assert.equal(events[0].winnerId, 'x');
+  assert.equal(events[0].loserId, 'b');
+});
+
 test('computeScores returns the user-entered scores', () => {
   const list: RankedItem[] = [
     { item: song('a', 'A'), score: 8.5, tiebreak: 1 },

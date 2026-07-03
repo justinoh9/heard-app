@@ -17,8 +17,10 @@ import { Spacing } from '@/constants/theme';
 import { useAuth } from '@/auth/store';
 import { BrandHeader, OrDivider, SpotifyButton } from '@/auth/ui';
 import { AuthError } from '@/auth/types';
+import { useTheme } from '@/hooks/use-theme';
 
 export default function SignUpScreen() {
+  const theme = useTheme();
   const { signUp } = useAuth();
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
@@ -79,7 +81,7 @@ export default function SignUpScreen() {
             />
 
             {error && (
-              <ThemedText type="small" style={styles.error}>
+              <ThemedText type="small" style={{ color: theme.danger }}>
                 {error}
               </ThemedText>
             )}
@@ -87,11 +89,14 @@ export default function SignUpScreen() {
             <Pressable
               testID="auth-submit"
               onPress={submit}
-              style={({ pressed }) => [styles.primary, { opacity: pressed || busy ? 0.7 : 1 }]}>
+              style={({ pressed }) => [
+                styles.primary,
+                { backgroundColor: theme.accent, opacity: pressed || busy ? 0.7 : 1 },
+              ]}>
               {busy ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={theme.onAccent} />
               ) : (
-                <ThemedText type="smallBold" style={{ color: '#fff' }}>
+                <ThemedText type="smallBold" style={{ color: theme.onAccent }}>
                   Create account
                 </ThemedText>
               )}
@@ -99,7 +104,7 @@ export default function SignUpScreen() {
 
             <ThemedText type="small" themeColor="textSecondary" style={styles.footer}>
               Already have an account?{' '}
-              <Link href="/(auth)/sign-in" replace style={styles.link}>
+              <Link href="/(auth)/sign-in" replace style={[styles.link, { color: theme.accent }]}>
                 Sign in
               </Link>
             </ThemedText>
@@ -119,14 +124,12 @@ const styles = StyleSheet.create({
     padding: Spacing.four,
   },
   inner: { gap: Spacing.three },
-  error: { color: '#E24B4A' },
   primary: {
-    backgroundColor: '#1D9E75',
     paddingVertical: Spacing.three,
     borderRadius: 12,
     alignItems: 'center',
     alignSelf: 'stretch',
   },
   footer: { textAlign: 'center', marginTop: Spacing.two },
-  link: { color: '#1D9E75', fontWeight: '700' },
+  link: { fontWeight: '700' },
 });
