@@ -36,7 +36,7 @@ export interface RatingsApi {
   commitPlacement: (
     list: RankedItem[],
     events: ComparisonEvent[],
-    rated?: { item: Item; score: number },
+    rated?: { item: Item; score: number; review?: string },
   ) => void;
   /** Every head-to-head ever recorded (banked for a future smarter engine). */
   comparisonLog: ComparisonEvent[];
@@ -110,6 +110,7 @@ export function useRatingsState(): RatingsApi {
             artist: rated.item.artist,
             artUrl: rated.item.artUrl,
             score: rated.score,
+            review: rated.review,
           });
         }
         if (userId) {

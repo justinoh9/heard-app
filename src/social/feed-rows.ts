@@ -69,7 +69,7 @@ export function toDisplayEvent(e: SocialEvent): FeedEvent {
     userId: e.userId,
   };
   if (e.type === 'rated') {
-    return { ...base, kind: 'rated', title: p.title ?? '', score: p.score };
+    return { ...base, kind: 'rated', title: p.title ?? '', score: p.score, review: p.review };
   }
   if (e.type === 'drop') {
     return {

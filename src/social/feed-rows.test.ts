@@ -58,6 +58,19 @@ describe('toDisplayEvent', () => {
     assert.equal(card.likes, 0);
   });
 
+  it('threads a rated review onto the card as the quoted line', () => {
+    const card = toDisplayEvent({
+      ...ratedEvent,
+      payload: { ...ratedEvent.payload, review: 'grew on me so much' },
+    });
+    assert.equal(card.kind, 'rated');
+    assert.equal(card.review, 'grew on me so much');
+  });
+
+  it('leaves review undefined on a rating logged without one', () => {
+    assert.equal(toDisplayEvent(ratedEvent).review, undefined);
+  });
+
   it('maps a drop with its caption as the quoted line', () => {
     const card = toDisplayEvent({
       ...ratedEvent,

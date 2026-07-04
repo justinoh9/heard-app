@@ -15,7 +15,7 @@ import { useRatings } from '@/data/store';
 import { useHaptics } from '@/hooks/use-haptics';
 import { useTheme } from '@/hooks/use-theme';
 import { sortRanked, type Placement } from '@/ranking/engine';
-import type { Comparison, Item, ItemType } from '@/ranking/types';
+import type { Comparison, ComparisonEvent, Item, ItemType, RankedItem } from '@/ranking/types';
 
 /** Fades content in on mount and whenever `stepKey` changes, masking the instant step cut. */
 function useStepFade(stepKey: string) {
@@ -63,6 +63,22 @@ export default function LogModal() {
   const [pendingChoice, setPendingChoice] = useState<'new' | 'existing' | null>(null);
   const [reviewText, setReviewText] = useState('');
   const placement = useRef<Placement | null>(null);
+  // The finished placement, held until the review step so the review can ride
+  // along on the same 'rated' feed event. Committed on Post/Skip — or on close,
+  // so bailing after placement still persists the rating (no review).
+  const pending = useRef<{ list: RankedItem[]; events: ComparisonEvent[] } | null>(null);
+  const committed = useRef(false);
+
+  function commitNow(review?: string) {
+    if (committed.current || !pending.current) return;
+    committed.current = true;
+    commitPlacement(pending.current.list, pending.current.events, { item: album, score, review });
+  }
+
+  function closeModal() {
+    commitNow(); // persist the rating even if the user closes before Post/Skip
+    router.back();
+  }
 
   function advance() {
     const next = placement.current!.next();
@@ -106,8 +122,10 @@ export default function LogModal() {
   }
 
   function finish() {
+    // Hold the result; commit happens when the review step is resolved so the
+    // review can ride on the same feed event.
     const { list, events } = placement.current!.commit();
-    commitPlacement(list, events, { item: album, score });
+    pending.current = { list, events };
     const sorted = sortRanked(list);
     const idx = sorted.findIndex((r) => r.item.id === album.id);
     setResult({ rank: idx + 1, total: sorted.length });
@@ -116,8 +134,12 @@ export default function LogModal() {
 
   function submitReview() {
     const body = reviewText.trim();
+    // Commit the rating with the review attached (undefined when skipped) so it
+    // shows on the feed card.
+    commitNow(body || undefined);
     if (body && user) {
-      // Fire-and-forget: don't gate the success screen on a network write.
+      // Also post it to the album's comment thread. Fire-and-forget: don't gate
+      // the success screen on a network write.
       postComment({
         itemId: album.id,
         itemType: album.type === 'song' ? 'song' : 'album',
@@ -138,7 +160,7 @@ export default function LogModal() {
   return (
     <ModalDialogFrame>
       <View style={styles.topBar}>
-        <Pressable onPress={() => router.back()} accessibilityLabel="Close" hitSlop={8}>
+        <Pressable onPress={closeModal} accessibilityLabel="Close" hitSlop={8}>
           <Ionicons name="close" size={26} color={theme.text} />
         </Pressable>
         <ThemedText type="smallBold">{isUpdate ? 'Update rating' : 'Rate album'}</ThemedText>
@@ -231,7 +253,7 @@ export default function LogModal() {
             Add a review?
           </ThemedText>
           <ThemedText themeColor="textSecondary" style={styles.center}>
-            Public — anyone can see it on this album's page.
+            Public — shows on your feed and this album's page.
           </ThemedText>
           <TextField
             testID="review-input"
@@ -269,7 +291,7 @@ export default function LogModal() {
           </ThemedText>
           <Pressable
             testID="done"
-            onPress={() => router.back()}
+            onPress={closeModal}
             style={({ pressed }) => [
               styles.primary,
               { backgroundColor: theme.accent, opacity: pressed ? 0.7 : 1 },
