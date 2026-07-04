@@ -118,7 +118,10 @@ function RootNavigator() {
     // auth screens once they're authed. Account-only actions gate themselves
     // via useRequireAuth, so there's no blanket wall for signed-out users.
     if (status === 'authed' && inAuthGroup) {
-      router.replace('/');
+      // Return to wherever sign-in was triggered from (the item they were
+      // rating, the profile tab, …) instead of always dumping them on Home.
+      if (router.canGoBack()) router.back();
+      else router.replace('/');
     }
   }, [status, segments, router]);
 

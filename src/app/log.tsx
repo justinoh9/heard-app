@@ -3,7 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, View } from 'react-native';
 
-import { useAuth } from '@/auth/store';
+import { useAuthGate } from '@/auth/use-require-auth';
 import { AlbumCover } from '@/components/album-cover';
 import { ModalDialogFrame } from '@/components/modal-dialog-frame';
 import { ScoreInput } from '@/components/score-input';
@@ -33,7 +33,7 @@ export default function LogModal() {
   const theme = useTheme();
   const router = useRouter();
   const haptics = useHaptics();
-  const { user } = useAuth();
+  const user = useAuthGate();
   const params = useLocalSearchParams<{
     id: string;
     type?: string;
@@ -43,11 +43,6 @@ export default function LogModal() {
     artUrl?: string;
   }>();
   const { engine, ranked, ratingFor, commitPlacement } = useRatings();
-
-  // Rating needs an account — a guest who deep-links here is sent to sign-in.
-  useEffect(() => {
-    if (!user) router.replace('/(auth)/sign-in');
-  }, [user, router]);
 
   const album: Item = {
     id: String(params.id),

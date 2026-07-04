@@ -53,6 +53,7 @@ export default function RateSearchScreen() {
         title: item.title,
         artist: item.artist,
         artUrl: item.coverUrl ?? '',
+        year: item.year ?? '',
       },
     });
   }

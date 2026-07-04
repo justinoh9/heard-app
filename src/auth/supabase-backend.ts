@@ -71,9 +71,21 @@ export class SupabaseAuthBackend implements AuthBackend {
       email: normalizeEmail(email),
       password,
     });
-    // Supabase returns a generic "Invalid login credentials" — keep it opaque
-    // (don't leak whether the email exists), matching LocalAuthBackend.
-    if (error) throw new AuthError('Wrong email or password.');
+    if (error) {
+      const msg = error.message?.toLowerCase() ?? '';
+      // An unconfirmed account also fails login — tell the user to confirm
+      // rather than implying a typo (they'd otherwise keep retrying the password).
+      if (msg.includes('not confirmed') || msg.includes('confirm')) {
+        throw new AuthError('Confirm your email first — check your inbox for the link, then sign in.');
+      }
+      // Bad credentials stay opaque (don't leak whether the email exists),
+      // matching LocalAuthBackend. Anything else (network, rate limit) surfaces
+      // truthfully instead of masquerading as a wrong password.
+      if (msg.includes('invalid login') || msg.includes('invalid credentials')) {
+        throw new AuthError('Wrong email or password.');
+      }
+      throw new AuthError(error.message || 'Could not sign in. Try again.');
+    }
     if (!data.session) throw new AuthError('Wrong email or password.');
     return { user: toUser(data.session.user) };
   }

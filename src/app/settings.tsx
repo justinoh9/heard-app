@@ -9,6 +9,7 @@ import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { useAuth } from '@/auth/store';
+import { useAuthGate } from '@/auth/use-require-auth';
 import { PageContainer } from '@/components/page-container';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -25,6 +26,7 @@ export default function SettingsScreen() {
   const theme = useTheme();
   const router = useRouter();
   const { user, signOut } = useAuth();
+  useAuthGate(); // account settings need an account — bounce guests to sign-in
 
   return (
     <ThemedView style={styles.screen}>
