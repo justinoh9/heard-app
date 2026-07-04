@@ -110,7 +110,10 @@ build order) that current work follows.
   likes & Supabase" below).
 - `src/likes/` — `LikesBackend` seam, same Supabase-backed-from-day-one
   treatment as comments. One generic `likes` table (discriminated by
-  `target_type`) covers both item likes (song/album profile) and comment likes.
+  `target_type`) covers item likes (song/album profile), comment likes, and
+  **feed-event hearts** (`'feed_event'`, `0008_feed_event_likes.sql`) — the
+  Feed tab's real activity cards are likeable via `useLikeSummaries` (batched,
+  one query per feed page); mock "From the community" filler stays static.
 - `src/streaks/` — pure day-boundary logic (`logic.ts`) + an `AsyncStorage`-backed
   `useStreaks()` store. `commitPlacement` (`src/data/store.ts`) and `postDrop`
   (`src/feed/store.tsx`) both call `recordActivity()` directly.
@@ -165,11 +168,12 @@ already underway.
   throws at module load — search/rating still work, only comments and likes
   break. (The same `.env` also holds the Spotify keys that power search — see
   the Stack section.)
-- Run `supabase/migrations/0001_comments.sql` through `0007_lists.sql` in
-  the project's SQL Editor to create the `comments`, `likes`, `items`,
+- Run `supabase/migrations/0001_comments.sql` through `0008_feed_event_likes.sql`
+  in the project's SQL Editor to create the `comments`, `likes`, `items`,
   `ratings`, `comparisons`, `profiles`, `follows`, `feed_events`, `concerts`,
-  `concert_tags`, `lists`, and `list_items` tables. (`supabase/setup_all.sql`
-  is an idempotent all-in-one that runs the same schema in a single paste.)
+  `concert_tags`, `lists`, and `list_items` tables (0008 widens `likes` for
+  feed-event hearts). (`supabase/setup_all.sql` is an idempotent all-in-one
+  that runs the same schema in a single paste.)
 - **Known trust gap**: auth is `LocalAuthBackend`, not Supabase Auth, so RLS
   cannot cryptographically verify who's posting a comment or toggling a like.
   Both tables' RLS policies allow public read and trust client-supplied

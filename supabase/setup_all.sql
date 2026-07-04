@@ -42,7 +42,7 @@ create policy "anyone can insert a comment" on public.comments for insert
 -- ---------------------------------------------------------------------------
 create table if not exists public.likes (
   id          uuid primary key default gen_random_uuid(),
-  target_type text not null check (target_type in ('item', 'comment')),
+  target_type text not null check (target_type in ('item', 'comment', 'feed_event')),  -- 'feed_event' 0008
   target_id   text not null,
   user_id     text not null,
   created_at  timestamptz not null default now(),
@@ -51,11 +51,17 @@ create table if not exists public.likes (
 create index if not exists likes_target_idx on public.likes (target_type, target_id);
 alter table public.likes enable row level security;
 
+-- likes may already exist with the old check; refresh it to allow 'feed_event' (idempotent).
+alter table public.likes drop constraint if exists likes_target_type_check;
+alter table public.likes
+  add constraint likes_target_type_check
+  check (target_type in ('item', 'comment', 'feed_event'));
+
 drop policy if exists "likes are publicly readable" on public.likes;
 create policy "likes are publicly readable" on public.likes for select using (true);
 drop policy if exists "anyone can insert a like" on public.likes;
 create policy "anyone can insert a like" on public.likes for insert
-  with check (target_type in ('item', 'comment'));
+  with check (target_type in ('item', 'comment', 'feed_event'));
 drop policy if exists "anyone can delete a like" on public.likes;
 create policy "anyone can delete a like" on public.likes for delete using (true);
 

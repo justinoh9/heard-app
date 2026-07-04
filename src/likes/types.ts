@@ -1,11 +1,12 @@
 /**
  * Likes seam. Supabase-backed from day one, mirroring src/comments/ — a like
  * is only meaningful as a shared signal, not on-device state. One generic
- * backend covers both item likes (song/album profile) and comment likes,
- * discriminated by `LikeTargetType` (see supabase/migrations/0002_likes.sql).
+ * backend covers item likes (song/album profile), comment likes, and
+ * feed-event hearts, discriminated by `LikeTargetType`
+ * (see supabase/migrations/0002_likes.sql + 0008_feed_event_likes.sql).
  */
 
-export type LikeTargetType = 'item' | 'comment';
+export type LikeTargetType = 'item' | 'comment' | 'feed_event';
 
 export interface LikeSummary {
   targetId: string;

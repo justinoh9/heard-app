@@ -10,6 +10,7 @@ import { Spacing } from '@/constants/theme';
 import { FEED, type FeedEvent } from '@/data/catalog';
 import { useFeed, type DailyDrop } from '@/feed/store';
 import { relativeTime } from '@/feed/time';
+import { useLikeSummaries } from '@/likes/store';
 import { useTheme } from '@/hooks/use-theme';
 import { toDisplayEvent } from '@/social/feed-rows';
 import { useSocial } from '@/social/store';
@@ -22,6 +23,9 @@ export default function FeedScreen() {
 
   // Real activity (you + people you follow), rendered above the mock filler.
   const realEvents = feed.map(toDisplayEvent);
+  // Hearts on real activity, batched in one query (blueprint §2.C: every card
+  // has hearts). Mock filler stays non-interactive.
+  const likes = useLikeSummaries('feed_event', realEvents.map((e) => e.id));
   const mockDrop = FEED.find((e) => e.kind === 'drop');
   const mockRest = FEED.filter((e) => e.kind !== 'drop');
 
@@ -84,21 +88,29 @@ export default function FeedScreen() {
             </Pressable>
           )}
 
-          {realEvents.map((event) => (
-            <FeedRow
-              key={event.id}
-              event={event}
-              theme={theme}
-              onPress={() => openItem(event)}
-              onOpenUser={() =>
-                event.userId &&
-                router.push({
-                  pathname: '/user/[id]',
-                  params: { id: event.userId, name: event.user },
-                })
-              }
-            />
-          ))}
+          {realEvents.map((event) => {
+            const summary = likes.summaries.get(event.id);
+            return (
+              <FeedRow
+                key={event.id}
+                event={event}
+                theme={theme}
+                onPress={() => openItem(event)}
+                like={{
+                  count: summary?.count ?? 0,
+                  likedByMe: summary?.likedByMe ?? false,
+                  onToggle: () => likes.toggle(event.id),
+                }}
+                onOpenUser={() =>
+                  event.userId &&
+                  router.push({
+                    pathname: '/user/[id]',
+                    params: { id: event.userId, name: event.user },
+                  })
+                }
+              />
+            );
+          })}
 
           {/* Mock filler so the feed never looks dead — clearly separated. */}
           <ThemedText type="small" themeColor="textSecondary" style={styles.sectionLabel}>
@@ -222,12 +234,15 @@ function FeedRow({
   theme,
   onPress,
   onOpenUser,
+  like,
 }: {
   event: FeedEvent;
   theme: ReturnType<typeof useTheme>;
   onPress: () => void;
   /** Set on real events — tapping the avatar opens the actor's profile. */
   onOpenUser?: () => void;
+  /** Set on real events — makes the heart interactive + live. */
+  like?: { count: number; likedByMe: boolean; onToggle: () => void };
 }) {
   const headerVerb =
     event.kind === 'rated'
@@ -302,12 +317,30 @@ function FeedRow({
       )}
 
       <View style={styles.actions}>
-        <View style={styles.action}>
-          <Ionicons name="heart-outline" size={15} color={theme.textSecondary} />
-          <ThemedText type="small" themeColor="textSecondary">
-            {event.likes}
-          </ThemedText>
-        </View>
+        {like ? (
+          <Pressable
+            testID={`like-${event.id}`}
+            onPress={like.onToggle}
+            accessibilityLabel={like.likedByMe ? 'Unlike' : 'Like'}
+            hitSlop={8}
+            style={styles.action}>
+            <Ionicons
+              name={like.likedByMe ? 'heart' : 'heart-outline'}
+              size={15}
+              color={like.likedByMe ? theme.accent : theme.textSecondary}
+            />
+            <ThemedText type="small" themeColor={like.likedByMe ? 'text' : 'textSecondary'}>
+              {like.count}
+            </ThemedText>
+          </Pressable>
+        ) : (
+          <View style={styles.action}>
+            <Ionicons name="heart-outline" size={15} color={theme.textSecondary} />
+            <ThemedText type="small" themeColor="textSecondary">
+              {event.likes}
+            </ThemedText>
+          </View>
+        )}
         <View style={styles.action}>
           <Ionicons name="chatbubble-outline" size={15} color={theme.textSecondary} />
           <ThemedText type="small" themeColor="textSecondary">
