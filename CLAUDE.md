@@ -114,6 +114,12 @@ build order) that current work follows.
 - `src/streaks/` — pure day-boundary logic (`logic.ts`) + an `AsyncStorage`-backed
   `useStreaks()` store. `commitPlacement` (`src/data/store.ts`) and `postDrop`
   (`src/feed/store.tsx`) both call `recordActivity()` directly.
+- `src/achievements/` — pure `logic.ts` (`computeAchievements`, unit-tested):
+  tiered badges (ratings / shows / streak tiers / decades / artists) derived
+  entirely from the ranked list + concert log + longest streak — no storage of
+  its own, like `data/stats.ts`. Rendered by `src/app/achievements.tsx`
+  (earned + locked-with-progress grid), pushed from the Profile tab's Badges
+  card (blueprint §2.D).
 - `src/lib/supabase.ts` — the Supabase client singleton, used by
   `src/comments/` and `src/likes/`.
 - `src/components/`, `src/constants/theme.ts`, `src/hooks/` — shared UI

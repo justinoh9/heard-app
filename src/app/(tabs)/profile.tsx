@@ -9,6 +9,7 @@ import { PageContainer } from '@/components/page-container';
 import { PlaylistCover } from '@/components/playlist-cover';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { computeAchievements } from '@/achievements/logic';
 import { useConcerts } from '@/concerts/store';
 import { DisplayFont, Spacing, Stage } from '@/constants/theme';
 import { PROFILE } from '@/data/catalog';
@@ -44,7 +45,7 @@ export default function ProfileScreen() {
   const { ranked } = useRatings();
   const { user } = useAuth();
   const { playlists } = usePlaylists();
-  const { current: streak } = useStreaks();
+  const { current: streak, longest } = useStreaks();
   const { myFavorites, saveFavorites } = useSocial();
   const { concerts } = useConcerts();
   const [editingTop4, setEditingTop4] = useState(false);
@@ -72,6 +73,8 @@ export default function ProfileScreen() {
 
   const displayName = user?.displayName ?? PROFILE.username;
   const initials = user ? initialsFrom(user.displayName) : PROFILE.initials;
+
+  const badges = computeAchievements({ ranked, concerts, longestStreak: longest });
 
   function reRate(r: RankedItem) {
     router.push({
@@ -142,6 +145,25 @@ export default function ProfileScreen() {
               <ThemedText type="smallBold">Your Wrapped</ThemedText>
               <ThemedText type="small" themeColor="textSecondary">
                 Live stats — top artists, decades, how you rate
+              </ThemedText>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
+          </Pressable>
+
+          <Pressable
+            testID="open-achievements"
+            onPress={() => router.push('/achievements')}
+            style={({ pressed }) => [
+              styles.wrappedCard,
+              { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.7 : 1 },
+            ]}>
+            <Ionicons name="ribbon" size={18} color={theme.accentAlt} />
+            <View style={{ flex: 1 }}>
+              <ThemedText type="smallBold">Badges</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                {badges.nextUp
+                  ? `${badges.earnedCount} earned · next: ${badges.nextUp.title}`
+                  : `All ${badges.total} unlocked 🎉`}
               </ThemedText>
             </View>
             <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
