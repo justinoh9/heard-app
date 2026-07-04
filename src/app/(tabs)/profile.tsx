@@ -7,6 +7,7 @@ import { AlbumCover } from '@/components/album-cover';
 import { EmptyState } from '@/components/empty-state';
 import { PageContainer } from '@/components/page-container';
 import { PlaylistCover } from '@/components/playlist-cover';
+import { Segmented } from '@/components/segmented';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { computeAchievements } from '@/achievements/logic';
@@ -18,7 +19,7 @@ import { useRatings } from '@/data/store';
 import { useTheme } from '@/hooks/use-theme';
 import { playlistCoverUrls, songCountLabel } from '@/playlists/helpers';
 import { usePlaylists } from '@/playlists/store';
-import type { RankedItem } from '@/ranking/types';
+import type { ItemType, RankedItem } from '@/ranking/types';
 import { resolveFavorites, TOP_FAVORITES } from '@/social/favorites';
 import { useSocial } from '@/social/store';
 import { useStreaks } from '@/streaks/store';
@@ -30,6 +31,10 @@ function initialsFrom(name: string): string {
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** Ranked-list type tabs, in display order, with their plural labels. */
+const RANK_TYPE_ORDER: ItemType[] = ['album', 'song', 'artist'];
+const RANK_TYPE_LABEL: Record<ItemType, string> = { album: 'Albums', song: 'Songs', artist: 'Artists' };
 
 /** '2026-07-02' → 'Jul 2, 2026' (year dropped when it's the current one). */
 function showDateLabel(showDate: string): string {
@@ -50,6 +55,7 @@ export default function ProfileScreen() {
   const { concerts } = useConcerts();
   const [editingTop4, setEditingTop4] = useState(false);
   const [picking, setPicking] = useState(false);
+  const [rankFilter, setRankFilter] = useState<string>('all');
 
   // The showcase: chosen Top 4, falling back to the top of the ranked list.
   const { items: top4, chosen } = resolveFavorites(myFavorites, ranked);
@@ -75,6 +81,21 @@ export default function ProfileScreen() {
   const initials = user ? initialsFrom(user.displayName) : PROFILE.initials;
 
   const badges = computeAchievements({ ranked, concerts, longestStreak: longest });
+
+  // Per-type ranked lists (blueprint §2.B): tab across the types actually rated.
+  const typeCounts = ranked.reduce<Record<string, number>>((m, r) => {
+    m[r.item.type] = (m[r.item.type] ?? 0) + 1;
+    return m;
+  }, {});
+  const presentTypes = RANK_TYPE_ORDER.filter((t) => typeCounts[t]);
+  const rankOptions = [
+    { key: 'all', label: `All ${ranked.length}` },
+    ...presentTypes.map((t) => ({ key: t, label: `${RANK_TYPE_LABEL[t]} ${typeCounts[t]}` })),
+  ];
+  // Fall back to All if the active tab's type no longer exists (e.g. after a re-rate).
+  const activeRankFilter = rankOptions.some((o) => o.key === rankFilter) ? rankFilter : 'all';
+  const visibleRanked =
+    activeRankFilter === 'all' ? ranked : ranked.filter((r) => r.item.type === activeRankFilter);
 
   function reRate(r: RankedItem) {
     router.push({
@@ -306,8 +327,16 @@ export default function ProfileScreen() {
           </ScrollView>
 
           <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
-            ALL RANKED
+            RANKED
           </ThemedText>
+          {presentTypes.length > 1 && (
+            <Segmented
+              options={rankOptions}
+              value={activeRankFilter}
+              onChange={setRankFilter}
+              testIDPrefix="rank-filter"
+            />
+          )}
           {ranked.length === 0 && (
             <EmptyState
               icon="disc-outline"
@@ -317,7 +346,7 @@ export default function ProfileScreen() {
               onPressCta={() => router.push('/(tabs)/rate')}
             />
           )}
-          {ranked.map((r, i) => (
+          {visibleRanked.map((r, i) => (
             <Pressable
               key={r.item.id}
               onPress={() => reRate(r)}
