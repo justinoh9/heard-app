@@ -5,6 +5,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AlbumCover } from '@/components/album-cover';
 import { EmptyState } from '@/components/empty-state';
+import { GuestGate } from '@/components/guest-gate';
 import { PageContainer } from '@/components/page-container';
 import { PlaylistCover } from '@/components/playlist-cover';
 import { ThemedText } from '@/components/themed-text';
@@ -77,6 +78,17 @@ export default function ProfileScreen() {
         artUrl: r.item.artUrl ?? '',
       },
     });
+  }
+
+  // Browsing is open to everyone, but a profile is personal — guests see a CTA.
+  if (!user) {
+    return (
+      <GuestGate
+        icon="person-circle-outline"
+        title="Your profile lives here"
+        message="Sign in to rate albums, build your ranked list, log shows, and follow friends."
+      />
+    );
   }
 
   return (

@@ -114,9 +114,10 @@ function RootNavigator() {
   useEffect(() => {
     if (status === 'loading') return;
     const inAuthGroup = segments[0] === '(auth)';
-    if (status === 'signedOut' && !inAuthGroup) {
-      router.replace('/(auth)/sign-in');
-    } else if (status === 'authed' && inAuthGroup) {
+    // The app is browsable signed-out; guests only get redirected out of the
+    // auth screens once they're authed. Account-only actions gate themselves
+    // via useRequireAuth, so there's no blanket wall for signed-out users.
+    if (status === 'authed' && inAuthGroup) {
       router.replace('/');
     }
   }, [status, segments, router]);

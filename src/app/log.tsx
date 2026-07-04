@@ -44,6 +44,11 @@ export default function LogModal() {
   }>();
   const { engine, ranked, ratingFor, commitPlacement } = useRatings();
 
+  // Rating needs an account — a guest who deep-links here is sent to sign-in.
+  useEffect(() => {
+    if (!user) router.replace('/(auth)/sign-in');
+  }, [user, router]);
+
   const album: Item = {
     id: String(params.id),
     type: (params.type as ItemType) || 'album',
@@ -135,13 +140,18 @@ export default function LogModal() {
   const stepKey = step === 'compare' && comparison ? `compare-${comparison.against.id}` : step;
   const fade = useStepFade(stepKey);
 
+  // Redirect (above) is in flight; render nothing rather than a flash of the form.
+  if (!user) return null;
+
   return (
     <ModalDialogFrame>
       <View style={styles.topBar}>
         <Pressable onPress={() => router.back()} accessibilityLabel="Close" hitSlop={8}>
           <Ionicons name="close" size={26} color={theme.text} />
         </Pressable>
-        <ThemedText type="smallBold">{isUpdate ? 'Update rating' : 'Rate album'}</ThemedText>
+        <ThemedText type="smallBold">
+          {isUpdate ? 'Update rating' : `Rate ${album.type === 'song' ? 'song' : 'album'}`}
+        </ThemedText>
         <View style={{ width: 26 }} />
       </View>
 

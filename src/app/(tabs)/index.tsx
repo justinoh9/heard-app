@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { useRequireAuth } from '@/auth/use-require-auth';
 import { AlbumCover } from '@/components/album-cover';
 import { PageContainer } from '@/components/page-container';
 import { ThemedText } from '@/components/themed-text';
@@ -19,6 +20,7 @@ export default function FeedScreen() {
   const router = useRouter();
   const { myDrop } = useFeed();
   const { feed, followingIds } = useSocial();
+  const { requireAuth } = useRequireAuth();
 
   // Real activity (you + people you follow), rendered above the mock filler.
   const realEvents = feed.map(toDisplayEvent);
@@ -59,7 +61,7 @@ export default function FeedScreen() {
           <YourDrop
             drop={myDrop}
             theme={theme}
-            onCompose={() => router.push('/drop')}
+            onCompose={() => requireAuth(() => router.push('/drop'))}
             onOpen={() => myDrop && openDropItem(myDrop)}
           />
 

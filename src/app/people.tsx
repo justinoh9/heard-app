@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useRequireAuth } from '@/auth/use-require-auth';
 import { EmptyState } from '@/components/empty-state';
 import { PageContainer } from '@/components/page-container';
 import { ThemedText } from '@/components/themed-text';
@@ -23,6 +24,7 @@ export default function PeopleScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { people, followingIds, toggleFollow } = useSocial();
+  const { requireAuth } = useRequireAuth();
 
   return (
     <ThemedView style={[styles.screen, { paddingTop: insets.top }]}>
@@ -47,7 +49,7 @@ export default function PeopleScreen() {
                 key={p.userId}
                 person={p}
                 following={followingIds.has(p.userId)}
-                onToggle={() => toggleFollow(p.userId)}
+                onToggle={() => requireAuth(() => toggleFollow(p.userId))}
                 onOpen={() =>
                   router.push({
                     pathname: '/user/[id]',
