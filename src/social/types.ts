@@ -16,7 +16,7 @@ export interface Profile {
   favorites?: string[];
 }
 
-export type SocialEventType = 'rated' | 'drop' | 'streak' | 'concert';
+export type SocialEventType = 'rated' | 'drop' | 'streak' | 'concert' | 'list';
 
 /**
  * Type-specific event details. One loose bag (mirrors the jsonb column) so new
@@ -25,7 +25,7 @@ export type SocialEventType = 'rated' | 'drop' | 'streak' | 'concert';
 export interface SocialEventPayload {
   itemId?: string;
   itemType?: ItemType;
-  /** Item title — or the artist name for 'concert' events. */
+  /** Item title — artist name for 'concert', list name for 'list' events. */
   title?: string;
   /** Credited artist — or the "venue · city" line for 'concert' events. */
   artist?: string;

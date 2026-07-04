@@ -97,6 +97,14 @@ build order) that current work follows.
   their own profile (`concertsFor`). Publishes a `'concert'` feed event; the
   Profile tab's SHOWS badges + shows stat and the leaderboard's concerts
   metric are real counts now.
+- `src/playlists/` — user-curated **lists** (the Letterboxd loop, blueprint
+  §1.1): `usePlaylists()` in `store.tsx`, `PlaylistsBackend` seam (Supabase
+  `0007_lists.sql` / AsyncStorage, chosen in `provider.ts`), pure `rows.ts`
+  (unit-tested) + `helpers.ts`. Hydrates per-user on sign-in, optimistic
+  writes. `createPlaylist` publishes a `'list'` feed event. Managed on the
+  Profile tab's PLAYLISTS strip → `src/app/playlist/new.tsx` (create modal) and
+  `src/app/playlist/[id].tsx` (search-to-add / remove / delete). The local
+  backend seeds demo lists on a fresh device; the Supabase path starts empty.
 - `src/comments/` — `CommentsBackend` seam; `SupabaseCommentsBackend` is the
   only implementation (ships Supabase-backed from day one — see "Comments,
   likes & Supabase" below).
@@ -151,10 +159,11 @@ already underway.
   throws at module load — search/rating still work, only comments and likes
   break. (The same `.env` also holds the Spotify keys that power search — see
   the Stack section.)
-- Run `supabase/migrations/0001_comments.sql` through `0006_concerts.sql` in
+- Run `supabase/migrations/0001_comments.sql` through `0007_lists.sql` in
   the project's SQL Editor to create the `comments`, `likes`, `items`,
   `ratings`, `comparisons`, `profiles`, `follows`, `feed_events`, `concerts`,
-  and `concert_tags` tables.
+  `concert_tags`, `lists`, and `list_items` tables. (`supabase/setup_all.sql`
+  is an idempotent all-in-one that runs the same schema in a single paste.)
 - **Known trust gap**: auth is `LocalAuthBackend`, not Supabase Auth, so RLS
   cannot cryptographically verify who's posting a comment or toggling a like.
   Both tables' RLS policies allow public read and trust client-supplied

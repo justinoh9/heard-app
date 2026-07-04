@@ -236,7 +236,9 @@ function FeedRow({
         ? 'is listening to'
         : event.kind === 'concert'
           ? 'saw'
-          : event.title;
+          : event.kind === 'list'
+            ? 'made a list'
+            : event.title;
   // Show the art+score body whenever there's something to show — AlbumCover
   // falls back to a disc icon, so a missing artUrl shouldn't hide the score.
   const showBody = event.kind !== 'streak' && (!!event.coverUrl || event.score != null);

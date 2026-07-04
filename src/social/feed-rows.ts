@@ -83,6 +83,10 @@ export function toDisplayEvent(e: SocialEvent): FeedEvent {
     // title = artist name, artist = "venue · city" (see SocialEventPayload).
     return { ...base, kind: 'concert', title: p.title ?? '', score: p.score };
   }
+  if (e.type === 'list') {
+    // title = list name; no cover/score body until the list has songs.
+    return { ...base, kind: 'list', title: p.title ?? '', coverUrl: undefined };
+  }
   return {
     ...base,
     kind: 'streak',

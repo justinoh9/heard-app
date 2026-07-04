@@ -37,7 +37,7 @@ export interface FeedEvent {
   id: string;
   user: string;
   initials: string;
-  kind: 'rated' | 'drop' | 'streak' | 'concert';
+  kind: 'rated' | 'drop' | 'streak' | 'concert' | 'list';
   coverUrl?: string;
   /** Album title, track line, or streak text depending on kind. */
   title: string;
