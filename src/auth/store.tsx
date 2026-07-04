@@ -6,8 +6,8 @@
 
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
-import { LocalAuthBackend } from './local-backend';
-import type { AuthBackend, Session, SignUpInput } from './types';
+import { authBackend } from './provider';
+import type { Session, SignUpInput } from './types';
 
 type Status = 'loading' | 'authed' | 'signedOut';
 
@@ -22,7 +22,8 @@ export interface AuthApi {
 const AuthContext = createContext<AuthApi | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const backend = useMemo<AuthBackend>(() => new LocalAuthBackend(), []);
+  // Module singleton (stable reference) — Supabase Auth or Local, chosen by env.
+  const backend = authBackend;
   const [session, setSession] = useState<Session | null>(null);
   const [status, setStatus] = useState<Status>('loading');
 
