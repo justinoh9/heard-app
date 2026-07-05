@@ -1,20 +1,22 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { PageContainer } from '@/components/page-container';
 import { QuickMatchCard } from '@/components/quick-match-card';
 import { Segmented } from '@/components/segmented';
+import { concertsBackend } from '@/concerts/provider';
 import { useConcerts } from '@/concerts/store';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useAuth } from '@/auth/store';
-import { PROFILE } from '@/data/catalog';
+import { ratingsBackend } from '@/data/ratings-provider';
 import { useRatings } from '@/data/store';
 import { useResponsive } from '@/hooks/use-responsive';
 import { useTheme } from '@/hooks/use-theme';
 import { LEADERBOARD_USERS, METRICS, type LeaderboardUser, type MetricKey } from '@/leaderboard/data';
+import { useSocial } from '@/social/store';
 import { useStreaks } from '@/streaks/store';
 
 type Scope = 'friends' | 'global';
@@ -33,10 +35,50 @@ export default function LeaderboardScreen() {
   const { ranked } = useRatings();
   const { concerts } = useConcerts();
   const { current: streak } = useStreaks();
+  const { people, followingIds } = useSocial();
   const [scope, setScope] = useState<Scope>('global');
   const [metricKey, setMetricKey] = useState<MetricKey>('reviews');
 
-  const metric = METRICS.find((m) => m.key === metricKey)!;
+  const followed = useMemo(
+    () => people.filter((p) => followingIds.has(p.userId)),
+    [people, followingIds],
+  );
+  const followedKey = followed.map((p) => p.userId).sort().join(',');
+
+  // Real metrics for the people you follow (rating + concert counts), loaded
+  // once per follow set. Streak isn't stored server-side, so it's dropped from
+  // the friends board (see availableMetrics) rather than shown as a fake 0.
+  const [friendStats, setFriendStats] = useState<Map<string, { reviews: number; concerts: number }>>(
+    new Map(),
+  );
+  useEffect(() => {
+    if (followed.length === 0) {
+      setFriendStats(new Map());
+      return;
+    }
+    let cancelled = false;
+    Promise.all(
+      followed.map(async (p) => {
+        const [reviews, concertCount] = await Promise.all([
+          ratingsBackend.load(p.userId).then((s) => s?.list.length ?? 0).catch(() => 0),
+          concertsBackend.listFor(p.userId).then((l) => l.length).catch(() => 0),
+        ]);
+        return [p.userId, { reviews, concerts: concertCount }] as const;
+      }),
+    ).then((entries) => {
+      if (!cancelled) setFriendStats(new Map(entries));
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [followedKey]);
+
+  const availableMetrics = scope === 'friends' ? METRICS.filter((m) => m.key !== 'streak') : METRICS;
+  const effectiveMetricKey: MetricKey = availableMetrics.some((m) => m.key === metricKey)
+    ? metricKey
+    : 'reviews';
+  const metric = METRICS.find((m) => m.key === effectiveMetricKey)!;
   const youId = user?.id ?? 'you';
 
   const rows = useMemo(() => {
@@ -49,9 +91,21 @@ export default function LeaderboardScreen() {
       concerts: concerts.length,
       streak,
     };
-    const pool = scope === 'friends' ? LEADERBOARD_USERS.filter((u) => u.isFriend) : LEADERBOARD_USERS;
-    return [...pool, you].sort((a, b) => metric.get(b) - metric.get(a));
-  }, [scope, metric, ranked.length, user, youId, streak, concerts.length]);
+    const friends: LeaderboardUser[] = followed.map((p) => {
+      const s = friendStats.get(p.userId);
+      return {
+        id: p.userId,
+        username: p.displayName,
+        initials: initialsFrom(p.displayName),
+        isFriend: true,
+        reviews: s?.reviews ?? 0,
+        concerts: s?.concerts ?? 0,
+        streak: 0,
+      };
+    });
+    const pool = scope === 'friends' ? [...friends, you] : [...LEADERBOARD_USERS, you];
+    return pool.sort((a, b) => metric.get(b) - metric.get(a));
+  }, [scope, metric, ranked.length, user, youId, streak, concerts.length, followed, friendStats]);
 
   return (
     <ThemedView style={styles.screen}>
@@ -71,8 +125,8 @@ export default function LeaderboardScreen() {
           />
 
           <View style={styles.chips}>
-            {METRICS.map((m) => {
-              const active = m.key === metricKey;
+            {availableMetrics.map((m) => {
+              const active = m.key === effectiveMetricKey;
               return (
                 <Pressable
                   key={m.key}
@@ -126,6 +180,12 @@ export default function LeaderboardScreen() {
               </View>
             );
           })}
+
+          {scope === 'friends' && followed.length === 0 && (
+            <ThemedText type="small" themeColor="textSecondary" style={styles.footnote}>
+              Follow people to see them ranked here.
+            </ThemedText>
+          )}
 
           <ThemedText type="small" themeColor="textSecondary" style={styles.footnote}>
             Ranked by {metric.label.toLowerCase()} ·{' '}
