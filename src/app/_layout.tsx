@@ -142,6 +142,7 @@ function RootNavigator() {
       <Stack.Screen name="streak" />
       <Stack.Screen name="achievements" />
       <Stack.Screen name="activity" />
+      <Stack.Screen name="connections" />
     </Stack>
   );
 }

@@ -128,9 +128,27 @@ export default function UserProfileScreen() {
 
           {graph && (
             <View style={styles.graphRow}>
+              <Pressable
+                hitSlop={6}
+                onPress={() =>
+                  router.push({ pathname: '/connections', params: { id: userId, mode: 'followers' } })
+                }>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {graph.followers} {graph.followers === 1 ? 'follower' : 'followers'}
+                </ThemedText>
+              </Pressable>
               <ThemedText type="small" themeColor="textSecondary">
-                {graph.followers} {graph.followers === 1 ? 'follower' : 'followers'} · {graph.following} following
+                ·
               </ThemedText>
+              <Pressable
+                hitSlop={6}
+                onPress={() =>
+                  router.push({ pathname: '/connections', params: { id: userId, mode: 'following' } })
+                }>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {graph.following} following
+                </ThemedText>
+              </Pressable>
               {graph.followsYou && (
                 <View style={[styles.followsYou, { backgroundColor: theme.accentSoft }]}>
                   <ThemedText type="small" style={{ color: theme.accent, fontSize: 12 }}>

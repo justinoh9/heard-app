@@ -143,9 +143,33 @@ export default function ProfileScreen() {
               <ThemedText type="small" themeColor="textSecondary">
                 {PROFILE.tags} · {ranked.length} rated
               </ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
-                {followerCount} {followerCount === 1 ? 'follower' : 'followers'} · {followingIds.size} following
-              </ThemedText>
+              {user && (
+                <View style={styles.connections}>
+                  <Pressable
+                    testID="open-followers"
+                    hitSlop={6}
+                    onPress={() =>
+                      router.push({ pathname: '/connections', params: { id: user.id, mode: 'followers' } })
+                    }>
+                    <ThemedText type="small" themeColor="textSecondary">
+                      {followerCount} {followerCount === 1 ? 'follower' : 'followers'}
+                    </ThemedText>
+                  </Pressable>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    ·
+                  </ThemedText>
+                  <Pressable
+                    testID="open-following"
+                    hitSlop={6}
+                    onPress={() =>
+                      router.push({ pathname: '/connections', params: { id: user.id, mode: 'following' } })
+                    }>
+                    <ThemedText type="small" themeColor="textSecondary">
+                      {followingIds.size} following
+                    </ThemedText>
+                  </Pressable>
+                </View>
+              )}
             </View>
             <Pressable
               onPress={() => router.push('/settings')}
@@ -501,6 +525,7 @@ const styles = StyleSheet.create({
   avatar: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
   avatarInitial: { fontFamily: DisplayFont, fontSize: 18 },
   displayName: { fontFamily: DisplayFont, fontSize: 19 },
+  connections: { flexDirection: 'row', gap: Spacing.two, marginTop: 2 },
   settingsBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   stats: { flexDirection: 'row', gap: Spacing.two },
   stat: { flex: 1, alignItems: 'center', paddingVertical: Spacing.three, borderRadius: 12, gap: 2 },
