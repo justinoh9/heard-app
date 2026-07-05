@@ -1,17 +1,24 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { useAuth } from '@/auth/store';
 import { AlbumCover } from '@/components/album-cover';
 import { PageContainer } from '@/components/page-container';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
-import { FEED, type FeedEvent } from '@/data/catalog';
+import { FEED, INITIAL_RANKED, type FeedEvent } from '@/data/catalog';
+import { ratingsBackend } from '@/data/ratings-provider';
+import { useRatings } from '@/data/store';
 import { useFeed, type DailyDrop } from '@/feed/store';
 import { relativeTime } from '@/feed/time';
 import { useLikeSummaries } from '@/likes/store';
 import { useTheme } from '@/hooks/use-theme';
+import { sortRanked } from '@/ranking/engine';
+import type { RankedItem } from '@/ranking/types';
+import { compatibility } from '@/social/compatibility';
 import { toDisplayEvent } from '@/social/feed-rows';
 import { useSocial } from '@/social/store';
 
@@ -20,12 +27,51 @@ export default function FeedScreen() {
   const router = useRouter();
   const { myDrop } = useFeed();
   const { feed, followingIds } = useSocial();
+  const { user } = useAuth();
+  const { ranked: mine } = useRatings();
+  const myId = user?.id ?? '';
 
   // Real activity (you + people you follow), rendered above the mock filler.
   const realEvents = feed.map(toDisplayEvent);
   // Hearts on real activity, batched in one query (blueprint §2.C: every card
   // has hearts). Mock filler stays non-interactive.
   const likes = useLikeSummaries('feed_event', realEvents.map((e) => e.id));
+
+  // Taste-match on others' cards (blueprint §1.3: a compatibility-weighted
+  // feed). Load each distinct actor's list once; your own cards get no badge.
+  const actorIds = useMemo(
+    () => [...new Set(realEvents.map((e) => e.userId).filter((id): id is string => !!id && id !== myId))],
+    [realEvents, myId],
+  );
+  const actorKey = [...actorIds].sort().join(',');
+  const [actorLists, setActorLists] = useState<Map<string, RankedItem[]>>(new Map());
+  useEffect(() => {
+    if (actorIds.length === 0) {
+      setActorLists(new Map());
+      return;
+    }
+    let cancelled = false;
+    Promise.all(
+      actorIds.map((id) =>
+        ratingsBackend
+          .load(id)
+          .then((s) => [id, sortRanked(s?.list ?? INITIAL_RANKED)] as const)
+          .catch(() => [id, [] as RankedItem[]] as const),
+      ),
+    ).then((entries) => {
+      if (!cancelled) setActorLists(new Map(entries));
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [actorKey]);
+  const matchByUser = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const [id, list] of actorLists) m.set(id, compatibility(mine, list).percent);
+    return m;
+  }, [actorLists, mine]);
+
   const mockDrop = FEED.find((e) => e.kind === 'drop');
   const mockRest = FEED.filter((e) => e.kind !== 'drop');
 
@@ -96,6 +142,7 @@ export default function FeedScreen() {
                 event={event}
                 theme={theme}
                 onPress={() => openItem(event)}
+                matchPercent={event.userId ? matchByUser.get(event.userId) ?? null : null}
                 like={{
                   count: summary?.count ?? 0,
                   likedByMe: summary?.likedByMe ?? false,
@@ -235,6 +282,7 @@ function FeedRow({
   onPress,
   onOpenUser,
   like,
+  matchPercent,
 }: {
   event: FeedEvent;
   theme: ReturnType<typeof useTheme>;
@@ -243,6 +291,8 @@ function FeedRow({
   onOpenUser?: () => void;
   /** Set on real events — makes the heart interactive + live. */
   like?: { count: number; likedByMe: boolean; onToggle: () => void };
+  /** Taste-match vs the viewer, for another user's card (null = hide). */
+  matchPercent?: number | null;
 }) {
   const headerVerb =
     event.kind === 'rated'
@@ -285,6 +335,12 @@ function FeedRow({
           </ThemedText>
         )}
       </View>
+
+      {matchPercent != null && (
+        <ThemedText type="small" style={{ color: theme.accent }}>
+          {matchPercent}% taste match
+        </ThemedText>
+      )}
 
       {showBody && (
         <View style={styles.ratedBody}>
