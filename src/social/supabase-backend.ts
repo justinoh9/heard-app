@@ -62,6 +62,15 @@ export class SupabaseSocialBackend implements SocialBackend {
     return (data as { followee_id: string }[]).map((r) => r.followee_id);
   }
 
+  async followers(userId: string): Promise<string[]> {
+    const { data, error } = await getSupabase()
+      .from('follows')
+      .select('follower_id')
+      .eq('followee_id', userId);
+    if (error) throw new SocialError(error.message);
+    return (data as { follower_id: string }[]).map((r) => r.follower_id);
+  }
+
   async setFollowing(followerId: string, followeeId: string, follow: boolean): Promise<void> {
     const supabase = getSupabase();
     if (follow) {

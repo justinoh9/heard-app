@@ -52,6 +52,17 @@ export class LocalSocialBackend implements SocialBackend {
     return readJson<string[]>(followsKey(userId), []);
   }
 
+  async followers(userId: string): Promise<string[]> {
+    // No reverse index on-device: scan each profile's follow list for userId.
+    const profiles = await this.listProfiles();
+    const result: string[] = [];
+    for (const p of profiles) {
+      if (p.userId === userId) continue;
+      if ((await this.following(p.userId)).includes(userId)) result.push(p.userId);
+    }
+    return result;
+  }
+
   async setFollowing(followerId: string, followeeId: string, follow: boolean): Promise<void> {
     const current = await this.following(followerId);
     const next = follow

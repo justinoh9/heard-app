@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useAuth } from '@/auth/store';
 import { AlbumCover } from '@/components/album-cover';
 import { PageContainer } from '@/components/page-container';
 import { ThemedText } from '@/components/themed-text';
@@ -38,11 +39,16 @@ export default function UserProfileScreen() {
   const params = useLocalSearchParams<{ id: string; name?: string }>();
   const userId = String(params.id);
   const displayName = params.name || 'Someone';
+  const { user } = useAuth();
+  const myId = user?.id ?? '';
   const { ranked: mine } = useRatings();
   const { followingIds, toggleFollow, people } = useSocial();
 
   const [theirs, setTheirs] = useState<RankedItem[] | null>(null);
   const [activity, setActivity] = useState<SocialEvent[]>([]);
+  const [graph, setGraph] = useState<{ followers: number; following: number; followsYou: boolean } | null>(
+    null,
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -62,10 +68,21 @@ export default function UserProfileScreen() {
         if (!cancelled) setActivity(events);
       })
       .catch(() => {});
+    Promise.all([socialBackend.followers(userId), socialBackend.following(userId)])
+      .then(([followers, followingList]) => {
+        if (cancelled) return;
+        setGraph({
+          followers: followers.length,
+          following: followingList.length,
+          // They follow the viewer iff the viewer's id is in their following list.
+          followsYou: !!myId && followingList.includes(myId),
+        });
+      })
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [userId, myId]);
 
   const following = followingIds.has(userId);
   const compat: Compatibility | null = theirs ? compatibility(mine, theirs) : null;
@@ -108,6 +125,21 @@ export default function UserProfileScreen() {
               </ThemedText>
             </Pressable>
           </View>
+
+          {graph && (
+            <View style={styles.graphRow}>
+              <ThemedText type="small" themeColor="textSecondary">
+                {graph.followers} {graph.followers === 1 ? 'follower' : 'followers'} · {graph.following} following
+              </ThemedText>
+              {graph.followsYou && (
+                <View style={[styles.followsYou, { backgroundColor: theme.accentSoft }]}>
+                  <ThemedText type="small" style={{ color: theme.accent, fontSize: 12 }}>
+                    Follows you
+                  </ThemedText>
+                </View>
+              )}
+            </View>
+          )}
 
           {!compat ? (
             <View style={styles.center}>
@@ -243,6 +275,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   center: { paddingVertical: Spacing.six, alignItems: 'center' },
+  graphRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.two },
+  followsYou: { borderRadius: 999, paddingHorizontal: Spacing.two, paddingVertical: 2 },
   matchCard: { borderRadius: 12, padding: Spacing.three, gap: Spacing.two },
   matchHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   matchPercent: { fontSize: 34, fontWeight: '800' },

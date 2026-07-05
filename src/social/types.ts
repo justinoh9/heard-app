@@ -64,6 +64,8 @@ export interface SocialBackend {
   listProfiles(): Promise<Profile[]>;
   /** Ids the user follows. */
   following(userId: string): Promise<string[]>;
+  /** Ids that follow the user (the reverse edge). */
+  followers(userId: string): Promise<string[]>;
   setFollowing(followerId: string, followeeId: string, follow: boolean): Promise<void>;
   /** Replace the user's Top 4 (ordered item ids, at most 4). */
   setFavorites(userId: string, itemIds: string[]): Promise<void>;

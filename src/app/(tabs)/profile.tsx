@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AlbumCover } from '@/components/album-cover';
@@ -20,6 +20,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { playlistCoverUrls, songCountLabel } from '@/playlists/helpers';
 import { usePlaylists } from '@/playlists/store';
 import type { ItemType, RankedItem } from '@/ranking/types';
+import { socialBackend } from '@/social/provider';
 import { resolveFavorites, TOP_FAVORITES } from '@/social/favorites';
 import { useSocial } from '@/social/store';
 import { useStreaks } from '@/streaks/store';
@@ -51,11 +52,29 @@ export default function ProfileScreen() {
   const { user } = useAuth();
   const { playlists } = usePlaylists();
   const { current: streak, longest } = useStreaks();
-  const { myFavorites, saveFavorites } = useSocial();
+  const { myFavorites, saveFavorites, followingIds } = useSocial();
   const { concerts } = useConcerts();
   const [editingTop4, setEditingTop4] = useState(false);
   const [picking, setPicking] = useState(false);
   const [rankFilter, setRankFilter] = useState<string>('all');
+  const [followerCount, setFollowerCount] = useState(0);
+
+  useEffect(() => {
+    if (!user) {
+      setFollowerCount(0);
+      return;
+    }
+    let cancelled = false;
+    socialBackend
+      .followers(user.id)
+      .then((f) => {
+        if (!cancelled) setFollowerCount(f.length);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   // The showcase: chosen Top 4, falling back to the top of the ranked list.
   const { items: top4, chosen } = resolveFavorites(myFavorites, ranked);
@@ -123,6 +142,9 @@ export default function ProfileScreen() {
               <ThemedText style={styles.displayName}>{displayName}</ThemedText>
               <ThemedText type="small" themeColor="textSecondary">
                 {PROFILE.tags} · {ranked.length} rated
+              </ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                {followerCount} {followerCount === 1 ? 'follower' : 'followers'} · {followingIds.size} following
               </ThemedText>
             </View>
             <Pressable
