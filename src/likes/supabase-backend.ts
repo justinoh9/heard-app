@@ -1,7 +1,13 @@
 import { getSupabase } from '@/lib/supabase';
 
 import { summarize } from './aggregate';
-import { LikesError, type LikeSummary, type LikeTargetType, type LikesBackend } from './types';
+import {
+  LikesError,
+  type LikeActor,
+  type LikeSummary,
+  type LikeTargetType,
+  type LikesBackend,
+} from './types';
 
 interface LikeSelectRow {
   target_id: string;
@@ -25,6 +31,21 @@ export class SupabaseLikesBackend implements LikesBackend {
     if (error) throw new LikesError(error.message);
     const rows = (data as LikeSelectRow[]).map((r) => ({ targetId: r.target_id, userId: r.user_id }));
     return summarize(rows, targetIds, userId);
+  }
+
+  async likersOf(targetType: LikeTargetType, targetIds: string[]): Promise<LikeActor[]> {
+    if (targetIds.length === 0) return [];
+    const { data, error } = await getSupabase()
+      .from('likes')
+      .select('target_id, user_id, created_at')
+      .eq('target_type', targetType)
+      .in('target_id', targetIds);
+    if (error) throw new LikesError(error.message);
+    return (data as { target_id: string; user_id: string; created_at: string }[]).map((r) => ({
+      targetId: r.target_id,
+      userId: r.user_id,
+      createdAt: r.created_at,
+    }));
   }
 
   async toggle(targetType: LikeTargetType, targetId: string, userId: string): Promise<boolean> {

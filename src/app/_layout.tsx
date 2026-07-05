@@ -141,6 +141,7 @@ function RootNavigator() {
       <Stack.Screen name="artist/[id]" />
       <Stack.Screen name="streak" />
       <Stack.Screen name="achievements" />
+      <Stack.Screen name="activity" />
     </Stack>
   );
 }

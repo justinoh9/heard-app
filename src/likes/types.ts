@@ -20,6 +20,13 @@ export interface LikeRow {
   userId: string;
 }
 
+/** Who liked a target and when — powers the Activity inbox. */
+export interface LikeActor {
+  targetId: string;
+  userId: string;
+  createdAt: string;
+}
+
 /** Thrown for expected, user-facing failures (network down, bad status). */
 export class LikesError extends Error {}
 
@@ -31,4 +38,6 @@ export interface LikesBackend {
   ): Promise<Map<string, LikeSummary>>;
   /** Toggle the current user's like on one target. Returns the new likedByMe state. */
   toggle(targetType: LikeTargetType, targetId: string, userId: string): Promise<boolean>;
+  /** Who liked each of these targets, with timestamps (for the Activity inbox). */
+  likersOf(targetType: LikeTargetType, targetIds: string[]): Promise<LikeActor[]>;
 }

@@ -212,6 +212,23 @@ export default function ProfileScreen() {
             <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
           </Pressable>
 
+          <Pressable
+            testID="open-activity"
+            onPress={() => router.push('/activity')}
+            style={({ pressed }) => [
+              styles.wrappedCard,
+              { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.7 : 1 },
+            ]}>
+            <Ionicons name="notifications" size={18} color={theme.accent} />
+            <View style={{ flex: 1 }}>
+              <ThemedText type="smallBold">Activity</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                Hearts on your posts and new followers
+              </ThemedText>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
+          </Pressable>
+
           {ranked.length > 0 && (
             <>
               <View style={styles.top4Header}>
