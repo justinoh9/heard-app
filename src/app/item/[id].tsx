@@ -27,7 +27,7 @@ export default function ItemProfileScreen() {
   const router = useRouter();
   const haptics = useHaptics();
   const { user } = useAuth();
-  const { ratingFor } = useRatings();
+  const { ranked, ratingFor } = useRatings();
   const params = useLocalSearchParams<{
     id: string;
     type?: string;
@@ -43,6 +43,11 @@ export default function ItemProfileScreen() {
   const artUrl = params.artUrl || undefined;
 
   const existing = ratingFor(id);
+  // Where this sits in the viewer's own ranked list for this type — the
+  // personal context that ties the public page to their library.
+  const typeRanked = ranked.filter((r) => r.item.type === type);
+  const myRank = existing ? typeRanked.findIndex((r) => r.item.id === id) + 1 : 0;
+  const typeLabel = type === 'song' ? 'songs' : type === 'artist' ? 'artists' : 'albums';
   const itemLike = useLikeSummary('item', id);
   const { comments, loading, error, addComment } = useComments(id, type === 'song' ? 'song' : 'album');
   const commentLikes = useLikeSummaries('comment', comments.map((c) => c.id));
@@ -143,11 +148,18 @@ export default function ItemProfileScreen() {
             </ThemedText>
 
             {existing ? (
-              <View style={[styles.scorePill, { backgroundColor: theme.accent }]}>
-                <ThemedText type="smallBold" style={{ color: theme.onAccent }}>
-                  {existing.score.toFixed(1)}
-                </ThemedText>
-              </View>
+              <>
+                <View style={[styles.scorePill, { backgroundColor: theme.accent }]}>
+                  <ThemedText type="smallBold" style={{ color: theme.onAccent }}>
+                    {existing.score.toFixed(1)}
+                  </ThemedText>
+                </View>
+                {myRank > 0 && (
+                  <ThemedText type="small" themeColor="textSecondary">
+                    Your #{myRank} of {typeRanked.length} {typeLabel}
+                  </ThemedText>
+                )}
+              </>
             ) : null}
 
             <View style={styles.actionsRow}>
