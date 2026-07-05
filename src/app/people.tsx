@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -8,7 +9,13 @@ import { PageContainer } from '@/components/page-container';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { INITIAL_RANKED } from '@/data/catalog';
+import { ratingsBackend } from '@/data/ratings-provider';
+import { useRatings } from '@/data/store';
 import { useTheme } from '@/hooks/use-theme';
+import { sortRanked } from '@/ranking/engine';
+import type { RankedItem } from '@/ranking/types';
+import { compatibility } from '@/social/compatibility';
 import { initialsOf } from '@/social/feed-rows';
 import { useSocial } from '@/social/store';
 import type { Profile } from '@/social/types';
@@ -23,6 +30,49 @@ export default function PeopleScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { people, followingIds, toggleFollow } = useSocial();
+  const { ranked: mine } = useRatings();
+
+  // Each person's ranked list, loaded once, so the taste-match % (blueprint
+  // §2.C) can drive the ordering. Keyed by the set of people so it reloads only
+  // when the directory changes, not on every re-render.
+  const [theirLists, setTheirLists] = useState<Map<string, RankedItem[]>>(new Map());
+  const peopleKey = people.map((p) => p.userId).sort().join(',');
+
+  useEffect(() => {
+    if (people.length === 0) {
+      setTheirLists(new Map());
+      return;
+    }
+    let cancelled = false;
+    Promise.all(
+      people.map((p) =>
+        ratingsBackend
+          .load(p.userId)
+          // Fall back to the seed they'd also see pre-first-commit, matching
+          // the /user/[id] convention so the % is honest to their screen.
+          .then((stored) => [p.userId, sortRanked(stored?.list ?? INITIAL_RANKED)] as const)
+          .catch(() => [p.userId, [] as RankedItem[]] as const),
+      ),
+    ).then((entries) => {
+      if (!cancelled) setTheirLists(new Map(entries));
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [peopleKey]);
+
+  // Best match first; people still loading (no list yet) sort to the end.
+  const rankedPeople = useMemo(
+    () =>
+      people
+        .map((p) => {
+          const theirs = theirLists.get(p.userId);
+          return { person: p, percent: theirs ? compatibility(mine, theirs).percent : null };
+        })
+        .sort((a, b) => (b.percent ?? -1) - (a.percent ?? -1)),
+    [people, theirLists, mine],
+  );
 
   return (
     <ThemedView style={[styles.screen, { paddingTop: insets.top }]}>
@@ -42,10 +92,11 @@ export default function PeopleScreen() {
           />
         ) : (
           <ScrollView contentContainerStyle={styles.list}>
-            {people.map((p) => (
+            {rankedPeople.map(({ person: p, percent }) => (
               <PersonRow
                 key={p.userId}
                 person={p}
+                percent={percent}
                 following={followingIds.has(p.userId)}
                 onToggle={() => toggleFollow(p.userId)}
                 onOpen={() =>
@@ -66,12 +117,15 @@ export default function PeopleScreen() {
 
 function PersonRow({
   person,
+  percent,
   following,
   onToggle,
   onOpen,
   theme,
 }: {
   person: Profile;
+  /** Taste-match vs the viewer, or null while still loading. */
+  percent: number | null;
   following: boolean;
   onToggle: () => void;
   onOpen: () => void;
@@ -87,9 +141,16 @@ function PersonRow({
         <View style={[styles.avatar, { backgroundColor: theme.backgroundSelected }]}>
           <ThemedText type="smallBold">{initialsOf(person.displayName)}</ThemedText>
         </View>
-        <ThemedText type="smallBold" style={styles.name} numberOfLines={1}>
-          {person.displayName}
-        </ThemedText>
+        <View style={styles.nameCol}>
+          <ThemedText type="smallBold" numberOfLines={1}>
+            {person.displayName}
+          </ThemedText>
+          {percent != null && (
+            <ThemedText type="small" style={{ color: theme.accent }}>
+              {percent}% match
+            </ThemedText>
+          )}
+        </View>
       </Pressable>
       <Pressable
         testID={`follow-${person.userId}`}
@@ -126,7 +187,7 @@ const styles = StyleSheet.create({
   },
   avatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   personBody: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
-  name: { flex: 1 },
+  nameCol: { flex: 1, gap: 1 },
   followButton: {
     borderRadius: 999,
     paddingHorizontal: Spacing.four,
