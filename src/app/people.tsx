@@ -15,7 +15,7 @@ import { useSocial } from '@/social/store';
 import type { Profile } from '@/social/types';
 
 /**
- * The people directory: everyone on Heard (this device in local mode, the
+ * The people directory: everyone on Jelli (this device in local mode, the
  * whole instance with Supabase), with follow/unfollow toggles. Following
  * someone puts their activity in your feed.
  */

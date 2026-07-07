@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "_scaffold",
-    "slug": "_scaffold",
+    "name": "Jelli",
+    "slug": "jelli",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "scaffold",
+    "scheme": "jelli",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon"

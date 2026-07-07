@@ -10,7 +10,7 @@ const SPOTIFY_GREEN = '#1DB954';
 export function BrandHeader({ tagline }: { tagline: string }) {
   return (
     <View style={styles.brand}>
-      <ThemedText style={styles.logo}>Heard</ThemedText>
+      <ThemedText style={styles.logo}>Jelli</ThemedText>
       <ThemedText themeColor="textSecondary">{tagline}</ThemedText>
     </View>
   );

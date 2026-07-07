@@ -168,7 +168,7 @@ export default function LeaderboardScreen() {
           {rows.length > 0 && (
             <ThemedText type="small" themeColor="textSecondary" style={styles.footnote}>
               Ranked by {metric.label.toLowerCase()} ·{' '}
-              {scope === 'friends' ? 'people you follow' : 'everyone on Heard'}
+              {scope === 'friends' ? 'people you follow' : 'everyone on Jelli'}
             </ThemedText>
           )}
         </PageContainer>
