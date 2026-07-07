@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { useAuthGate } from '@/auth/use-require-auth';
 import { ModalDialogFrame } from '@/components/modal-dialog-frame';
 import { ScoreInput } from '@/components/score-input';
 import { TextField } from '@/components/text-field';
@@ -26,6 +27,7 @@ export default function NewConcertModal() {
   const haptics = useHaptics();
   const { logConcert } = useConcerts();
   const { people, followingIds } = useSocial();
+  useAuthGate(); // logging a show needs an account — bounce guests to sign-in
 
   const [artistName, setArtistName] = useState('');
   const [venue, setVenue] = useState('');

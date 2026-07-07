@@ -3,7 +3,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, View } from 'react-native';
 
-import { useAuth } from '@/auth/store';
+import { useAuthGate } from '@/auth/use-require-auth';
 import { AlbumCover } from '@/components/album-cover';
 import { ModalDialogFrame } from '@/components/modal-dialog-frame';
 import { ScoreInput } from '@/components/score-input';
@@ -34,7 +34,7 @@ export default function LogModal() {
   const theme = useTheme();
   const goBack = useGoBack();
   const haptics = useHaptics();
-  const { user } = useAuth();
+  const user = useAuthGate();
   const params = useLocalSearchParams<{
     id: string;
     type?: string;
@@ -158,13 +158,18 @@ export default function LogModal() {
   const stepKey = step === 'compare' && comparison ? `compare-${comparison.against.id}` : step;
   const fade = useStepFade(stepKey);
 
+  // Redirect (above) is in flight; render nothing rather than a flash of the form.
+  if (!user) return null;
+
   return (
     <ModalDialogFrame>
       <View style={styles.topBar}>
         <Pressable onPress={closeModal} accessibilityLabel="Close" hitSlop={8}>
           <Ionicons name="close" size={26} color={theme.text} />
         </Pressable>
-        <ThemedText type="smallBold">{isUpdate ? 'Update rating' : 'Rate album'}</ThemedText>
+        <ThemedText type="smallBold">
+          {isUpdate ? 'Update rating' : `Rate ${album.type === 'song' ? 'song' : 'album'}`}
+        </ThemedText>
         <View style={{ width: 26 }} />
       </View>
 

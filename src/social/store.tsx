@@ -46,38 +46,34 @@ export function useSocialState(): SocialApi {
   const [myFavorites, setMyFavorites] = useState<string[]>([]);
 
   const refresh = useCallback(() => {
-    if (!userId) return;
     setFeedLoading(true);
-    socialBackend
-      .following(userId)
-      .then(async (ids) => {
+    // The people directory is public, so it loads for guests too; the follow
+    // graph and personalized feed need a viewer, so they stay empty signed-out.
+    Promise.all([
+      socialBackend.listProfiles(),
+      userId ? socialBackend.following(userId) : Promise.resolve([] as string[]),
+    ])
+      .then(async ([profiles, ids]) => {
         setFollowingIds(new Set(ids));
-        const [profiles, events] = await Promise.all([
-          socialBackend.listProfiles(),
-          socialBackend.feedFor([userId, ...ids]),
-        ]);
         setPeople(profiles.filter((p) => p.userId !== userId));
-        setMyFavorites(profiles.find((p) => p.userId === userId)?.favorites ?? []);
-        setFeed(events);
+        setMyFavorites(userId ? profiles.find((p) => p.userId === userId)?.favorites ?? [] : []);
+        setFeed(userId ? await socialBackend.feedFor([userId, ...ids]) : []);
       })
       .catch((e: unknown) => console.warn('[social] refresh failed:', e))
       .finally(() => setFeedLoading(false));
   }, [userId]);
 
   useEffect(() => {
-    if (!userId) {
-      setPeople([]);
-      setFollowingIds(new Set());
-      setFeed([]);
-      setMyFavorites([]);
-      setFeedLoading(false);
-      return;
+    // Signed in: join the directory (idempotent) before loading. Guest: just
+    // load the public directory so people/profiles are browsable without an account.
+    if (userId) {
+      socialBackend
+        .upsertProfile({ userId, displayName })
+        .catch((e: unknown) => console.warn('[social] profile upsert failed:', e))
+        .finally(refresh);
+    } else {
+      refresh();
     }
-    // Join the directory (idempotent), then load everything.
-    socialBackend
-      .upsertProfile({ userId, displayName })
-      .catch((e: unknown) => console.warn('[social] profile upsert failed:', e))
-      .finally(refresh);
   }, [userId, displayName, refresh]);
 
   return useMemo<SocialApi>(

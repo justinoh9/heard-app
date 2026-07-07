@@ -3,7 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
-import { useAuth } from '@/auth/store';
+import { useRequireAuth } from '@/auth/use-require-auth';
 import { AlbumCover } from '@/components/album-cover';
 import { CommentCard } from '@/components/comment-card';
 import { EmptyState } from '@/components/empty-state';
@@ -31,7 +31,7 @@ export default function ItemProfileScreen() {
   const router = useRouter();
   const goBack = useGoBack();
   const haptics = useHaptics();
-  const { user } = useAuth();
+  const { user, requireAuth } = useRequireAuth();
   const { ranked, ratingFor } = useRatings();
   const { followingIds, people } = useSocial();
   const params = useLocalSearchParams<{
@@ -40,6 +40,7 @@ export default function ItemProfileScreen() {
     title: string;
     artist: string;
     artUrl?: string;
+    year?: string;
   }>();
 
   const id = String(params.id);
@@ -47,6 +48,7 @@ export default function ItemProfileScreen() {
   const title = String(params.title);
   const artist = String(params.artist);
   const artUrl = params.artUrl || undefined;
+  const year = params.year || '';
 
   const existing = ratingFor(id);
   // Where this sits in the viewer's own ranked list for this type — the
@@ -127,34 +129,42 @@ export default function ItemProfileScreen() {
   }, [id, type]);
 
   function openTrack(track: AlbumTrack) {
+    // Open the track's own profile page (browsable), not the rate flow.
     router.push({
-      pathname: '/log',
+      pathname: '/item/[id]',
       params: {
         id: track.id,
         type: 'song',
         title: track.title,
         artist: track.artist || artist,
-        year: '',
         artUrl: artUrl ?? '',
       },
     });
   }
 
   function rate() {
-    router.push({
-      pathname: '/log',
-      params: { id, type, title, artist, artUrl: artUrl ?? '', year: '' },
-    });
+    requireAuth(() =>
+      router.push({
+        pathname: '/log',
+        params: { id, type, title, artist, artUrl: artUrl ?? '', year },
+      }),
+    );
   }
 
   function toggleLike() {
-    haptics.selection();
-    itemLike.toggle();
+    requireAuth(() => {
+      haptics.selection();
+      itemLike.toggle();
+    });
   }
 
   async function post() {
     const text = body.trim();
-    if (!text || !user || posting) return;
+    if (!text || posting) return;
+    if (!user) {
+      router.push('/(auth)/sign-in');
+      return;
+    }
     setPosting(true);
     try {
       await addComment({

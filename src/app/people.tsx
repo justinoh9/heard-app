@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useRequireAuth } from '@/auth/use-require-auth';
 import { EmptyState } from '@/components/empty-state';
 import { PageContainer } from '@/components/page-container';
 import { ThemedText } from '@/components/themed-text';
@@ -32,6 +33,7 @@ export default function PeopleScreen() {
   const goBack = useGoBack();
   const insets = useSafeAreaInsets();
   const { people, followingIds, toggleFollow } = useSocial();
+  const { requireAuth } = useRequireAuth();
   const { ranked: mine } = useRatings();
 
   // Each person's ranked list, loaded once, so the taste-match % (blueprint
@@ -100,7 +102,7 @@ export default function PeopleScreen() {
                 person={p}
                 percent={percent}
                 following={followingIds.has(p.userId)}
-                onToggle={() => toggleFollow(p.userId)}
+                onToggle={() => requireAuth(() => toggleFollow(p.userId))}
                 onOpen={() =>
                   router.push({
                     pathname: '/user/[id]',

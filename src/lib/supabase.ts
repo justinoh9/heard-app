@@ -1,19 +1,23 @@
 /**
- * Supabase client, used by the comments (src/comments/), likes (src/likes/),
- * and ratings (src/data/supabase-ratings-backend.ts) seams. Auth stays on
- * LocalAuthBackend — a Supabase Auth migration is planned (blueprint §3.4).
+ * Supabase client, used by the auth (src/auth/supabase-backend.ts), comments
+ * (src/comments/), likes (src/likes/), social (src/social/), concerts, and
+ * ratings seams.
  *
- * No Supabase Auth session exists here (LocalAuthBackend stays authoritative
- * for identity), so session persistence is explicitly disabled below.
+ * Session persistence is ENABLED: when Supabase Auth is the active auth backend
+ * (SupabaseAuthBackend), signing in stores a session in AsyncStorage (which is
+ * localStorage on web), and every subsequent request carries the user's JWT —
+ * so `auth.uid()` becomes available to RLS. When the LocalAuthBackend is active
+ * instead (no env configured) there's simply no session and requests use the
+ * anon key, so enabling persistence is harmless.
  *
  * Lazily initialized: this module is reachable from the root layout's import
- * graph (log.tsx is in the same web bundle as everything else), so throwing
- * at module load would crash the entire app — not just comments — for anyone
- * without a Supabase project configured yet. The throw is deferred to first
- * actual use (i.e. when a screen tries to load/post comments).
+ * graph, so throwing at module load would crash the entire app — not just one
+ * feature — for anyone without a Supabase project configured yet. The throw is
+ * deferred to first actual use.
  */
 
 import 'react-native-url-polyfill/auto';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 let client: SupabaseClient | null = null;
@@ -39,7 +43,13 @@ export function getSupabase(): SupabaseClient {
   }
 
   client = createClient(url, anonKey, {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    auth: {
+      storage: AsyncStorage,
+      persistSession: true,
+      autoRefreshToken: true,
+      // We don't use email-link / OAuth redirects, so don't parse the URL hash.
+      detectSessionInUrl: false,
+    },
   });
   return client;
 }

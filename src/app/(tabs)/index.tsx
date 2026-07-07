@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
-import { useAuth } from '@/auth/store';
+import { useRequireAuth } from '@/auth/use-require-auth';
 import { AlbumCover } from '@/components/album-cover';
 import { PageContainer } from '@/components/page-container';
 import { ThemedText } from '@/components/themed-text';
@@ -27,7 +27,7 @@ export default function FeedScreen() {
   const router = useRouter();
   const { myDrop } = useFeed();
   const { feed, followingIds } = useSocial();
-  const { user } = useAuth();
+  const { user, requireAuth } = useRequireAuth();
   const { ranked: mine } = useRatings();
   const myId = user?.id ?? '';
 
@@ -109,7 +109,7 @@ export default function FeedScreen() {
           <YourDrop
             drop={myDrop}
             theme={theme}
-            onCompose={() => router.push('/drop')}
+            onCompose={() => requireAuth(() => router.push('/drop'))}
             onOpen={() => myDrop && openDropItem(myDrop)}
           />
 

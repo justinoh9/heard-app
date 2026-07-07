@@ -24,7 +24,9 @@ import { useMusicSearch, type SearchResult } from '@/music';
 /**
  * Search + rate surface, laid out like Spotify's search: a "Top result" card,
  * then Songs, Artists, and Albums sections. Tapping an artist opens their page;
- * tapping an album or song opens the rate flow.
+ * tapping an album or song opens its profile page (ratings + comments), where a
+ * "Rate" button starts the rate flow. This keeps search browsable signed-out —
+ * you can check out any song/album's scores without an account.
  */
 export default function RateSearchScreen() {
   const theme = useTheme();
@@ -40,16 +42,18 @@ export default function RateSearchScreen() {
   const topResult = artists[0] ?? albums[0] ?? songs[0];
   const notTop = (r: SearchResult) => r.id !== topResult?.id;
 
-  function openRate(item: SearchResult) {
+  function openItem(item: SearchResult) {
+    // The song/album profile page — viewable by anyone; its "Rate" button is
+    // the (account-gated) entry to the rate flow.
     router.push({
-      pathname: '/log',
+      pathname: '/item/[id]',
       params: {
         id: item.id,
         type: item.kind,
         title: item.title,
         artist: item.artist,
-        year: item.year ?? '',
         artUrl: item.coverUrl ?? '',
+        year: item.year ?? '',
       },
     });
   }
@@ -64,7 +68,7 @@ export default function RateSearchScreen() {
 
   function open(item: SearchResult) {
     if (item.kind === 'artist') openArtist(item);
-    else openRate(item);
+    else openItem(item);
   }
 
   const trimmed = query.trim();
@@ -101,7 +105,7 @@ export default function RateSearchScreen() {
         // Idle search = the import on-ramp: recent Spotify plays, one tap from
         // the log flow (plays are candidates, never auto-logged — blueprint §2.A).
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.list}>
-          <RecentPlaysTray onPick={openRate} />
+          <RecentPlaysTray onPick={openItem} />
           <EmptyState icon="search" doodle="cassette" message="Search an artist, song, or album." />
         </ScrollView>
       ) : loading && results.length === 0 ? (
@@ -134,7 +138,7 @@ export default function RateSearchScreen() {
                   key={s.id}
                   item={s}
                   score={ratingFor(s.id)?.score}
-                  onPress={() => openRate(s)}
+                  onPress={() => openItem(s)}
                   theme={theme}
                 />
               ))}
@@ -158,7 +162,7 @@ export default function RateSearchScreen() {
                   key={al.id}
                   item={al}
                   score={ratingFor(al.id)?.score}
-                  onPress={() => openRate(al)}
+                  onPress={() => openItem(al)}
                   theme={theme}
                 />
               ))}

@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
+import { useAuthGate } from '@/auth/use-require-auth';
 import { AlbumCover } from '@/components/album-cover';
 import { EmptyState } from '@/components/empty-state';
 import { ModalDialogFrame } from '@/components/modal-dialog-frame';
@@ -24,6 +25,7 @@ export default function DropModal() {
   const goBack = useGoBack();
   const haptics = useHaptics();
   const { postDrop } = useFeed();
+  useAuthGate(); // posting a drop needs an account — bounce guests to sign-in
 
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<SearchResult | null>(null);
