@@ -15,12 +15,15 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { filterSortComments, useComments, type CommentScope, type CommentSort } from '@/comments';
 import { Spacing } from '@/constants/theme';
+import { ratingsBackend } from '@/data/ratings-provider';
 import { useRatings } from '@/data/store';
 import { useHaptics } from '@/hooks/use-haptics';
 import { useTheme } from '@/hooks/use-theme';
 import { useLikeSummaries, useLikeSummary } from '@/likes';
 import { musicCatalog, MusicCatalogError, type AlbumTrack } from '@/music';
 import type { ItemType } from '@/ranking/types';
+import { initialsOf } from '@/social/feed-rows';
+import { useSocial } from '@/social/store';
 
 export default function ItemProfileScreen() {
   const theme = useTheme();
@@ -28,6 +31,7 @@ export default function ItemProfileScreen() {
   const haptics = useHaptics();
   const { user } = useAuth();
   const { ranked, ratingFor } = useRatings();
+  const { followingIds, people } = useSocial();
   const params = useLocalSearchParams<{
     id: string;
     type?: string;
@@ -56,6 +60,45 @@ export default function ItemProfileScreen() {
   const [scope, setScope] = useState<CommentScope>('everyone');
   const [sort, setSort] = useState<CommentSort>('newest');
   const visibleComments = filterSortComments(comments, { scope, sort });
+
+  // Real social proof: which people you follow have rated this item, and how
+  // (blueprint §2.C). Loaded from their stored lists — no seed fallback, so
+  // only actual ratings count.
+  // Store ids + scores only; names resolve at render time so a late-loading
+  // directory doesn't freeze them to a placeholder.
+  const [friendRatings, setFriendRatings] = useState<{ userId: string; score: number }[]>([]);
+  const nameOf = (uid: string) => people.find((p) => p.userId === uid)?.displayName ?? 'Someone';
+  const followKey = [...followingIds].sort().join(',');
+  useEffect(() => {
+    const ids = [...followingIds];
+    if (ids.length === 0) {
+      setFriendRatings([]);
+      return;
+    }
+    let cancelled = false;
+    Promise.all(
+      ids.map((uid) =>
+        ratingsBackend
+          .load(uid)
+          .then((s) => {
+            const r = (s?.list ?? []).find((x) => x.item.id === id);
+            return r ? { userId: uid, score: r.score } : null;
+          })
+          .catch(() => null),
+      ),
+    ).then((results) => {
+      if (cancelled) return;
+      setFriendRatings(
+        results
+          .filter((r): r is { userId: string; score: number } => r !== null)
+          .sort((a, b) => b.score - a.score),
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, followKey]);
 
   // Album tracklist (songs). Only albums have one; songs skip the fetch.
   const [tracks, setTracks] = useState<AlbumTrack[]>([]);
@@ -239,6 +282,38 @@ export default function ItemProfileScreen() {
             </>
           )}
 
+          {friendRatings.length > 0 && (
+            <>
+              <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
+                RATED BY FRIENDS
+              </ThemedText>
+              {friendRatings.map((f) => (
+                <Pressable
+                  key={f.userId}
+                  testID={`friend-rating-${f.userId}`}
+                  onPress={() =>
+                    router.push({ pathname: '/user/[id]', params: { id: f.userId, name: nameOf(f.userId) } })
+                  }
+                  style={({ pressed }) => [
+                    styles.friendRow,
+                    { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.6 : 1 },
+                  ]}>
+                  <View style={[styles.friendAvatar, { backgroundColor: theme.backgroundSelected }]}>
+                    <ThemedText type="smallBold">{initialsOf(nameOf(f.userId))}</ThemedText>
+                  </View>
+                  <ThemedText type="small" style={{ flex: 1 }} numberOfLines={1}>
+                    {nameOf(f.userId)}
+                  </ThemedText>
+                  <View style={[styles.scorePill, { backgroundColor: theme.accent }]}>
+                    <ThemedText type="smallBold" style={{ color: theme.onAccent }}>
+                      {f.score.toFixed(1)}
+                    </ThemedText>
+                  </View>
+                </Pressable>
+              ))}
+            </>
+          )}
+
           <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
             SCORES
           </ThemedText>
@@ -372,6 +447,14 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   sectionLabel: { marginTop: Spacing.two },
+  friendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    borderRadius: 12,
+    padding: Spacing.two,
+  },
+  friendAvatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   commentControls: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   sortBtn: {
     flexDirection: 'row',
