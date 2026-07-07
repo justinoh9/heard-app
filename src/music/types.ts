@@ -2,14 +2,15 @@
  * Music catalog seam. Screens (the search UIs) talk only to the `MusicCatalog`
  * interface, so the provider can change without touching them.
  *
- * Shipping now: Spotify (`src/music/spotify.ts`), which gives real popularity
- * ranking and a mixed album/track search in a single request. It needs a
- * client secret, embedded here via `EXPO_PUBLIC_*` for lack of a backend — see
- * the SECURITY note in `spotify.ts`. The `musicbrainz`/`spotify` provider
- * discriminant is kept so a second provider (e.g. Apple Music) could coexist.
+ * Shipping now: the iTunes Search API (`src/music/itunes.ts`) — keyless, no
+ * backend, working artwork + previews. Popularity (which iTunes lacks) is
+ * layered on best-effort from Last.fm listener counts (`src/music/lastfm.ts`)
+ * via the `PopularityEnricher` seam below. `src/music/spotify.ts` is retained
+ * as an alternate provider (and still backs the user-library import); the
+ * `provider` discriminant lets providers coexist.
  */
 
-export type MusicProvider = 'musicbrainz' | 'spotify';
+export type MusicProvider = 'musicbrainz' | 'spotify' | 'itunes';
 /**
  * `artist` is a browse-only result (you navigate into its page, you don't rate
  * it), so comments/ratings never receive it in practice — see `src/comments`.
@@ -81,4 +82,28 @@ export interface MusicCatalog {
   getArtistTopTracks(artistName: string, opts?: SearchOptions): Promise<SearchResult[]>;
   /** An album's tracklist, in album order, for the album's item page. */
   getAlbumTracks(albumId: string, opts?: SearchOptions): Promise<AlbumTrack[]>;
+}
+
+/**
+ * Optional popularity layer. A catalog whose provider has no native popularity
+ * signal (iTunes) can pass its song results through an enricher to attach a
+ * 0-100 `popularity` and re-sort by it. Always best-effort: an enricher that
+ * fails or can't match a track leaves that result's order untouched, so search
+ * degrades to the catalog's own relevance rather than erroring.
+ *
+ * Receives songs only (the caller filters to song-kind results before calling),
+ * and is expected to preserve the input order for anything it can't score.
+ */
+export interface PopularityEnricher {
+  enrich(songs: SearchResult[], query: string, opts?: SearchOptions): Promise<SearchResult[]>;
+}
+
+/**
+ * Optional artist-photo lookup. iTunes serves no artist artwork, so the artist
+ * page fills its hero from a separate source (Deezer, src/music/deezer.ts).
+ * Best-effort: resolves `undefined` when there's no match, and callers keep
+ * their placeholder (the album-cover record player) rather than erroring.
+ */
+export interface ArtistImageProvider {
+  getArtistImage(name: string, opts?: SearchOptions): Promise<string | undefined>;
 }

@@ -13,7 +13,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useRatings } from '@/data/store';
 import { useTheme } from '@/hooks/use-theme';
-import { musicCatalog, MusicCatalogError, type SearchResult } from '@/music';
+import { artistImages, musicCatalog, MusicCatalogError, type SearchResult } from '@/music';
 
 type Theme = ReturnType<typeof useTheme>;
 
@@ -43,6 +43,24 @@ export default function ArtistProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAllSongs, setShowAllSongs] = useState(false);
+  // iTunes gives no artist photo, so the hero starts with whatever the search
+  // row passed (usually nothing) and is filled in from Deezer by name.
+  const [heroImage, setHeroImage] = useState<string | undefined>(image);
+
+  useEffect(() => {
+    setHeroImage(image); // reset when navigating between artists
+    if (image) return; // already have one — skip the lookup
+    let active = true;
+    artistImages
+      .getArtistImage(name)
+      .then((url) => {
+        if (active && url) setHeroImage(url);
+      })
+      .catch(() => {}); // best-effort: keep the album-cover fallback
+    return () => {
+      active = false;
+    };
+  }, [name, image]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -85,14 +103,14 @@ export default function ArtistProfileScreen() {
     <ThemedView style={styles.screen}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={[styles.banner, { paddingTop: insets.top + Spacing.six }]}>
-          {image ? (
-            <Image source={{ uri: image }} style={StyleSheet.absoluteFill} contentFit="cover" blurRadius={40} transition={200} />
+          {heroImage ? (
+            <Image source={{ uri: heroImage }} style={StyleSheet.absoluteFill} contentFit="cover" blurRadius={40} transition={200} />
           ) : (
             <View style={[StyleSheet.absoluteFill, { backgroundColor: theme.backgroundSelected }]} />
           )}
           <View style={[StyleSheet.absoluteFill, styles.bannerTint]} pointerEvents="none" />
 
-          <RecordPlayer image={image} albums={albums} size={216} />
+          <RecordPlayer image={heroImage} albums={albums} size={216} />
           <Text style={styles.bannerName} numberOfLines={2}>
             {name}
           </Text>

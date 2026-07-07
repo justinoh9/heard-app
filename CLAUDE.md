@@ -20,14 +20,24 @@ retention, differentiators).
   `src/data/catalog.ts` seeds brand-new users **in local/demo mode only** —
   against the cloud backend a new user starts empty, so demo ratings are never
   persisted as real data.
-- Music search runs on the **Spotify Web API** (`src/music/spotify.ts`, Client
-  Credentials flow). Two token modes (see `requestToken`): **proxy** — set
-  `EXPO_PUBLIC_SPOTIFY_TOKEN_URL` to the `supabase/functions/spotify-token` Edge
-  Function so the secret stays server-side (recommended); or **direct** — set
-  `EXPO_PUBLIC_SPOTIFY_CLIENT_ID` / `EXPO_PUBLIC_SPOTIFY_CLIENT_SECRET` for a
-  zero-backend quick start (the secret then ships in the bundle, same trust
-  level as the Supabase anon key). With neither set, search shows a friendly
-  "not configured" message instead of crashing.
+- Music search runs on the **iTunes Search API** (`src/music/itunes.ts`) —
+  keyless, no backend, no secret in the bundle. Reflective CORS (Apple echoes
+  the request origin) makes direct `fetch` work on web; native has no CORS. It
+  returns real artwork (the 100px thumbnail URL is upscaled to 600px in
+  `upscaleArtwork`) and working 30s previews. The one gap — no popularity
+  signal — is filled **best-effort** by Last.fm listener counts
+  (`src/music/lastfm.ts`, the `PopularityEnricher` seam): song results get a
+  log-scaled 0-100 `popularity` and are re-ranked when `EXPO_PUBLIC_LASTFM_API_KEY`
+  is set; without it they keep Apple's relevance order. `searchAll` fans out
+  album + song requests in parallel and *derives* artist rows from them (iTunes
+  has no artist objects with art), ordered by how often each artist recurs so
+  the intended artist wins the "Top result" slot. Artist *photos* (which iTunes
+  also lacks) come from **Deezer** (`src/music/deezer.ts`, `ArtistImageProvider`
+  seam) on the artist-page hero; Deezer's JSON API blocks browser CORS, so the
+  transport (`deezer-request.ts`, app-only) uses JSONP on web / fetch on native
+  — the returned CDN image renders fine either way. `src/music/spotify.ts` is
+  retained as an alternate `MusicCatalog` and still backs the user-library
+  import (the separate Spotify user-OAuth for "recently played").
 - Streak state (`src/streaks/`) persists per-user to `AsyncStorage` on the
   device (deliberately not in Supabase — it's a per-device habit nudge).
   Playlists and the Daily Drop are still in-memory (ROADMAP Phase 1).
