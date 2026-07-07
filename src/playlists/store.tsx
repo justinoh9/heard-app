@@ -76,11 +76,13 @@ export function usePlaylistsState(): PlaylistsApi {
         if (userId) {
           playlistsBackend
             .create({ id: draft.id, userId, name: draft.name, createdAt: draft.createdAt })
+            // Only announce a list that actually persisted — otherwise a failed
+            // create would leave a phantom "made a list" card with no list.
+            .then(() => social.publish('list', { title: draft.name }))
             .catch((e: unknown) => {
               console.warn('[playlists] create failed:', e);
               setPlaylists((prev) => prev.filter((p) => p.id !== draft.id));
             });
-          social.publish('list', { title: draft.name });
         }
         return draft;
       },
