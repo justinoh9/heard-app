@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, View } from 'react-native';
 
@@ -12,6 +12,7 @@ import { ThemedText } from '@/components/themed-text';
 import { postComment } from '@/comments';
 import { Spacing } from '@/constants/theme';
 import { useRatings } from '@/data/store';
+import { useGoBack } from '@/hooks/use-go-back';
 import { useHaptics } from '@/hooks/use-haptics';
 import { useTheme } from '@/hooks/use-theme';
 import { sortRanked, type Placement } from '@/ranking/engine';
@@ -31,7 +32,7 @@ type Step = 'score' | 'compare' | 'review' | 'done';
 
 export default function LogModal() {
   const theme = useTheme();
-  const router = useRouter();
+  const goBack = useGoBack();
   const haptics = useHaptics();
   const { user } = useAuth();
   const params = useLocalSearchParams<{
@@ -77,7 +78,7 @@ export default function LogModal() {
 
   function closeModal() {
     commitNow(); // persist the rating even if the user closes before Post/Skip
-    router.back();
+    goBack();
   }
 
   function advance() {

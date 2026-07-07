@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
@@ -10,6 +9,7 @@ import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useFeed, type DropItem } from '@/feed/store';
+import { useGoBack } from '@/hooks/use-go-back';
 import { useHaptics } from '@/hooks/use-haptics';
 import { useTheme } from '@/hooks/use-theme';
 import { useMusicSearch, type SearchResult } from '@/music';
@@ -21,7 +21,7 @@ import { useMusicSearch, type SearchResult } from '@/music';
  */
 export default function DropModal() {
   const theme = useTheme();
-  const router = useRouter();
+  const goBack = useGoBack();
   const haptics = useHaptics();
   const { postDrop } = useFeed();
 
@@ -41,13 +41,13 @@ export default function DropModal() {
       artUrl: selected.coverUrl,
     };
     postDrop({ item, caption });
-    router.back();
+    goBack();
   }
 
   return (
     <ModalDialogFrame>
       <View style={styles.topBar}>
-        <Pressable onPress={() => router.back()} accessibilityLabel="Close" hitSlop={8}>
+        <Pressable onPress={() => goBack()} accessibilityLabel="Close" hitSlop={8}>
           <Ionicons name="close" size={26} color={theme.text} />
         </Pressable>
         <ThemedText type="smallBold">Daily drop</ThemedText>

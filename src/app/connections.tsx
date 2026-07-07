@@ -10,6 +10,7 @@ import { PageContainer } from '@/components/page-container';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { useGoBack } from '@/hooks/use-go-back';
 import { useTheme } from '@/hooks/use-theme';
 import { initialsOf } from '@/social/feed-rows';
 import { socialBackend } from '@/social/provider';
@@ -25,6 +26,7 @@ type Mode = 'followers' | 'following';
 export default function ConnectionsScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const goBack = useGoBack('/profile');
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ id: string; mode?: string }>();
   const ownerId = String(params.id);
@@ -56,7 +58,7 @@ export default function ConnectionsScreen() {
     <ThemedView style={[styles.screen, { paddingTop: insets.top }]}>
       <PageContainer style={styles.container}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} accessibilityLabel="Back" hitSlop={8}>
+          <Pressable onPress={() => goBack()} accessibilityLabel="Back" hitSlop={8}>
             <Ionicons name="chevron-back" size={24} color={theme.text} />
           </Pressable>
           <ThemedText type="subtitle">{mode === 'followers' ? 'Followers' : 'Following'}</ThemedText>

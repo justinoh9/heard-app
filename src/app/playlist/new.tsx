@@ -7,6 +7,7 @@ import { ModalDialogFrame } from '@/components/modal-dialog-frame';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
+import { useGoBack } from '@/hooks/use-go-back';
 import { useHaptics } from '@/hooks/use-haptics';
 import { useTheme } from '@/hooks/use-theme';
 import { usePlaylists } from '@/playlists/store';
@@ -14,6 +15,7 @@ import { usePlaylists } from '@/playlists/store';
 export default function NewPlaylistModal() {
   const theme = useTheme();
   const router = useRouter();
+  const goBack = useGoBack('/profile');
   const haptics = useHaptics();
   const { createPlaylist } = usePlaylists();
   const [name, setName] = useState('');
@@ -29,7 +31,7 @@ export default function NewPlaylistModal() {
   return (
     <ModalDialogFrame>
       <View style={styles.topBar}>
-        <Pressable onPress={() => router.back()} accessibilityLabel="Close" hitSlop={8}>
+        <Pressable onPress={() => goBack()} accessibilityLabel="Close" hitSlop={8}>
           <Ionicons name="close" size={26} color={theme.text} />
         </Pressable>
         <ThemedText type="smallBold">New playlist</ThemedText>

@@ -12,6 +12,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useRatings } from '@/data/store';
+import { useGoBack } from '@/hooks/use-go-back';
 import { useTheme } from '@/hooks/use-theme';
 import { musicCatalog, MusicCatalogError, type SearchResult } from '@/music';
 
@@ -30,6 +31,7 @@ const POPULAR_PREVIEW = 5;
 export default function ArtistProfileScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const goBack = useGoBack();
   const insets = useSafeAreaInsets();
   const { ratingFor } = useRatings();
   const params = useLocalSearchParams<{ id: string; name?: string; image?: string }>();
@@ -188,7 +190,7 @@ export default function ArtistProfileScreen() {
       </ScrollView>
 
       <Pressable
-        onPress={() => router.back()}
+        onPress={() => goBack()}
         accessibilityLabel="Back"
         hitSlop={8}
         style={[styles.backBtn, { top: insets.top + Spacing.two }]}>

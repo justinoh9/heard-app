@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -14,6 +13,7 @@ import {
 import { useConcerts } from '@/concerts/store';
 import { Spacing } from '@/constants/theme';
 import { useRatings } from '@/data/store';
+import { useGoBack } from '@/hooks/use-go-back';
 import { useTheme } from '@/hooks/use-theme';
 import { useStreaks } from '@/streaks/store';
 
@@ -34,7 +34,7 @@ const ORDER: BadgeCategory[] = ['ratings', 'shows', 'streak', 'decades', 'artist
  */
 export default function AchievementsScreen() {
   const theme = useTheme();
-  const router = useRouter();
+  const goBack = useGoBack('/profile');
   const insets = useSafeAreaInsets();
   const { ranked } = useRatings();
   const { concerts } = useConcerts();
@@ -47,7 +47,7 @@ export default function AchievementsScreen() {
       <ScrollView>
         <PageContainer style={styles.container}>
           <View style={styles.header}>
-            <Pressable onPress={() => router.back()} accessibilityLabel="Back" hitSlop={8}>
+            <Pressable onPress={() => goBack()} accessibilityLabel="Back" hitSlop={8}>
               <Ionicons name="chevron-back" size={24} color={theme.text} />
             </Pressable>
             <ThemedText type="subtitle">Badges</ThemedText>

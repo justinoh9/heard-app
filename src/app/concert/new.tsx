@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
@@ -9,6 +8,7 @@ import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { useConcerts } from '@/concerts/store';
 import { Spacing } from '@/constants/theme';
+import { useGoBack } from '@/hooks/use-go-back';
 import { useHaptics } from '@/hooks/use-haptics';
 import { useTheme } from '@/hooks/use-theme';
 import { useSocial } from '@/social/store';
@@ -22,7 +22,7 @@ import { todayKey } from '@/streaks/logic';
  */
 export default function NewConcertModal() {
   const theme = useTheme();
-  const router = useRouter();
+  const goBack = useGoBack();
   const haptics = useHaptics();
   const { logConcert } = useConcerts();
   const { people, followingIds } = useSocial();
@@ -64,13 +64,13 @@ export default function NewConcertModal() {
       notes: notes.trim() || undefined,
       taggedUserIds: [...tagged],
     });
-    router.back();
+    goBack();
   }
 
   return (
     <ModalDialogFrame>
       <View style={styles.topBar}>
-        <Pressable onPress={() => router.back()} accessibilityLabel="Close" hitSlop={8}>
+        <Pressable onPress={() => goBack()} accessibilityLabel="Close" hitSlop={8}>
           <Ionicons name="close" size={26} color={theme.text} />
         </Pressable>
         <ThemedText type="smallBold">Log a show</ThemedText>

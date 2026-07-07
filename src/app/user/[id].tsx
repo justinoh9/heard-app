@@ -14,6 +14,7 @@ import { INITIAL_RANKED } from '@/data/catalog';
 import { ratingsBackend } from '@/data/ratings-provider';
 import { useRatings } from '@/data/store';
 import { relativeTime } from '@/feed/time';
+import { useGoBack } from '@/hooks/use-go-back';
 import { useTheme } from '@/hooks/use-theme';
 import { sortRanked } from '@/ranking/engine';
 import type { RankedItem } from '@/ranking/types';
@@ -35,6 +36,7 @@ const TOP_COUNT = 5;
 export default function UserProfileScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const goBack = useGoBack();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ id: string; name?: string }>();
   const userId = String(params.id);
@@ -96,7 +98,7 @@ export default function UserProfileScreen() {
       <ScrollView>
         <PageContainer style={styles.container}>
           <View style={styles.header}>
-            <Pressable onPress={() => router.back()} accessibilityLabel="Back" hitSlop={8}>
+            <Pressable onPress={() => goBack()} accessibilityLabel="Back" hitSlop={8}>
               <Ionicons name="chevron-back" size={24} color={theme.text} />
             </Pressable>
             <ThemedText type="subtitle">{displayName}</ThemedText>

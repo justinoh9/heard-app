@@ -17,6 +17,7 @@ import { filterSortComments, useComments, type CommentScope, type CommentSort } 
 import { Spacing } from '@/constants/theme';
 import { ratingsBackend } from '@/data/ratings-provider';
 import { useRatings } from '@/data/store';
+import { useGoBack } from '@/hooks/use-go-back';
 import { useHaptics } from '@/hooks/use-haptics';
 import { useTheme } from '@/hooks/use-theme';
 import { useLikeSummaries, useLikeSummary } from '@/likes';
@@ -28,6 +29,7 @@ import { useSocial } from '@/social/store';
 export default function ItemProfileScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const goBack = useGoBack();
   const haptics = useHaptics();
   const { user } = useAuth();
   const { ranked, ratingFor } = useRatings();
@@ -172,7 +174,7 @@ export default function ItemProfileScreen() {
   return (
     <ThemedView style={styles.screen}>
       <View style={styles.topBar}>
-        <Pressable onPress={() => router.back()} accessibilityLabel="Back" hitSlop={8}>
+        <Pressable onPress={() => goBack()} accessibilityLabel="Back" hitSlop={8}>
           <Ionicons name="chevron-back" size={26} color={theme.text} />
         </Pressable>
         <ThemedText type="smallBold">{type === 'song' ? 'Song' : 'Album'}</ThemedText>

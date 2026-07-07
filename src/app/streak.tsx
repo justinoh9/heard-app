@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { EmptyState } from '@/components/empty-state';
@@ -7,6 +6,7 @@ import { PageContainer } from '@/components/page-container';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { useGoBack } from '@/hooks/use-go-back';
 import { useTheme } from '@/hooks/use-theme';
 import { todayKey } from '@/streaks/logic';
 import { useStreaks } from '@/streaks/store';
@@ -25,7 +25,7 @@ function recentDays(count: number): string[] {
 
 export default function StreakScreen() {
   const theme = useTheme();
-  const router = useRouter();
+  const goBack = useGoBack('/profile');
   const { current, longest, activeDates } = useStreaks();
 
   const active = new Set(activeDates);
@@ -35,7 +35,7 @@ export default function StreakScreen() {
   return (
     <ThemedView style={styles.screen}>
       <View style={styles.topBar}>
-        <Pressable onPress={() => router.back()} accessibilityLabel="Back" hitSlop={8}>
+        <Pressable onPress={() => goBack()} accessibilityLabel="Back" hitSlop={8}>
           <Ionicons name="chevron-back" size={26} color={theme.text} />
         </Pressable>
         <ThemedText type="smallBold">Streak</ThemedText>

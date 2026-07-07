@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
@@ -9,6 +9,7 @@ import { PageContainer } from '@/components/page-container';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { useGoBack } from '@/hooks/use-go-back';
 import { useHaptics } from '@/hooks/use-haptics';
 import { useTheme } from '@/hooks/use-theme';
 import { useMusicSearch, type SearchResult } from '@/music';
@@ -18,7 +19,7 @@ import type { PlaylistSong } from '@/playlists/types';
 
 export default function PlaylistDetailScreen() {
   const theme = useTheme();
-  const router = useRouter();
+  const goBack = useGoBack('/profile');
   const haptics = useHaptics();
   const params = useLocalSearchParams<{ id: string }>();
   const id = String(params.id);
@@ -32,7 +33,7 @@ export default function PlaylistDetailScreen() {
   if (!playlist) {
     return (
       <ThemedView style={styles.screen}>
-        <TopBar title="Playlist" onBack={() => router.back()} theme={theme} />
+        <TopBar title="Playlist" onBack={() => goBack()} theme={theme} />
         <EmptyState icon="alert-circle-outline" message="Playlist not found." />
       </ThemedView>
     );
@@ -52,7 +53,7 @@ export default function PlaylistDetailScreen() {
   function destroy() {
     haptics.success();
     deletePlaylist(playlist!.id);
-    router.back();
+    goBack();
   }
 
   const data = (searching ? results : playlist.songs) as (SearchResult | PlaylistSong)[];
@@ -61,7 +62,7 @@ export default function PlaylistDetailScreen() {
     <ThemedView style={styles.screen}>
       <TopBar
         title={playlist.name}
-        onBack={() => router.back()}
+        onBack={() => goBack()}
         onDelete={destroy}
         theme={theme}
       />

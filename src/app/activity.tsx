@@ -11,6 +11,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { relativeTime } from '@/feed/time';
+import { useGoBack } from '@/hooks/use-go-back';
 import { useTheme } from '@/hooks/use-theme';
 import { likesBackend } from '@/likes';
 import { socialBackend } from '@/social/provider';
@@ -51,6 +52,7 @@ interface Reaction {
 export default function ActivityScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const goBack = useGoBack('/profile');
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const myId = user?.id ?? '';
@@ -108,7 +110,7 @@ export default function ActivityScreen() {
       <ScrollView>
         <PageContainer style={styles.container}>
           <View style={styles.header}>
-            <Pressable onPress={() => router.back()} accessibilityLabel="Back" hitSlop={8}>
+            <Pressable onPress={() => goBack()} accessibilityLabel="Back" hitSlop={8}>
               <Ionicons name="chevron-back" size={24} color={theme.text} />
             </Pressable>
             <ThemedText type="subtitle">Activity</ThemedText>

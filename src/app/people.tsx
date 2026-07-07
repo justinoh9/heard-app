@@ -12,6 +12,7 @@ import { Spacing } from '@/constants/theme';
 import { INITIAL_RANKED } from '@/data/catalog';
 import { ratingsBackend } from '@/data/ratings-provider';
 import { useRatings } from '@/data/store';
+import { useGoBack } from '@/hooks/use-go-back';
 import { useTheme } from '@/hooks/use-theme';
 import { sortRanked } from '@/ranking/engine';
 import type { RankedItem } from '@/ranking/types';
@@ -28,6 +29,7 @@ import type { Profile } from '@/social/types';
 export default function PeopleScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const goBack = useGoBack();
   const insets = useSafeAreaInsets();
   const { people, followingIds, toggleFollow } = useSocial();
   const { ranked: mine } = useRatings();
@@ -78,7 +80,7 @@ export default function PeopleScreen() {
     <ThemedView style={[styles.screen, { paddingTop: insets.top }]}>
       <PageContainer style={styles.container}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} accessibilityLabel="Back" hitSlop={8}>
+          <Pressable onPress={() => goBack()} accessibilityLabel="Back" hitSlop={8}>
             <Ionicons name="chevron-back" size={24} color={theme.text} />
           </Pressable>
           <ThemedText type="subtitle">Find friends</ThemedText>

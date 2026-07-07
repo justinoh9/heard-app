@@ -5,7 +5,6 @@
  * there's a place to persist them (local prefs store or the Supabase seam).
  */
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { useAuth } from '@/auth/store';
@@ -13,6 +12,7 @@ import { PageContainer } from '@/components/page-container';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Palettes, Spacing, type ThemeName } from '@/constants/theme';
+import { useGoBack } from '@/hooks/use-go-back';
 import { useTheme, useThemeControls } from '@/hooks/use-theme';
 
 /** Display names for the theme picker, in presentation order. */
@@ -23,13 +23,13 @@ const THEME_LABELS: Record<ThemeName, string> = {
 
 export default function SettingsScreen() {
   const theme = useTheme();
-  const router = useRouter();
+  const goBack = useGoBack('/profile');
   const { user, signOut } = useAuth();
 
   return (
     <ThemedView style={styles.screen}>
       <View style={styles.topBar}>
-        <Pressable onPress={() => router.back()} accessibilityLabel="Back" hitSlop={8}>
+        <Pressable onPress={() => goBack()} accessibilityLabel="Back" hitSlop={8}>
           <Ionicons name="chevron-back" size={26} color={theme.text} />
         </Pressable>
         <ThemedText type="smallBold">Settings</ThemedText>
