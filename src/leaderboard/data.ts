@@ -1,10 +1,14 @@
 /**
- * Leaderboard data + metrics. Ranks accounts by a chosen metric within a scope
- * (friends or global). Mock for now — Supabase provides real users/friends and
- * aggregate counts later (SPEC §7); the screen-facing shape stays the same.
+ * Mock leaderboard roster — DEMO DATA ONLY, no longer the Ranks tab's source.
  *
- * Extensible by design: to add a sortable metric, give every user the field and
- * add one entry to METRICS. The scope toggle and UI pick it up automatically.
+ * The live leaderboard now aggregates real cloud data (see
+ * src/leaderboard/rank.ts + SocialBackend.leaderboard). This roster survives in
+ * two narrow demo roles:
+ *   1. the comments "friends" filter (src/comments/filter.ts), still mock until
+ *      that filter is wired to the real follow graph (ROADMAP Phase 1, Feed v2);
+ *   2. clearly-demo filler for the zero-config (no-Supabase) local mode, via
+ *      `demoEntries()` in rank.ts.
+ * Real cloud users never see these numbers.
  */
 
 export interface LeaderboardUser {
@@ -16,21 +20,6 @@ export interface LeaderboardUser {
   concerts: number;
   streak: number;
 }
-
-export type MetricKey = 'reviews' | 'concerts' | 'streak';
-
-export interface LeaderboardMetric {
-  key: MetricKey;
-  label: string;
-  get: (u: LeaderboardUser) => number;
-  format: (n: number) => string;
-}
-
-export const METRICS: LeaderboardMetric[] = [
-  { key: 'reviews', label: 'Reviews', get: (u) => u.reviews, format: (n) => String(n) },
-  { key: 'concerts', label: 'Concerts', get: (u) => u.concerts, format: (n) => String(n) },
-  { key: 'streak', label: 'Streak', get: (u) => u.streak, format: (n) => `${n}🔥` },
-];
 
 /** Everyone except the current user (who is injected live from their ratings). */
 export const LEADERBOARD_USERS: LeaderboardUser[] = [

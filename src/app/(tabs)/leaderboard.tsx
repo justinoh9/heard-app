@@ -1,7 +1,7 @@
-import { Ionicons } from '@expo/vector-icons';
-import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { EmptyState } from '@/components/empty-state';
 import { PageContainer } from '@/components/page-container';
 import { QuickMatchCard } from '@/components/quick-match-card';
 import { Segmented } from '@/components/segmented';
@@ -10,21 +10,16 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useAuth } from '@/auth/store';
-import { PROFILE } from '@/data/catalog';
 import { useRatings } from '@/data/store';
 import { useResponsive } from '@/hooks/use-responsive';
 import { useTheme } from '@/hooks/use-theme';
-import { LEADERBOARD_USERS, METRICS, type LeaderboardUser, type MetricKey } from '@/leaderboard/data';
-import { useStreaks } from '@/streaks/store';
-
-type Scope = 'friends' | 'global';
+import { METRICS, mergeCurrentUser, rankBoard, type MetricKey, type Scope } from '@/leaderboard/rank';
+import { initialsOf } from '@/social/feed-rows';
+import { socialBackend } from '@/social/provider';
+import { useSocial } from '@/social/store';
+import type { LeaderboardEntry } from '@/social/types';
 
 const MEDALS = ['#EFA72A', '#9AA0A6', '#C77B3B']; // gold, silver, bronze
-
-function initialsFrom(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  return parts.length ? (parts[0][0] + (parts[1]?.[0] ?? '')).toUpperCase() : '?';
-}
 
 export default function LeaderboardScreen() {
   const theme = useTheme();
@@ -32,26 +27,50 @@ export default function LeaderboardScreen() {
   const { user } = useAuth();
   const { ranked } = useRatings();
   const { concerts } = useConcerts();
-  const { current: streak } = useStreaks();
+  const { followingIds } = useSocial();
   const [scope, setScope] = useState<Scope>('global');
-  const [metricKey, setMetricKey] = useState<MetricKey>('reviews');
+  const [metricKey, setMetricKey] = useState<MetricKey>('rated');
+
+  // Real per-user aggregates, loaded once behind the SocialBackend seam.
+  const [entries, setEntries] = useState<LeaderboardEntry[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(() => {
+    setEntries(null);
+    setError(null);
+    socialBackend
+      .leaderboard()
+      .then(setEntries)
+      .catch((e: unknown) => {
+        console.warn('[leaderboard] load failed:', e);
+        setError('Could not load the leaderboard.');
+      });
+  }, []);
+
+  useEffect(load, [load]);
 
   const metric = METRICS.find((m) => m.key === metricKey)!;
-  const youId = user?.id ?? 'you';
+  const youId = user?.id ?? null;
 
   const rows = useMemo(() => {
-    const you: LeaderboardUser = {
-      id: youId,
-      username: user?.displayName ?? 'You',
-      initials: initialsFrom(user?.displayName ?? 'You'),
-      isFriend: true,
-      reviews: ranked.length,
-      concerts: concerts.length,
-      streak,
-    };
-    const pool = scope === 'friends' ? LEADERBOARD_USERS.filter((u) => u.isFriend) : LEADERBOARD_USERS;
-    return [...pool, you].sort((a, b) => metric.get(b) - metric.get(a));
-  }, [scope, metric, ranked.length, user, youId, streak, concerts.length]);
+    if (!entries) return [];
+    // The viewer's live client counts (rated/shows) win over the possibly-stale
+    // server aggregate; their comment count comes from the server row (no live
+    // client count for it). Guests have no entry to inject.
+    const backendMe = youId ? entries.find((e) => e.userId === youId) : undefined;
+    const current: LeaderboardEntry | null =
+      user && youId
+        ? {
+            userId: youId,
+            displayName: user.displayName || 'You',
+            rated: ranked.length,
+            shows: concerts.length,
+            reviews: backendMe?.reviews ?? 0,
+          }
+        : null;
+    const merged = mergeCurrentUser(entries, current);
+    return rankBoard(merged, { scope, followingIds, currentUserId: youId, metric });
+  }, [entries, scope, metric, ranked.length, concerts.length, user, youId, followingIds]);
 
   return (
     <ThemedView style={styles.screen}>
@@ -90,11 +109,30 @@ export default function LeaderboardScreen() {
             })}
           </View>
 
+          {entries === null && !error && <ActivityIndicator style={{ marginTop: Spacing.four }} />}
+
+          {error && (
+            <ThemedText type="small" style={{ color: theme.danger, marginTop: Spacing.two }}>
+              {error}
+            </ThemedText>
+          )}
+
+          {entries !== null && !error && rows.length === 0 && (
+            <EmptyState
+              icon="trophy-outline"
+              message={
+                scope === 'friends'
+                  ? 'Follow people to see how you stack up.'
+                  : 'No one on the board yet — rate something to get started.'
+              }
+            />
+          )}
+
           {rows.map((u, i) => {
-            const isYou = u.id === youId;
+            const isYou = u.userId === youId;
             return (
               <View
-                key={u.id}
+                key={u.userId}
                 style={[
                   styles.row,
                   {
@@ -108,11 +146,11 @@ export default function LeaderboardScreen() {
                   {i + 1}
                 </ThemedText>
                 <View style={[styles.avatar, { backgroundColor: theme.backgroundSelected }]}>
-                  <ThemedText type="smallBold">{u.initials}</ThemedText>
+                  <ThemedText type="smallBold">{initialsOf(u.displayName)}</ThemedText>
                 </View>
                 <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: Spacing.two }}>
                   <ThemedText type="smallBold" numberOfLines={1}>
-                    {u.username}
+                    {u.displayName}
                   </ThemedText>
                   {isYou && (
                     <View style={[styles.youBadge, { backgroundColor: theme.accentSoft }]}>
@@ -122,15 +160,17 @@ export default function LeaderboardScreen() {
                     </View>
                   )}
                 </View>
-                <ThemedText type="smallBold">{metric.format(metric.get(u))}</ThemedText>
+                <ThemedText type="smallBold">{metric.get(u)}</ThemedText>
               </View>
             );
           })}
 
-          <ThemedText type="small" themeColor="textSecondary" style={styles.footnote}>
-            Ranked by {metric.label.toLowerCase()} ·{' '}
-            {scope === 'friends' ? 'people you follow' : 'everyone on Heard'}
-          </ThemedText>
+          {rows.length > 0 && (
+            <ThemedText type="small" themeColor="textSecondary" style={styles.footnote}>
+              Ranked by {metric.label.toLowerCase()} ·{' '}
+              {scope === 'friends' ? 'people you follow' : 'everyone on Heard'}
+            </ThemedText>
+          )}
         </PageContainer>
       </ScrollView>
     </ThemedView>

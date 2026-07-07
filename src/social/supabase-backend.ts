@@ -4,10 +4,13 @@
  */
 
 import { getSupabase } from '@/lib/supabase';
+import { tallyLeaderboard } from '@/leaderboard/rank';
 
 import { fromFeedRow, type FeedEventRow } from './feed-rows';
 import {
   SocialError,
+  type ItemRating,
+  type LeaderboardEntry,
   type NewSocialEvent,
   type Profile,
   type SocialBackend,
@@ -107,5 +110,45 @@ export class SupabaseSocialBackend implements SocialBackend {
       .limit(limit);
     if (error) throw new SocialError(error.message);
     return (data as FeedEventRow[]).map(fromFeedRow);
+  }
+
+  async leaderboard(): Promise<LeaderboardEntry[]> {
+    // Four public reads, then group client-side (pure, tested tally). At this
+    // scale plain selects are plenty — revisit with a Postgres view/RPC if the
+    // ratings table ever gets large enough that fetching one row per rating hurts
+    // (ROADMAP Phase 4, "scale the reads").
+    const supabase = getSupabase();
+    const [profiles, ratings, concerts, comments] = await Promise.all([
+      supabase.from('profiles').select('user_id, display_name'),
+      supabase.from('ratings').select('user_id'),
+      supabase.from('concerts').select('user_id'),
+      supabase.from('comments').select('user_id'),
+    ]);
+    for (const res of [profiles, ratings, concerts, comments]) {
+      if (res.error) throw new SocialError(res.error.message);
+    }
+    const ids = (rows: { user_id: string }[] | null) => (rows ?? []).map((r) => r.user_id);
+    return tallyLeaderboard(
+      (profiles.data as { user_id: string; display_name: string }[]).map((p) => ({
+        userId: p.user_id,
+        displayName: p.display_name,
+      })),
+      ids(ratings.data as { user_id: string }[]),
+      ids(concerts.data as { user_id: string }[]),
+      ids(comments.data as { user_id: string }[]),
+    );
+  }
+
+  async ratingsForItem(itemId: string): Promise<ItemRating[]> {
+    const { data, error } = await getSupabase()
+      .from('ratings')
+      .select('user_id, score')
+      .eq('item_id', itemId);
+    if (error) throw new SocialError(error.message);
+    // numeric(3,1) arrives as a JSON number, but coerce defensively.
+    return (data as { user_id: string; score: number | string }[]).map((r) => ({
+      userId: r.user_id,
+      score: Number(r.score),
+    }));
   }
 }

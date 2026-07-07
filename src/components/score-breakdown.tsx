@@ -1,20 +1,39 @@
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { scoreColor } from '@/ranking/score';
-import { formatCount, scoreBreakdown } from '@/social/scores';
+import { formatCount } from '@/social/item-scores';
+import { useItemScores } from '@/social/use-item-scores';
 
 /**
- * "Your score vs friends vs global" panel for an item page. Reads the mock
- * social breakdown (src/social/scores) and tints each figure with the shared
- * scoreColor scale so the rating and the breakdown speak the same visual
- * language.
+ * "Your score vs friends vs global" panel for an item page. Reads real ratings
+ * through useItemScores (Supabase behind the SocialBackend seam, pure
+ * aggregation) and tints each figure with the shared scoreColor scale so the
+ * rating and the breakdown speak the same visual language. Every number is real
+ * or an honest empty state — never fabricated.
  */
 export function ScoreBreakdown({ itemId, yourScore }: { itemId: string; yourScore?: number }) {
   const theme = useTheme();
-  const { you, friends, friendsAvg, globalAvg, globalCount } = scoreBreakdown(itemId, yourScore);
+  const { summary, loading, error } = useItemScores(itemId, yourScore);
+
+  if (loading) {
+    return <ActivityIndicator style={{ marginTop: Spacing.two }} />;
+  }
+
+  if (error) {
+    return (
+      <ThemedText type="small" style={{ color: theme.danger }}>
+        {error}
+      </ThemedText>
+    );
+  }
+
+  if (!summary) return null;
+
+  const { you, friends, friendsAvg, globalAvg, globalCount } = summary;
+  const hasFriends = friends.length > 0;
 
   return (
     <View style={styles.container}>
@@ -29,34 +48,44 @@ export function ScoreBreakdown({ itemId, yourScore }: { itemId: string; yourScor
           value={friendsAvg}
           label="Friends"
           caption={
-            friends.length
+            hasFriends
               ? `${friends.length} ${friends.length === 1 ? 'friend' : 'friends'}`
-              : 'No friends yet'
+              : 'None yet'
           }
           theme={theme}
         />
         <Tile
           value={globalAvg}
           label="Global"
-          caption={`${formatCount(globalCount)} ratings`}
+          caption={
+            globalCount === 0
+              ? 'No ratings'
+              : `${formatCount(globalCount)} ${globalCount === 1 ? 'rating' : 'ratings'}`
+          }
           theme={theme}
         />
       </View>
 
-      {friends.length > 0 && (
+      {globalCount === 0 && (
+        <ThemedText type="small" themeColor="textSecondary">
+          No ratings yet — be the first.
+        </ThemedText>
+      )}
+
+      {hasFriends && (
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.chips}>
           {friends.map((f) => (
-            <View key={f.id} style={[styles.chip, { backgroundColor: theme.backgroundElement }]}>
+            <View key={f.userId} style={[styles.chip, { backgroundColor: theme.backgroundElement }]}>
               <View style={[styles.chipAvatar, { backgroundColor: theme.backgroundSelected }]}>
                 <ThemedText type="small" style={styles.chipInitials}>
                   {f.initials}
                 </ThemedText>
               </View>
               <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-                {f.username}
+                {f.displayName}
               </ThemedText>
               <ThemedText type="smallBold" style={{ color: scoreColor(f.score) }}>
                 {f.score.toFixed(1)}

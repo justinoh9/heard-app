@@ -11,8 +11,17 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 
+import { demoEntries } from '@/leaderboard/rank';
+
 import { sortEvents } from './feed-rows';
-import type { NewSocialEvent, Profile, SocialBackend, SocialEvent } from './types';
+import type {
+  ItemRating,
+  LeaderboardEntry,
+  NewSocialEvent,
+  Profile,
+  SocialBackend,
+  SocialEvent,
+} from './types';
 
 const PROFILES_KEY = 'heard.social.profiles';
 const FEED_KEY = 'heard.social.feed';
@@ -79,5 +88,18 @@ export class LocalSocialBackend implements SocialBackend {
     const wanted = new Set(userIds);
     const log = await readJson<SocialEvent[]>(FEED_KEY, []);
     return sortEvents(log.filter((e) => wanted.has(e.userId))).slice(0, limit);
+  }
+
+  async leaderboard(): Promise<LeaderboardEntry[]> {
+    // No-Supabase demo: ratings/concerts/comments live behind other on-device
+    // backends we can't cheaply join here, so serve the clearly-demo roster.
+    // The screen still injects the live viewer's real counts on top.
+    return demoEntries();
+  }
+
+  async ratingsForItem(): Promise<ItemRating[]> {
+    // Item ratings live in the (separate) ratings backend, not here. Return
+    // nothing so the item page shows an honest "no ratings yet" in local mode.
+    return [];
   }
 }

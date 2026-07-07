@@ -52,6 +52,30 @@ export interface SocialEvent {
 /** What `publish` receives — the backend stamps id + createdAt. */
 export type NewSocialEvent = Omit<SocialEvent, 'id' | 'createdAt'>;
 
+/**
+ * One user's aggregate counts for the Ranks leaderboard. All three metrics are
+ * computable from real cloud data: ratings logged, concerts logged, comments
+ * posted. (The old device-local streak metric was dropped — it lives only in
+ * AsyncStorage, so it can't be aggregated across users.) The pure ranking +
+ * scope + current-user-injection logic lives in src/leaderboard/rank.ts.
+ */
+export interface LeaderboardEntry {
+  userId: string;
+  displayName: string;
+  /** Number of items this user has rated. */
+  rated: number;
+  /** Number of concerts this user has logged. */
+  shows: number;
+  /** Number of comments this user has posted. */
+  reviews: number;
+}
+
+/** One user's score for a single item — the raw input to the item-page breakdown. */
+export interface ItemRating {
+  userId: string;
+  score: number;
+}
+
 /** Thrown for expected persistence failures — UI-safe message. */
 export class SocialError extends Error {}
 
@@ -69,4 +93,8 @@ export interface SocialBackend {
   publishEvent(event: NewSocialEvent): Promise<SocialEvent>;
   /** Recent events by these users (self + followees), newest first. */
   feedFor(userIds: string[], limit?: number): Promise<SocialEvent[]>;
+  /** Per-user aggregate counts across every profile (Ranks leaderboard). */
+  leaderboard(): Promise<LeaderboardEntry[]>;
+  /** Every user's rating of one item (item-page score breakdown). */
+  ratingsForItem(itemId: string): Promise<ItemRating[]>;
 }
