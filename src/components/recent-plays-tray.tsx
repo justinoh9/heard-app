@@ -8,6 +8,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { userLibrary, MusicCatalogError, type SearchResult } from '@/music';
+import { useSpotifyConnection } from '@/music/use-spotify-connection';
 
 /**
  * "Recently played" import tray (PRODUCT_BLUEPRINT §2.A): a horizontal strip of
@@ -15,58 +16,50 @@ import { userLibrary, MusicCatalogError, type SearchResult } from '@/music';
  * an *active-log* on-ramp — plays shown here are candidates, never automatic
  * diary entries. Shows a Connect Spotify card until the user links their
  * account; renders nothing when no client ID is configured.
+ *
+ * Connection state comes from the shared `useSpotifyConnection` hook (same
+ * tokens as the Settings connections row); this component only owns the *plays*
+ * fetch on top of it.
  */
 export function RecentPlaysTray({ onPick }: { onPick: (item: SearchResult) => void }) {
   const theme = useTheme();
-  const [status, setStatus] = useState<'checking' | 'disconnected' | 'loading' | 'ready'>(
-    'checking',
-  );
+  const {
+    configured,
+    status: connection,
+    busy: connecting,
+    error: connectError,
+    connect,
+    refresh,
+  } = useSpotifyConnection();
   const [plays, setPlays] = useState<SearchResult[]>([]);
+  const [playsState, setPlaysState] = useState<'loading' | 'ready'>('loading');
   const [error, setError] = useState<string | null>(null);
-  const [connecting, setConnecting] = useState(false);
 
   const load = useCallback(async () => {
-    setStatus('loading');
+    setPlaysState('loading');
     setError(null);
     try {
       setPlays(await userLibrary.getRecentlyPlayed());
-      setStatus('ready');
+      setPlaysState('ready');
     } catch (e) {
       if ((e as Error)?.name === 'AbortError') return;
       setError(e instanceof MusicCatalogError ? e.message : 'Could not load your listening.');
-      // An expired token disconnects itself (see user-library) — re-offer connect.
-      setStatus((await userLibrary.isConnected()) ? 'ready' : 'disconnected');
+      setPlaysState('ready');
+      // An expired token disconnects itself (see user-library) — re-sync the
+      // shared connection state so the connect card comes back.
+      refresh();
     }
-  }, []);
+  }, [refresh]);
 
+  // Pull plays whenever the account becomes connected (initial mount included).
   useEffect(() => {
-    let alive = true;
-    userLibrary.isConnected().then((connected) => {
-      if (!alive) return;
-      if (connected) load();
-      else setStatus('disconnected');
-    });
-    return () => {
-      alive = false;
-    };
-  }, [load]);
-
-  async function connect() {
-    setConnecting(true);
-    setError(null);
-    try {
-      if (await userLibrary.connect()) await load();
-    } catch (e) {
-      setError(e instanceof MusicCatalogError ? e.message : 'Spotify login failed.');
-    } finally {
-      setConnecting(false);
-    }
-  }
+    if (connection === 'connected') load();
+  }, [connection, load]);
 
   // No client ID in this build — the tray simply doesn't exist.
-  if (!userLibrary.isConfigured() || status === 'checking') return null;
+  if (!configured || connection === 'checking') return null;
 
-  if (status === 'disconnected') {
+  if (connection === 'disconnected') {
     return (
       <View style={[styles.connectCard, { backgroundColor: theme.backgroundElement }]}>
         <Ionicons name="musical-notes" size={22} color={theme.accent} />
@@ -88,9 +81,9 @@ export function RecentPlaysTray({ onPick }: { onPick: (item: SearchResult) => vo
             {connecting ? 'Connecting…' : 'Connect'}
           </ThemedText>
         </Pressable>
-        {error && (
+        {connectError && (
           <ThemedText type="small" style={[styles.error, { color: theme.danger }]}>
-            {error}
+            {connectError}
           </ThemedText>
         )}
       </View>
@@ -114,7 +107,7 @@ export function RecentPlaysTray({ onPick }: { onPick: (item: SearchResult) => vo
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.strip}>
-        {status === 'loading'
+        {playsState === 'loading'
           ? [0, 1, 2, 3].map((i) => <Skeleton key={i} style={styles.skeletonCard} />)
           : plays.map((p) => (
               <Pressable
@@ -132,7 +125,7 @@ export function RecentPlaysTray({ onPick }: { onPick: (item: SearchResult) => vo
                 </ThemedText>
               </Pressable>
             ))}
-        {status === 'ready' && plays.length === 0 && !error && (
+        {playsState === 'ready' && plays.length === 0 && !error && (
           <ThemedText type="small" themeColor="textSecondary">
             Nothing played recently — go listen to something!
           </ThemedText>

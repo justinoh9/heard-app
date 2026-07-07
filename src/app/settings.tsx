@@ -15,6 +15,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Palettes, Spacing, type ThemeName } from '@/constants/theme';
 import { useTheme, useThemeControls } from '@/hooks/use-theme';
+import { useSpotifyConnection } from '@/music/use-spotify-connection';
 
 /** Display names for the theme picker, in presentation order. */
 const THEME_LABELS: Record<ThemeName, string> = {
@@ -52,6 +53,10 @@ export default function SettingsScreen() {
               danger
               theme={theme}
             />
+          </Section>
+
+          <Section label="CONNECTIONS">
+            <SpotifyConnectionRow />
           </Section>
 
           <Section label="APPEARANCE">
@@ -116,6 +121,60 @@ function ThemePicker() {
           </Pressable>
         );
       })}
+    </View>
+  );
+}
+
+/**
+ * Links the viewer's Spotify account (device-local OAuth, shared with the Rate
+ * tab's import tray via useSpotifyConnection). Shows connected state with a
+ * Connect / Disconnect action; hidden button while the build lacks a client ID.
+ */
+function SpotifyConnectionRow() {
+  const theme = useTheme();
+  const { configured, status, busy, error, connect, disconnect } = useSpotifyConnection();
+  const connected = status === 'connected';
+
+  const statusText = !configured
+    ? 'Not available in this build'
+    : status === 'checking'
+      ? 'Checking…'
+      : connected
+        ? 'Connected'
+        : 'Not connected';
+
+  return (
+    <View style={styles.connectionRow}>
+      <Ionicons name="musical-notes" size={19} color={theme.accent} />
+      <View style={{ flex: 1 }}>
+        <ThemedText type="small">Spotify</ThemedText>
+        <ThemedText type="small" themeColor="textSecondary">
+          {statusText}
+        </ThemedText>
+      </View>
+      {configured && status !== 'checking' && (
+        <Pressable
+          testID="spotify-connect"
+          onPress={connected ? disconnect : connect}
+          disabled={busy}
+          accessibilityLabel={connected ? 'Disconnect Spotify' : 'Connect Spotify'}
+          style={({ pressed }) => [
+            styles.connectPill,
+            {
+              backgroundColor: connected ? theme.backgroundSelected : theme.accent,
+              opacity: pressed || busy ? 0.7 : 1,
+            },
+          ]}>
+          <ThemedText type="smallBold" style={{ color: connected ? theme.text : theme.onAccent }}>
+            {busy ? 'Working…' : connected ? 'Disconnect' : 'Connect'}
+          </ThemedText>
+        </Pressable>
+      )}
+      {error && (
+        <ThemedText type="small" style={[styles.connectionError, { color: theme.danger }]}>
+          {error}
+        </ThemedText>
+      )}
     </View>
   );
 }
@@ -195,6 +254,19 @@ const styles = StyleSheet.create({
   sectionBody: { gap: Spacing.one },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.two },
   soon: { borderRadius: 999, paddingHorizontal: Spacing.two, paddingVertical: 1 },
+  connectionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: Spacing.three,
+    paddingVertical: Spacing.two,
+  },
+  connectPill: {
+    borderRadius: 999,
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.two,
+  },
+  connectionError: { width: '100%' },
   swatchRow: { flexDirection: 'row', gap: Spacing.two },
   swatch: {
     flex: 1,
