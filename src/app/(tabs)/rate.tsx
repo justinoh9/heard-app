@@ -19,7 +19,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useRatings } from '@/data/store';
 import { useTheme } from '@/hooks/use-theme';
-import { useMusicSearch, type SearchResult } from '@/music';
+import { useArtistImages, useMusicSearch, type SearchResult } from '@/music';
 
 /**
  * Search + rate surface, laid out like Spotify's search: a "Top result" card,
@@ -33,7 +33,9 @@ export default function RateSearchScreen() {
   const router = useRouter();
   const { ratingFor } = useRatings();
   const [query, setQuery] = useState('');
-  const { results, loading, error } = useMusicSearch(query, 'all');
+  const { results: rawResults, loading, error } = useMusicSearch(query, 'all');
+  // Fill artist rows with Deezer photos (iTunes has none), progressively.
+  const results = useArtistImages(rawResults);
 
   const artists = results.filter((r) => r.kind === 'artist');
   const albums = results.filter((r) => r.kind === 'album');

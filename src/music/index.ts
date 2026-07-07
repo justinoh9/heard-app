@@ -7,5 +7,6 @@
 export { musicCatalog, userLibrary, artistImages } from './provider';
 export { coverArtUrl } from './cover-art';
 export { useMusicSearch, type MusicSearchKind, type MusicSearchState } from './useMusicSearch';
+export { useArtistImages } from './use-artist-images';
 export type { UserLibrary } from './user-library';
 export * from './types';
