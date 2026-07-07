@@ -5,6 +5,7 @@
  */
 
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Platform } from 'react-native';
 
 import { authBackend } from './provider';
 import type { Session, SignUpInput } from './types';
@@ -17,6 +18,12 @@ export interface AuthApi {
   signUp: (input: SignUpInput) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  /**
+   * Start Spotify OAuth, or `undefined` when the active backend has no OAuth
+   * (LocalAuthBackend) — the sign-in/up screens hide the button in that case.
+   * On web the page redirects out; the session lands via onAuthStateChange.
+   */
+  signInWithSpotify?: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthApi | null>(null);
@@ -72,6 +79,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(null);
         setStatus('signedOut');
       },
+      signInWithSpotify: backend.signInWithSpotify
+        ? async () => {
+            // Return to the current web origin after consent; native (deep-link)
+            // support is a later phase, so leave it undefined off-web for now.
+            const redirectTo =
+              Platform.OS === 'web' && typeof window !== 'undefined'
+                ? window.location.origin
+                : undefined;
+            await backend.signInWithSpotify!(redirectTo);
+            // Success flips to 'authed' via onAuthStateChange after the redirect.
+          }
+        : undefined,
     }),
     [backend, session, status],
   );

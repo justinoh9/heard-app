@@ -17,23 +17,28 @@ export function BrandHeader({ tagline }: { tagline: string }) {
 }
 
 /**
- * Stubbed "Continue with Spotify" — shown now, wired up when the Spotify
- * integration lands (SPEC §2 fast-follow). Tapping surfaces a coming-soon note.
+ * "Continue with Spotify" — starts the Supabase Spotify OAuth flow. On web the
+ * page redirects out to Spotify, so `busy` shows a brief redirecting state.
  */
-export function SpotifyButton({ onPress }: { onPress: () => void }) {
+export function SpotifyButton({
+  onPress,
+  busy,
+  label = 'Continue with Spotify',
+}: {
+  onPress: () => void;
+  busy?: boolean;
+  label?: string;
+}) {
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.spotify, { opacity: pressed ? 0.85 : 1 }]}>
+      disabled={busy}
+      accessibilityLabel={label}
+      style={({ pressed }) => [styles.spotify, { opacity: pressed || busy ? 0.85 : 1 }]}>
       <Ionicons name="musical-notes" size={18} color="#fff" />
       <ThemedText type="smallBold" style={{ color: '#fff' }}>
-        Continue with Spotify
+        {busy ? 'Redirecting…' : label}
       </ThemedText>
-      <View style={styles.soon}>
-        <ThemedText type="small" style={{ color: SPOTIFY_GREEN, fontSize: 11 }}>
-          Soon
-        </ThemedText>
-      </View>
     </Pressable>
   );
 }
@@ -63,12 +68,6 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.three,
     borderRadius: 999,
     alignSelf: 'stretch',
-  },
-  soon: {
-    backgroundColor: '#fff',
-    borderRadius: 999,
-    paddingHorizontal: Spacing.two,
-    paddingVertical: 1,
   },
   dividerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, alignSelf: 'stretch' },
   line: { flex: 1, height: 1 },

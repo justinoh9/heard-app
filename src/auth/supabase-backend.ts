@@ -21,8 +21,13 @@ function normalizeEmail(email: string): string {
 
 /** Map a Supabase auth user onto the app's `User` shape. */
 function toUser(u: SupabaseUser): User {
+  // Email/password sets display_name; Spotify OAuth populates the profile under
+  // full_name/name instead — check all three before falling back to the email.
+  const meta = u.user_metadata ?? {};
   const displayName =
-    (u.user_metadata?.display_name as string | undefined)?.trim() ||
+    (meta.display_name as string | undefined)?.trim() ||
+    (meta.full_name as string | undefined)?.trim() ||
+    (meta.name as string | undefined)?.trim() ||
     u.email?.split('@')[0] ||
     'listener';
   return {
@@ -88,6 +93,23 @@ export class SupabaseAuthBackend implements AuthBackend {
     }
     if (!data.session) throw new AuthError('Wrong email or password.');
     return { user: toUser(data.session.user) };
+  }
+
+  async signInWithSpotify(redirectTo?: string): Promise<void> {
+    const { error } = await getSupabase().auth.signInWithOAuth({
+      provider: 'spotify',
+      options: {
+        // Where Supabase sends the browser back to after Spotify consents. Must
+        // be on the project's redirect allowlist (Auth → URL Configuration).
+        redirectTo,
+        // Ask for the email so accounts have one (and can auto-link to an
+        // existing email/password identity with the same verified address).
+        scopes: 'user-read-email',
+      },
+    });
+    // On web this rarely returns (the page has already navigated to Spotify);
+    // if it does error before redirecting, surface it.
+    if (error) throw new AuthError(error.message || 'Could not start Spotify sign-in.');
   }
 
   async signOut(): Promise<void> {

@@ -21,12 +21,13 @@ import { useTheme } from '@/hooks/use-theme';
 
 export default function SignUpScreen() {
   const theme = useTheme();
-  const { signUp } = useAuth();
+  const { signUp, signInWithSpotify } = useAuth();
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [spotifyBusy, setSpotifyBusy] = useState(false);
 
   async function submit() {
     if (busy) return;
@@ -41,6 +42,19 @@ export default function SignUpScreen() {
     }
   }
 
+  async function spotify() {
+    if (!signInWithSpotify || spotifyBusy) return;
+    setError(null);
+    setSpotifyBusy(true);
+    try {
+      await signInWithSpotify();
+      // On web the page redirects to Spotify; the session lands on return.
+    } catch (e) {
+      setError(e instanceof AuthError ? e.message : 'Spotify sign-in failed. Try again.');
+      setSpotifyBusy(false);
+    }
+  }
+
   return (
     <ThemedView style={styles.screen}>
       <KeyboardAvoidingView
@@ -50,8 +64,12 @@ export default function SignUpScreen() {
           <PageContainer maxWidth={440} style={styles.inner}>
             <BrandHeader tagline="Rate music. Build your taste." />
 
-            <SpotifyButton onPress={() => setError('Spotify sign-up is coming soon.')} />
-            <OrDivider />
+            {signInWithSpotify && (
+              <>
+                <SpotifyButton onPress={spotify} busy={spotifyBusy} />
+                <OrDivider />
+              </>
+            )}
 
             <TextField
               label="Display name"

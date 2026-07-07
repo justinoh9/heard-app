@@ -31,6 +31,14 @@ export interface AuthBackend {
   signIn(email: string, password: string): Promise<Session>;
   signOut(): Promise<void>;
   /**
+   * Optional: begin a Spotify OAuth sign-in. On web this redirects the page to
+   * Spotify and resolves as the navigation starts — the authed session arrives
+   * afterwards via `onAuthStateChange` (not from this promise). `redirectTo` is
+   * the URL Spotify/Supabase returns to (the app origin on web). Backends
+   * without OAuth (LocalAuthBackend) omit this, and the UI hides the button.
+   */
+  signInWithSpotify?(redirectTo?: string): Promise<void>;
+  /**
    * Optional: notify on session changes the app didn't initiate — token
    * refresh failure/expiry, sign-out in another tab. Returns an unsubscribe.
    * LocalAuthBackend has no external session source, so it omits this.

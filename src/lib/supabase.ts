@@ -47,8 +47,11 @@ export function getSupabase(): SupabaseClient {
       storage: AsyncStorage,
       persistSession: true,
       autoRefreshToken: true,
-      // We don't use email-link / OAuth redirects, so don't parse the URL hash.
-      detectSessionInUrl: false,
+      // "Log in with Spotify" (SupabaseAuthBackend.signInWithSpotify) redirects
+      // back to the web app with an OAuth `?code=`; this lets supabase-js finish
+      // the PKCE exchange from the URL automatically. Inert on native (no URL),
+      // where the deep-link flow will hand tokens over explicitly instead.
+      detectSessionInUrl: true,
     },
   });
   return client;
