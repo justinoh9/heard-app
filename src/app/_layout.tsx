@@ -1,10 +1,15 @@
 import { Fraunces_600SemiBold, useFonts } from '@expo-google-fonts/fraunces';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, useRouter, useSegments } from 'expo-router';
-import { useEffect } from 'react';
-import { ActivityIndicator } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { ActivityIndicator, Platform } from 'react-native';
 
 import { ThemedView } from '@/components/themed-view';
 import { AuthProvider, useAuth } from '@/auth/store';
+import {
+  parseOAuthError,
+  peekPendingOAuthError,
+  setPendingOAuthError,
+} from '@/auth/oauth-error';
 import { ConcertsContext, useConcertsState } from '@/concerts/store';
 import { RatingsContext, useRatingsState } from '@/data/store';
 import { FeedContext, useFeedState } from '@/feed/store';
@@ -17,6 +22,17 @@ export default function RootLayout() {
   // The display serif (wordmark + titles). Render waits for it so headings
   // never flash the system font first.
   const [fontsLoaded] = useFonts({ Fraunces_600SemiBold });
+
+  // Capture an OAuth-redirect error (e.g. Spotify login failing server-side)
+  // off the URL during render — before the Supabase client, created in a child
+  // effect, can strip it — and stash it for the sign-in screen to display.
+  const capturedOAuthError = useRef(false);
+  if (!capturedOAuthError.current && Platform.OS === 'web' && typeof window !== 'undefined') {
+    capturedOAuthError.current = true;
+    const err = parseOAuthError(window.location.href);
+    if (err) setPendingOAuthError(err);
+  }
+
   if (!fontsLoaded) return null;
 
   return (
@@ -110,6 +126,23 @@ function RootNavigator() {
   const { status } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+
+  // A failed OAuth redirect (captured in RootLayout) lands the user back on the
+  // origin, not the auth screen. Send them to sign-in where the message shows;
+  // the replace also drops the `?error=` query from the URL.
+  //
+  // Gated on status !== 'loading' (like the redirect below): replacing the route
+  // during the initial loading mount, before the navigation tree settles,
+  // remounts the whole provider stack in a loop. The ref makes it fire once —
+  // useRouter() changes identity on navigation, which would otherwise re-run it.
+  const handledOAuthError = useRef(false);
+  useEffect(() => {
+    if (handledOAuthError.current || status === 'loading') return;
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    if (!peekPendingOAuthError()) return;
+    handledOAuthError.current = true;
+    router.replace('/(auth)/sign-in');
+  }, [status, router]);
 
   useEffect(() => {
     if (status === 'loading') return;

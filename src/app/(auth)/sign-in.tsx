@@ -17,6 +17,7 @@ import { Spacing } from '@/constants/theme';
 import { useAuth } from '@/auth/store';
 import { BrandHeader, OrDivider, SpotifyButton } from '@/auth/ui';
 import { AuthError } from '@/auth/types';
+import { friendlyMessage, takePendingOAuthError } from '@/auth/oauth-error';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function SignInScreen() {
@@ -24,7 +25,12 @@ export default function SignInScreen() {
   const { signIn, signInWithSpotify } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  // Surface an OAuth-redirect failure (e.g. Spotify login) stashed by the root
+  // layout, so a bounced sign-in shows a reason instead of a silent Feed.
+  const [error, setError] = useState<string | null>(() => {
+    const oauth = takePendingOAuthError();
+    return oauth ? friendlyMessage(oauth) : null;
+  });
   const [busy, setBusy] = useState(false);
   const [spotifyBusy, setSpotifyBusy] = useState(false);
 
