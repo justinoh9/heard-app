@@ -34,6 +34,8 @@ export interface SocialEventPayload {
   score?: number;
   /** 'drop' events. */
   caption?: string;
+  /** 'rated' events — the optional review text, so it rides the feed card. */
+  review?: string;
   /** 'streak' events. */
   days?: number;
 }

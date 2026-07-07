@@ -45,7 +45,7 @@ export interface RatingsApi {
   commitPlacement: (
     list: RankedItem[],
     events: ComparisonEvent[],
-    rated?: { item: Item; score: number },
+    rated?: { item: Item; score: number; review?: string },
   ) => void;
   /** Remove one rating from the list (the banked comparison log is kept). */
   removeRating: (itemId: string) => void;
@@ -117,6 +117,8 @@ export function useRatingsState(): RatingsApi {
             artist: rated.item.artist,
             artUrl: rated.item.artUrl,
             score: rated.score,
+            // Optional review, so the feed card shows the quote (blueprint §4.3).
+            review: rated.review,
           });
         }
         if (userId) {

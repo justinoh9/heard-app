@@ -15,7 +15,7 @@ import { useRatings } from '@/data/store';
 import { useHaptics } from '@/hooks/use-haptics';
 import { useTheme } from '@/hooks/use-theme';
 import { sortRanked, type Placement } from '@/ranking/engine';
-import type { Comparison, Item, ItemType } from '@/ranking/types';
+import type { Comparison, ComparisonEvent, Item, ItemType, RankedItem } from '@/ranking/types';
 
 /** Fades content in on mount and whenever `stepKey` changes, masking the instant step cut. */
 function useStepFade(stepKey: string) {
@@ -63,6 +63,26 @@ export default function LogModal() {
   const [pendingChoice, setPendingChoice] = useState<'new' | 'existing' | null>(null);
   const [reviewText, setReviewText] = useState('');
   const placement = useRef<Placement | null>(null);
+  // The settled placement, captured when comparisons finish but not persisted
+  // until the review step — so the optional review rides the same 'rated' feed
+  // event (blueprint §4.3: review, then the log completes). Consumed by
+  // submitReview; the unmount guard commits it review-less if the modal is
+  // closed at the review step so completed work is never lost.
+  const pendingCommit = useRef<{ list: RankedItem[]; events: ComparisonEvent[] } | null>(null);
+  const commitRef = useRef(commitPlacement);
+  commitRef.current = commitPlacement;
+
+  useEffect(() => {
+    return () => {
+      const pending = pendingCommit.current;
+      if (pending) {
+        pendingCommit.current = null;
+        commitRef.current(pending.list, pending.events, { item: album, score });
+      }
+    };
+    // Runs once: the guard reads the latest values through refs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function advance() {
     const next = placement.current!.next();
@@ -106,8 +126,12 @@ export default function LogModal() {
   }
 
   function finish() {
+    // Placement is settled — hold the result and show the rank now, but defer
+    // persistence + the 'rated' feed event to submitReview so the optional
+    // review rides the same event. The unmount guard commits it review-less if
+    // the modal is closed here, so a completed rating is never lost.
     const { list, events } = placement.current!.commit();
-    commitPlacement(list, events, { item: album, score });
+    pendingCommit.current = { list, events };
     const sorted = sortRanked(list);
     const idx = sorted.findIndex((r) => r.item.id === album.id);
     setResult({ rank: idx + 1, total: sorted.length });
@@ -116,8 +140,19 @@ export default function LogModal() {
 
   function submitReview() {
     const body = reviewText.trim();
+    const pending = pendingCommit.current;
+    if (pending) {
+      pendingCommit.current = null;
+      commitPlacement(pending.list, pending.events, {
+        item: album,
+        score,
+        review: body || undefined,
+      });
+    }
     if (body && user) {
-      // Fire-and-forget: don't gate the success screen on a network write.
+      // Also keep the review on the item page (durable, likeable) — the feed
+      // event is the timeline copy; this is the permanent one. Fire-and-forget:
+      // don't gate the success screen on a network write.
       postComment({
         itemId: album.id,
         itemType: album.type === 'song' ? 'song' : 'album',

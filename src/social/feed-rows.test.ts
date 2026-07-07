@@ -56,6 +56,18 @@ describe('toDisplayEvent', () => {
     assert.equal(card.itemId, 'sp-1');
     assert.equal(card.createdAt, ratedEvent.createdAt);
     assert.equal(card.likes, 0);
+    // No review on this event → the card carries none (no quote rendered).
+    assert.equal(card.review, undefined);
+  });
+
+  it("carries a rated event's review onto the card as the quoted line", () => {
+    const card = toDisplayEvent({
+      ...ratedEvent,
+      payload: { ...ratedEvent.payload, review: 'grew on me so much' },
+    });
+    assert.equal(card.kind, 'rated');
+    assert.equal(card.review, 'grew on me so much');
+    assert.equal(card.score, 9.5);
   });
 
   it('maps a drop with its caption as the quoted line', () => {
