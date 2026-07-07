@@ -30,7 +30,7 @@ export class SupabaseRatingsBackend implements RatingsBackend {
     const [ratingsRes, comparisonsRes] = await Promise.all([
       supabase
         .from('ratings')
-        .select('score, tiebreak, items (id, type, title, artist, art_url)')
+        .select('score, tiebreak, items (id, type, title, artist, art_url, release_year)')
         .eq('user_id', userId),
       supabase
         .from('comparisons')
@@ -55,9 +55,13 @@ export class SupabaseRatingsBackend implements RatingsBackend {
   async commit(userId: string, list: RankedItem[], events: ComparisonEvent[]): Promise<void> {
     const supabase = getSupabase();
 
+    // Insert-only: the items cache is shared across users, and 0008 removed the
+    // update policy so one user can't rewrite metadata everyone else sees.
+    // Already-cached rows keep their first-seen metadata (refresh is a future
+    // server-side enrichment job, blueprint §2.A).
     const { error: itemsError } = await supabase
       .from('items')
-      .upsert(list.map((r) => toItemRow(r.item)), { onConflict: 'id' });
+      .upsert(list.map((r) => toItemRow(r.item)), { onConflict: 'id', ignoreDuplicates: true });
     if (itemsError) throw new RatingsBackendError(itemsError.message);
 
     const { error: ratingsError } = await supabase
@@ -71,5 +75,15 @@ export class SupabaseRatingsBackend implements RatingsBackend {
         .insert(events.map((e) => toComparisonRow(userId, e)));
       if (comparisonsError) throw new RatingsBackendError(comparisonsError.message);
     }
+  }
+
+  async remove(userId: string, itemId: string): Promise<void> {
+    // The banked comparisons stay — they're the training log, not the rating.
+    const { error } = await getSupabase()
+      .from('ratings')
+      .delete()
+      .eq('user_id', userId)
+      .eq('item_id', itemId);
+    if (error) throw new RatingsBackendError(error.message);
   }
 }

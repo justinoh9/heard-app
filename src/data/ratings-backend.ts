@@ -31,6 +31,8 @@ export interface RatingsBackend {
    * comparison events to append.
    */
   commit(userId: string, list: RankedItem[], events: ComparisonEvent[]): Promise<void>;
+  /** Delete one rating. The banked comparison log is left intact. */
+  remove(userId: string, itemId: string): Promise<void>;
 }
 
 function storageKey(userId: string): string {
@@ -49,6 +51,16 @@ export class LocalRatingsBackend implements RatingsBackend {
     const snapshot: RatingsSnapshot = {
       list,
       events: [...(prev?.events ?? []), ...events],
+    };
+    await AsyncStorage.setItem(storageKey(userId), JSON.stringify(snapshot));
+  }
+
+  async remove(userId: string, itemId: string): Promise<void> {
+    const prev = await this.load(userId);
+    if (!prev) return;
+    const snapshot: RatingsSnapshot = {
+      list: prev.list.filter((r) => r.item.id !== itemId),
+      events: prev.events,
     };
     await AsyncStorage.setItem(storageKey(userId), JSON.stringify(snapshot));
   }

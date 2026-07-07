@@ -17,6 +17,8 @@ export interface CommentsState {
   loading: boolean;
   error: string | null;
   addComment: (input: Omit<NewCommentInput, 'itemId' | 'itemType'>) => Promise<void>;
+  /** Delete the caller's own comment, then refetch. */
+  removeComment: (id: string, userId: string) => Promise<void>;
 }
 
 /** Loads and posts comments for one item. Refetches after a successful add. */
@@ -47,5 +49,13 @@ export function useComments(itemId: string, itemType: SearchResultKind): Comment
     [itemId, itemType, load],
   );
 
-  return { comments, loading, error, addComment };
+  const removeComment = useCallback(
+    async (id: string, userId: string) => {
+      await backend.remove(id, userId);
+      load();
+    },
+    [load],
+  );
+
+  return { comments, loading, error, addComment, removeComment };
 }

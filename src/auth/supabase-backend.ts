@@ -94,4 +94,14 @@ export class SupabaseAuthBackend implements AuthBackend {
     const { error } = await getSupabase().auth.signOut();
     if (error) throw new AuthError(error.message);
   }
+
+  onAuthStateChange(callback: (session: Session | null) => void): () => void {
+    // Only setState in here — supabase-js warns that awaiting its own calls
+    // inside this callback can deadlock.
+    const { data } = getSupabase().auth.onAuthStateChange((_event, session) => {
+      const u = session?.user;
+      callback(u ? { user: toUser(u) } : null);
+    });
+    return () => data.subscription.unsubscribe();
+  }
 }

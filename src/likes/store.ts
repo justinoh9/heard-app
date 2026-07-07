@@ -28,10 +28,8 @@ export function useLikeSummary(targetType: LikeTargetType, targetId: string): Li
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(() => {
-    if (!userId) {
-      setLoading(false);
-      return;
-    }
+    // Counts are public — load them for guests too (an empty userId just means
+    // likedByMe is always false; see summarize()). Only toggle needs a user.
     setLoading(true);
     setError(null);
     backend
@@ -73,7 +71,7 @@ export function useLikeSummaries(targetType: LikeTargetType, targetIds: string[]
   const key = targetIds.join(',');
 
   const load = useCallback(() => {
-    if (!userId || targetIds.length === 0) {
+    if (targetIds.length === 0) {
       setSummaries(new Map());
       setLoading(false);
       return;

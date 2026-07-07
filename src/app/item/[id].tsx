@@ -46,7 +46,10 @@ export default function ItemProfileScreen() {
 
   const existing = ratingFor(id);
   const itemLike = useLikeSummary('item', id);
-  const { comments, loading, error, addComment } = useComments(id, type === 'song' ? 'song' : 'album');
+  const { comments, loading, error, addComment, removeComment } = useComments(
+    id,
+    type === 'song' ? 'song' : 'album',
+  );
   const commentLikes = useLikeSummaries('comment', comments.map((c) => c.id));
   const [body, setBody] = useState('');
   const [posting, setPosting] = useState(false);
@@ -320,6 +323,14 @@ export default function ItemProfileScreen() {
               comment={c}
               likeSummary={commentLikes.summaries.get(c.id)}
               onToggleLike={() => commentLikes.toggle(c.id)}
+              onDelete={
+                user && c.userId === user.id
+                  ? () =>
+                      removeComment(c.id, user.id).catch((e: unknown) =>
+                        console.warn('Failed to delete comment', e),
+                      )
+                  : undefined
+              }
             />
           ))}
         </PageContainer>

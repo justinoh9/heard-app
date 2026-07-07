@@ -30,4 +30,10 @@ export interface AuthBackend {
   signUp(input: SignUpInput): Promise<Session>;
   signIn(email: string, password: string): Promise<Session>;
   signOut(): Promise<void>;
+  /**
+   * Optional: notify on session changes the app didn't initiate — token
+   * refresh failure/expiry, sign-out in another tab. Returns an unsubscribe.
+   * LocalAuthBackend has no external session source, so it omits this.
+   */
+  onAuthStateChange?(callback: (session: Session | null) => void): () => void;
 }

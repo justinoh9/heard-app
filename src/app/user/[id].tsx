@@ -9,7 +9,6 @@ import { PageContainer } from '@/components/page-container';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
-import { INITIAL_RANKED } from '@/data/catalog';
 import { ratingsBackend } from '@/data/ratings-provider';
 import { useRatings } from '@/data/store';
 import { relativeTime } from '@/feed/time';
@@ -46,12 +45,12 @@ export default function UserProfileScreen() {
 
   useEffect(() => {
     let cancelled = false;
-    // Their visible list: stored ratings, or the demo seed they also see
-    // locally before their first commit — keeps the % honest to their screen.
+    // Only their real stored ratings — no demo-seed fallback, or every new
+    // user would show an identical fake list (and a fake ~100% match).
     ratingsBackend
       .load(userId)
       .then((stored) => {
-        if (!cancelled) setTheirs(sortRanked(stored?.list ?? INITIAL_RANKED));
+        if (!cancelled) setTheirs(sortRanked(stored?.list ?? []));
       })
       .catch(() => {
         if (!cancelled) setTheirs([]);
@@ -164,6 +163,12 @@ export default function UserProfileScreen() {
                     ))}
                   </View>
                 </>
+              )}
+
+              {theirs && theirs.length === 0 && (
+                <ThemedText type="small" themeColor="textSecondary" style={styles.sectionHeader}>
+                  {displayName} hasn&apos;t rated anything yet.
+                </ThemedText>
               )}
 
               {theirs && theirs.length > 0 && (

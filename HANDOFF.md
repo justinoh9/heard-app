@@ -1,189 +1,88 @@
 # Heard — Session Handoff
 
 Working context for continuing development in a new session. For the product
-vision and rationale see `SPEC.md`; for repo conventions see `CLAUDE.md`.
+vision see `SPEC.md`, mechanics/data models in `PRODUCT_BLUEPRINT.md`, repo
+conventions in `CLAUDE.md`, and the sequenced plan in `ROADMAP.md`.
+(Last full refresh: 2026-07-07, Phase 0 stabilization pass.)
 
 ## What Heard is
-A social music-rating app — "Letterboxd for music." Rate songs and albums 0–10,
-break ties with side-by-side comparisons, build a ranked profile, comment
-publicly on a song/album's page, see friends' activity, and climb a
-leaderboard. Expo (SDK 56) + expo-router + React Native 0.85 + TypeScript
-(strict). Auth and ratings are still mock/in-memory/on-device; **comments are
-the one feature backed by a real hosted database (Supabase)** — see below.
+Beli × Letterboxd for music. Rate songs and albums 0–10, break ties with
+side-by-side comparisons, build a ranked profile, follow friends, see their
+activity in a feed, log concerts, comment and like. Expo (SDK 56) +
+expo-router + React Native 0.85 + TypeScript (strict).
 
-## Status: what's built (Phases 1–5 + leaderboard + song profiles/comments)
-- **Auth** — email/password sign-up + sign-in, session persisted on-device, route
-  gating (signed-out users can't reach the app). "Continue with Spotify" is a stub.
-- **Music search** — live debounced **Spotify** search (`src/music/spotify.ts`,
-  Client Credentials flow), both album and track results, with cover art and
-  already-rated score pills. Tracks are ranked by Spotify popularity; `searchAll`
-  fetches both types in one request. `rate.tsx`'s search tab stays album-only;
-  track search is wired into the catalog seam (`MusicCatalog.searchTracks`/`searchAll`)
-  for the drop/playlist/item-profile flows. Needs `EXPO_PUBLIC_SPOTIFY_CLIENT_ID`/
-  `EXPO_PUBLIC_SPOTIFY_CLIENT_SECRET` in `.env` (verified in the web build: with
-  keys absent, search shows a friendly "not configured" message, no crash).
-- **Rate flow** — a modal: pick a 0–10 score (stepper, **0.1** fine increment),
-  tie-break comparisons fire only when the score collides with existing items,
-  then an optional, skippable review-text step that posts a public comment.
-- **Item profile page** (`/item/[id]`) — public song/album page: cover, rating
-  status, a standalone comment box, and the public comment list (Supabase-backed,
-  readable by anyone). Reached by tapping a feed card.
-- **Profile** — favorites cover strip + full ranked list (tap to re-rate),
-  stats, concert badges. Shows the live signed-in user.
-- **Feed** — image-forward cards (covers, scores, reviews), daily-drop, streaks;
-  cards with an attached item now link to that item's profile page.
-- **Leaderboard** — "Ranks" tab. Sort accounts by a metric (Reviews/Concerts/Streak)
-  within a scope (Global/Friends). Current user injected live + highlighted; medals
-  for top 3. Extensible: add a metric = one entry in `METRICS`.
-- **Polish** — haptics, step-transition fades, and a winner-highlight animation
-  in the rate/compare flow; shared `EmptyState`/`Skeleton` components.
+## Backend status (the short version)
+With `.env` populated, the app runs on a **hosted Supabase project**
+(provisioned 2026-07-03): **Supabase Auth** (real accounts, JWT sessions,
+`auth.uid()` in RLS), ratings + banked comparisons, profiles + Top 4
+favorites, follows + feed events, concerts + tags, comments, likes. RLS is
+hardened (`0007`: owner-scoped writes, public reads; `0008`: owner deletes,
+insert-only items cache). Music search is live Spotify (Client Credentials;
+proxy mode via the `spotify-token` Edge Function is the hardened option), and
+the Rate tab's import tray uses per-user Spotify OAuth (PKCE).
 
-Everything above is verified working in the browser (web build), **except** the
-Supabase-backed comments network calls — those need a real Supabase project +
-`.env` populated locally (see "Comments & Supabase" below); not yet exercised
-end-to-end in this environment.
+Still device-local or in-memory (see ROADMAP Phase 1): streaks (AsyncStorage,
+by design), playlists (in-memory, seeded), the Daily Drop (in-memory). Still
+mock: leaderboard users, item-page friend/global score breakdowns
+(`src/social/scores.ts`), feed filler cards, the comments "friends" roster.
 
-## Architecture — the swappable "seams"
-Screens talk only to these interfaces, so real backends drop in later without UI
-changes. This is the core design principle — keep it.
+## Architecture — the swappable seams
+Screens talk only to interfaces; env presence picks the implementation.
+This is the core design principle — keep it.
 
-| Concern | Interface / hook | Ships now | Drops in later |
+| Concern | Seam | Supabase impl | Fallback |
 |---|---|---|---|
-| Auth | `useAuth()` / `AuthBackend` | `LocalAuthBackend` (AsyncStorage + expo-crypto) | `SupabaseAuthBackend` |
-| Ratings | `useRatings()` / `RankingEngine` | `RatingTiebreakEngine` (in-memory store) | Supabase store / Elo engine |
-| Music search | `MusicCatalog` | `SpotifyCatalog` (albums + tracks, popularity-ranked) | Apple Music (MusicKit) later |
-| Comments | `useComments()` / `CommentsBackend` | `SupabaseCommentsBackend` (real DB, scoped to this seam only) | — already real; revisit only the auth-trust gap (below) |
-| Leaderboard | mock `LEADERBOARD_USERS` + `METRICS` | mock data | Supabase aggregates |
+| Auth | `useAuth()` / `AuthBackend` | `SupabaseAuthBackend` | `LocalAuthBackend` |
+| Ratings | `useRatings()` / `RatingsBackend` | `SupabaseRatingsBackend` | `LocalRatingsBackend` (AsyncStorage) |
+| Social | `useSocial()` / `SocialBackend` | `SupabaseSocialBackend` | AsyncStorage impl |
+| Concerts | `useConcerts()` / `ConcertsBackend` | Supabase | AsyncStorage impl |
+| Comments | `useComments()` / `CommentsBackend` | Supabase (only impl) | — |
+| Likes | `useLikeSummary` / `LikesBackend` | Supabase (only impl) | — |
+| Catalog | `MusicCatalog` | — | `SpotifyCatalog` (app token) |
+| User library | `UserLibrary` | — | `SpotifyUserLibrary` (user OAuth) |
 
 **Rating engine rule:** the 0–10 score does the coarse sort; comparisons only
-break ties within the same score. Every comparison is logged (`comparisonLog`)
-even though the current engine ignores it — that banks data for a future Elo engine.
+break ties within the same score. Every head-to-head is banked to
+`comparisons` for a future Elo engine. Every log path emits a feed event and
+calls `recordActivity()` (streaks).
 
-## Comments & Supabase
-Comments are intentionally the *only* part of the app backed by a real
-database right now — auth and ratings deliberately were not migrated in the
-same pass, to keep this change scoped.
-
-- **One-time setup** (not yet done in this environment): create a free
-  Supabase project, run `supabase/migrations/0001_comments.sql` in its SQL
-  Editor, then copy `.env.example` → `.env` and fill in
-  `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY` from
-  Project Settings → API (anon **public** key only, never `service_role`).
-  Without this, `src/lib/supabase.ts` throws at module load — everything
-  else in the app still works, only comments break.
-- **Known, documented trust gap**: identity is still `LocalAuthBackend`, not
-  Supabase Auth, so Postgres RLS can't cryptographically verify who's posting.
-  The `comments` table allows public read and trusts the client-supplied
-  `user_id`/`display_name` on insert (same trust level as the rest of this
-  prototype). Don't "fix" this by adding fake auth checks — revisit for real
-  once/if auth migrates to Supabase Auth (`auth.uid()` becomes available).
-
-## Key files
-- `src/app/_layout.tsx` — root: providers + `Stack` + auth-gate redirect + `log` modal.
-- `src/app/(auth)/` — `sign-in.tsx`, `sign-up.tsx`, `_layout.tsx`.
-- `src/app/(tabs)/_layout.tsx` — 4 tabs: `index` (Feed), `rate` (Rate), `leaderboard` (Ranks), `profile`.
-- `src/app/(tabs)/{index,rate,leaderboard,profile}.tsx` — the tab screens.
-- `src/app/log.tsx` — rate/tie-break/review modal (`presentation: 'modal'`); reads
-  the item (incl. `type`/`artUrl`) via route params, posts an optional review
-  via `postComment` from `src/comments`.
-- `src/app/item/[id].tsx` — public song/album profile page: header, rate/update
-  button, standalone comment box, comment list via `useComments`.
-- `src/auth/` — `types.ts`, `local-backend.ts`, `store.tsx` (`AuthProvider`/`useAuth`), `ui.tsx`.
-- `src/ranking/` — `types.ts` (`Item`, `ItemType`), `engine.ts` (`RankingEngine`, `RatingTiebreakEngine`, `sortRanked`, `Placement`), `engine.test.ts`.
-- `src/data/` — `catalog.ts` (seed albums/feed/profile, real MusicBrainz MBIDs;
-  `FeedEvent` now carries `itemId`/`itemType` so cards can link out), `store.ts`
-  (`RatingsContext`/`useRatings`/`useRatingsState`).
-- `src/music/` — `types.ts` (`SearchResult` with a `kind: 'album'|'song'`
-  discriminant, plus `popularity`/`previewUrl`), `spotify.ts` (`SpotifyCatalog`:
-  token minting/caching + `parseAlbumResults`/`parseTrackResults`/`parseSearchResults`,
-  `searchAlbums`/`searchTracks`/`searchAll`), `cover-art.ts` (`coverArtUrl`, seed
-  data only), `provider.ts` (`musicCatalog` singleton), `useMusicSearch.ts`
-  (debounced, takes a `kind` param), `index.ts` (barrel), `spotify.test.ts`.
-- `src/comments/` — `types.ts` (`Comment`, `CommentsBackend`),
-  `supabase-backend.ts` (`SupabaseCommentsBackend`), `store.ts`
-  (`useComments` hook + standalone `postComment`), `index.ts` (barrel).
-- `src/lib/supabase.ts` — Supabase client singleton (throws if env vars missing).
-- `supabase/migrations/0001_comments.sql` — the `comments` table + RLS policies.
-- `src/leaderboard/data.ts` — `LEADERBOARD_USERS`, `METRICS`, types.
-- `src/components/` — `album-cover.tsx` (expo-image + `Skeleton` while loading),
-  `comment-card.tsx`, `empty-state.tsx`, `skeleton.tsx`, `text-field.tsx`,
-  `themed-text.tsx`, `themed-view.tsx`.
-- `src/hooks/use-haptics.ts` — `expo-haptics` wrapper, no-op on web.
-- `src/constants/theme.ts` — `Colors`, `Spacing`, `Fonts`. Accent green is `#1D9E75`.
-
-## Conventions
-- Theming via `ThemedText` / `ThemedView` / `useTheme()` / `Colors` / `Spacing`. Sentence case.
-- Interactive controls carry `testID`s for browser testing: `auth-submit`,
-  `album-result`, `step-<n>`, `rate-confirm`, `compare-new` / `compare-existing`,
-  `done`, `scope-<global|friends>`, `metric-<reviews|concerts|streak>`.
-- Album art everywhere via `AlbumCover` (handles missing/broken covers).
-- `.env` (gitignored) is required for the comments feature — see "Comments &
-  Supabase" above. `.env.example` documents the two required keys.
+## Phase 0 stabilization (done 2026-07-07, this branch)
+- `release_year` now selected on ratings load (Wrapped decades survive reload).
+- Demo seed (`INITIAL_RANKED`) is local/demo-mode only — cloud users start
+  empty, other users' profiles never show it, it's never persisted.
+- Guests see like counts (toggling still requires sign-in).
+- `AuthProvider` subscribes to `onAuthStateChange` (expiry/multi-tab sign-out).
+- `0008_owner_delete.sql`: owner-delete policies (comments, ratings,
+  comparisons, concerts, tags, feed events) + items cache made insert-only
+  (client upserts with `ignoreDuplicates`). UI: delete own comment (item
+  page), remove own rating (profile → ALL RANKED → Edit).
+- `setup.sql` / `reset.sql` regenerated to include 0007+0008 (fresh projects
+  get hardened RLS).
+- Docs refreshed (this file, `CLAUDE.md`).
 
 ## Run & verify (Windows)
-- `npm run web` — easiest local check; opens in browser. Use Chrome device toolbar
-  (`Ctrl+Shift+M`) → iPhone for the mobile view.
-- `npm start` — Expo dev server (Expo Go on a phone).
-- `npm test` — ranking + music unit tests (tsx + node:test, currently 20 passing).
-- `npx tsc --noEmit` — typecheck (should be clean).
-- Browser auto-verify uses the preview MCP (`.claude/launch.json` → server "web" on
-  port 8088). Test login that persists in localStorage on :8088 is
-  `justin@heard.app` / `hunter2pass` (accounts are per-browser-origin) — though
-  in a fresh browser/session this account may not exist yet; sign up instead.
+- `npm run web` — easiest local check (Chrome device toolbar for mobile view).
+- `npm test` — 141 unit tests (tsx + node:test). `npx tsc --noEmit` — typecheck.
+- Preview MCP server "web" on port 8088 (`.claude/launch.json`).
+- `.env` (gitignored) holds Supabase + Spotify keys; Metro inlines
+  `EXPO_PUBLIC_*` at bundle start — restart the dev server after edits.
 
-## Gotchas already solved (don't re-hit these)
-- **Browser `fetch` must be bound to `globalThis`** — calling it as an instance
-  property throws "Illegal invocation" on web (works on native). Done in `MusicBrainzCatalog`.
-- **Typed routes** (`experiments.typedRoutes`) generate `.expo/types`. After
-  adding/moving routes, Metro can show a stale "Unable to resolve module" or wrong
-  href types — fix with a cache-clear restart (`expo start --clear`). Redirect to
-  `'/'`, not `'/(tabs)'`. This applies to the new `src/app/item/[id].tsx` route too.
-- **`.claude/` and `expo-env.d.ts` are gitignored** (local config). Don't commit them.
-- **LF→CRLF git warnings** on Windows are harmless.
-- **Spotify** uses the Client Credentials flow — an app token (not a user login),
-  cached in `SpotifyCatalog` and auto-refreshed (incl. a one-shot retry on 401).
-  The client secret ships in the bundle via `EXPO_PUBLIC_*` for lack of a backend
-  (documented trust gap, like the Supabase anon key). Search is still debounced
-  (350ms) to stay under rate limits. `preview_url` is banked in `SearchResult`
-  but often null on newer apps — don't build required UI on it. Cover art now
-  comes from Spotify; the mock seed data keeps its Cover Art Archive URLs via
-  `cover-art.ts`.
-- **Supabase on RN/Hermes needs `react-native-url-polyfill`** — Hermes doesn't
-  fully implement the `URL` global that `@supabase/supabase-js`'s dependency
-  chain needs. Already wired in `src/lib/supabase.ts` (`import 'react-native-url-polyfill/auto'`
-  at the top) — don't remove it.
+## Gotchas (don't re-hit these)
+- Supabase on RN/Hermes needs `react-native-url-polyfill` (already in
+  `src/lib/supabase.ts` — don't remove).
+- Never import `spotify-auth.ts` from test-reachable modules (pulls
+  expo-auth-session, which node tests can't load); singletons wire in
+  `src/music/provider.ts`.
+- Spotify rejects `localhost` redirect URIs — use `http://127.0.0.1:<port>`
+  on web for the OAuth import tray.
+- Email confirmation is ON by default in Supabase projects — sign-up shows a
+  "confirm your email" message unless disabled (Auth → Providers → Email).
+- Typed-routes cache: after adding/moving routes, `expo start --clear` fixes
+  stale "Unable to resolve module" errors. Redirect to `'/'`, not `'/(tabs)'`.
+- Rows written under old LocalAuthBackend ids are orphaned in the DB —
+  readable, unowned; clean via SQL Editor if needed.
 
-## Branch / git state
-- `main` (on GitHub `justinoh9/heard-app`) = Phases 1–5 (`4185a06`).
-- Current branch **`feature/leaderboard`** = leaderboard + 0.1 increment +
-  search-deferral note (`080a936`), core-loop polish (`099b043`, PR #1 open
-  against `main`), plus this session's song-profile/comments work (uncommitted
-  as of writing — see `git status`).
-- `feature/user-accounts` and `feature/music-search` are local-only and fully
-  contained in `main` (safe to delete).
-
-## Next / pending
-1. **Finish verifying song profiles/comments end-to-end** — needs a real
-   Supabase project created and `.env` populated (see "Comments & Supabase").
-   Not yet done in this environment.
-2. **Settings page skeleton**: a settings screen for the user + their
-   preferences. Suggested approach — a route reachable from Profile (e.g.
-   `src/app/settings.tsx` pushed from a gear icon in the profile header, or a
-   `(tabs)` entry). Skeleton sections to stub: Account (display name, email, change
-   password, sign out), Preferences (theme/appearance, default rating increment,
-   feed/notification toggles), Privacy (profile visibility, friends), About.
-3. **Merge PR #1** (core-loop polish) when ready.
-4. **Supabase backend for auth + ratings** — persist accounts + ratings, real
-   users/friends for the leaderboard. Swap `LocalAuthBackend` and the
-   in-memory store. Comments already prove the Supabase wiring works; this
-   would also close the comments RLS trust gap (`auth.uid()` becomes available).
-5. **Spotify catalog — DONE.** `SpotifyCatalog` (`src/music/spotify.ts`) is live
-   behind `MusicCatalog`, closing the deferred search gaps: Spotify's native
-   relevance prioritizes the artist you meant, and tracks are popularity-ranked.
-   Remaining follow-ups: (a) DONE — the `supabase/functions/spotify-token` Edge
-   Function mints the token server-side; set `EXPO_PUBLIC_SPOTIFY_TOKEN_URL` and
-   drop the client secret to switch `SpotifyCatalog` into proxy mode (see that
-   function's README). (b) optional tap-to-preview using the banked `previewUrl`;
-   (c) Apple Music (MusicKit) as a second `MusicCatalog` provider later; (d)
-   optionally move the whole search server-side so not even the token reaches the
-   client.
+## Next
+See `ROADMAP.md`. Phase 1 (make the social core real) is next: real
+leaderboard aggregates, real score breakdowns, reviews as first-class feed
+objects, persistent Daily Drop, playlists → Lists, feed pagination.

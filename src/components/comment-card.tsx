@@ -18,9 +18,11 @@ interface Props {
   comment: Comment;
   likeSummary?: LikeSummary;
   onToggleLike?: () => void;
+  /** Present only on the viewer's own comments — renders the delete button. */
+  onDelete?: () => void;
 }
 
-export function CommentCard({ comment, likeSummary, onToggleLike }: Props) {
+export function CommentCard({ comment, likeSummary, onToggleLike, onDelete }: Props) {
   const theme = useTheme();
   const haptics = useHaptics();
   const likedByMe = likeSummary?.likedByMe ?? false;
@@ -37,7 +39,20 @@ export function CommentCard({ comment, likeSummary, onToggleLike }: Props) {
         <ThemedText type="smallBold">{initialsFrom(comment.displayName)}</ThemedText>
       </View>
       <View style={{ flex: 1, gap: 2 }}>
-        <ThemedText type="smallBold">{comment.displayName}</ThemedText>
+        <View style={styles.nameRow}>
+          <ThemedText type="smallBold" style={{ flex: 1 }}>
+            {comment.displayName}
+          </ThemedText>
+          {onDelete && (
+            <Pressable
+              testID={`delete-comment-${comment.id}`}
+              onPress={onDelete}
+              accessibilityLabel="Delete your comment"
+              hitSlop={8}>
+              <Ionicons name="trash-outline" size={14} color={theme.textSecondary} />
+            </Pressable>
+          )}
+        </View>
         <ThemedText type="small">{comment.body}</ThemedText>
         {onToggleLike && (
           <Pressable
@@ -62,6 +77,7 @@ export function CommentCard({ comment, likeSummary, onToggleLike }: Props) {
 
 const styles = StyleSheet.create({
   card: { flexDirection: 'row', gap: Spacing.two, padding: Spacing.three, borderRadius: 12 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   avatar: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   likeRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
 });

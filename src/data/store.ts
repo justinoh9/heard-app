@@ -12,6 +12,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 import { useAuth } from '@/auth/store';
+import { isSupabaseConfigured } from '@/lib/supabase';
 import { RatingTiebreakEngine, sortRanked, type RankingEngine } from '@/ranking/engine';
 import type { ComparisonEvent, Item, RankedItem } from '@/ranking/types';
 import { useSocial } from '@/social/store';
@@ -19,6 +20,14 @@ import { useStreaks } from '@/streaks/store';
 
 import { INITIAL_RANKED } from './catalog';
 import { ratingsBackend } from './ratings-provider';
+
+/**
+ * What a brand-new user starts with. Local/demo mode seeds the mock list so a
+ * zero-config checkout never opens empty; against the real cloud backend a new
+ * user starts empty — otherwise their first commit would persist the demo
+ * albums as real ratings, polluting profiles and compatibility scores.
+ */
+const NEW_USER_LIST: RankedItem[] = isSupabaseConfigured() ? [] : INITIAL_RANKED;
 
 export interface RatingsApi {
   engine: RankingEngine;
@@ -38,6 +47,8 @@ export interface RatingsApi {
     events: ComparisonEvent[],
     rated?: { item: Item; score: number },
   ) => void;
+  /** Remove one rating from the list (the banked comparison log is kept). */
+  removeRating: (itemId: string) => void;
   /** Every head-to-head ever recorded (banked for a future smarter engine). */
   comparisonLog: ComparisonEvent[];
 }
@@ -68,17 +79,13 @@ export function useRatingsState(): RatingsApi {
       .load(userId)
       .then((stored) => {
         if (cancelled) return;
-        // Null = brand-new user → seed the demo list (persisted with their
-        // first real commit, since a commit writes the full list).
-        setRanked(stored?.list ?? INITIAL_RANKED);
+        setRanked(stored?.list ?? NEW_USER_LIST);
         setComparisonLog(stored?.events ?? []);
       })
       .catch((e: unknown) => {
         if (cancelled) return;
-        // Persistence being down shouldn't blank the app — fall back to the
-        // seed for this session; commits will retry against the backend.
-        console.warn('[ratings] load failed, using seed list:', e);
-        setRanked(INITIAL_RANKED);
+        console.warn('[ratings] load failed, starting empty for this session:', e);
+        setRanked(NEW_USER_LIST);
         setComparisonLog([]);
       })
       .finally(() => {
@@ -115,6 +122,15 @@ export function useRatingsState(): RatingsApi {
         if (userId) {
           backend.commit(userId, list, events).catch((e: unknown) => {
             console.warn('[ratings] sync failed (kept locally for this session):', e);
+          });
+        }
+      },
+      removeRating: (itemId) => {
+        // Optimistic, like commits. No feed event — removals are housekeeping.
+        setRanked((prev) => prev.filter((r) => r.item.id !== itemId));
+        if (userId) {
+          backend.remove(userId, itemId).catch((e: unknown) => {
+            console.warn('[ratings] remove failed (kept locally for this session):', e);
           });
         }
       },

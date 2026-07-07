@@ -37,4 +37,6 @@ export class CommentsError extends Error {}
 export interface CommentsBackend {
   listForItem(itemId: string, itemType: SearchResultKind): Promise<Comment[]>;
   add(input: NewCommentInput): Promise<Comment>;
+  /** Delete one of the caller's own comments (RLS enforces ownership too). */
+  remove(id: string, userId: string): Promise<void>;
 }

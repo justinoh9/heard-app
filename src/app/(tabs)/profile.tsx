@@ -34,7 +34,7 @@ function initialsFrom(name: string): string {
 export default function ProfileScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const { ranked } = useRatings();
+  const { ranked, removeRating } = useRatings();
   const { user } = useAuth();
   const { playlists } = usePlaylists();
   const { current: streak } = useStreaks();
@@ -42,6 +42,7 @@ export default function ProfileScreen() {
   const { concerts } = useConcerts();
   const [editingTop4, setEditingTop4] = useState(false);
   const [picking, setPicking] = useState(false);
+  const [editingList, setEditingList] = useState(false);
 
   // The showcase: chosen Top 4, falling back to the top of the ranked list.
   const { items: top4, chosen } = resolveFavorites(myFavorites, ranked);
@@ -285,9 +286,21 @@ export default function ProfileScreen() {
             </Pressable>
           </ScrollView>
 
-          <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
-            ALL RANKED
-          </ThemedText>
+          <View style={styles.top4Header}>
+            <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
+              ALL RANKED
+            </ThemedText>
+            {ranked.length > 0 && (
+              <Pressable
+                testID="edit-ranked"
+                onPress={() => setEditingList((e) => !e)}
+                hitSlop={8}>
+                <ThemedText type="smallBold" style={{ color: theme.accent }}>
+                  {editingList ? 'Done' : 'Edit'}
+                </ThemedText>
+              </Pressable>
+            )}
+          </View>
           {ranked.length === 0 && (
             <EmptyState
               icon="disc-outline"
@@ -300,7 +313,10 @@ export default function ProfileScreen() {
           {ranked.map((r, i) => (
             <Pressable
               key={r.item.id}
-              onPress={() => reRate(r)}
+              onPress={() => (editingList ? removeRating(r.item.id) : reRate(r))}
+              accessibilityLabel={
+                editingList ? `Remove your rating of ${r.item.title}` : `Re-rate ${r.item.title}`
+              }
               style={({ pressed }) => [
                 styles.rankRow,
                 { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.6 : 1 },
@@ -317,9 +333,13 @@ export default function ProfileScreen() {
                   {r.item.artist}
                 </ThemedText>
               </View>
-              <ThemedText type="smallBold" style={{ color: theme.accent }}>
-                {r.score.toFixed(1)}
-              </ThemedText>
+              {editingList ? (
+                <Ionicons name="trash-outline" size={18} color={theme.danger} />
+              ) : (
+                <ThemedText type="smallBold" style={{ color: theme.accent }}>
+                  {r.score.toFixed(1)}
+                </ThemedText>
+              )}
             </Pressable>
           ))}
 

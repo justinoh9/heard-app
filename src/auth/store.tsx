@@ -28,13 +28,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<Status>('loading');
 
   useEffect(() => {
+    let cancelled = false;
     backend
       .getSession()
       .then((s) => {
+        if (cancelled) return;
         setSession(s);
         setStatus(s ? 'authed' : 'signedOut');
       })
-      .catch(() => setStatus('signedOut'));
+      .catch(() => {
+        if (!cancelled) setStatus('signedOut');
+      });
+    // Track changes the app didn't initiate (token expiry/refresh failure,
+    // sign-out in another tab) so the UI never thinks it's authed while
+    // requests are failing RLS.
+    const unsubscribe = backend.onAuthStateChange?.((s) => {
+      if (cancelled) return;
+      setSession(s);
+      setStatus(s ? 'authed' : 'signedOut');
+    });
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+    };
   }, [backend]);
 
   const api = useMemo<AuthApi>(

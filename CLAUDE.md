@@ -1,21 +1,25 @@
 # Heard
 
 A social music-rating app. See `SPEC.md` for the full product spec and rationale,
-and `PRODUCT_BLUEPRINT.md` for the feature roadmap (priorities, data models,
-build order) that current work follows.
+`PRODUCT_BLUEPRINT.md` for the mechanics + data models, and `ROADMAP.md` for the
+sequenced plan current work follows (Phase 0 = stabilization, then social-core,
+retention, differentiators).
 
 ## Stack
 - Expo (SDK 56) + expo-router (file-based routing, `src/app/`)
 - React Native 0.85, TypeScript (strict)
 - Icons: `@expo/vector-icons` (Ionicons)
-- Auth is still local (no backend) — `LocalAuthBackend` in `src/auth/`.
+- **Auth is Supabase Auth** when the Supabase env vars are set
+  (`SupabaseAuthBackend` behind the `AuthBackend` seam, chosen in
+  `src/auth/provider.ts`; `user.id` is the auth uid, so `auth.uid()` works in
+  RLS). Zero-config checkouts fall back to the on-device `LocalAuthBackend`.
   **Ratings persist** behind the `RatingsBackend` seam (`src/data/`):
-  `SupabaseRatingsBackend` when Supabase env vars are set
+  `SupabaseRatingsBackend` when configured
   (`supabase/migrations/0003_ratings.sql` — items/ratings/comparisons),
-  else an AsyncStorage `LocalRatingsBackend` fallback, so ratings survive
-  reloads with zero config. Mock seed data in `src/data/catalog.ts` seeds
-  brand-new users. A Supabase Auth migration is still planned
-  (PRODUCT_BLUEPRINT §3.4).
+  else an AsyncStorage `LocalRatingsBackend` fallback. Mock seed data in
+  `src/data/catalog.ts` seeds brand-new users **in local/demo mode only** —
+  against the cloud backend a new user starts empty, so demo ratings are never
+  persisted as real data.
 - Music search runs on the **Spotify Web API** (`src/music/spotify.ts`, Client
   Credentials flow). Two token modes (see `requestToken`): **proxy** — set
   `EXPO_PUBLIC_SPOTIFY_TOKEN_URL` to the `supabase/functions/spotify-token` Edge
@@ -24,9 +28,9 @@ build order) that current work follows.
   zero-backend quick start (the secret then ships in the bundle, same trust
   level as the Supabase anon key). With neither set, search shows a friendly
   "not configured" message instead of crashing.
-- Streak state (`src/streaks/`) is the one exception to "ratings are
-  in-memory": it persists per-user to `AsyncStorage` (like `src/auth/`),
-  because a streak that resets every app reload is meaningless.
+- Streak state (`src/streaks/`) persists per-user to `AsyncStorage` on the
+  device (deliberately not in Supabase — it's a per-device habit nudge).
+  Playlists and the Daily Drop are still in-memory (ROADMAP Phase 1).
 
 ## Layout
 - `src/app/` — routes. Tabs: `index.tsx` (Feed), `rate.tsx` (Rate),
@@ -56,8 +60,11 @@ build order) that current work follows.
   rendered by `src/app/wrapped.tsx`, pushed from the Profile tab's "Your
   Wrapped" card). `Item.year` powers the decades; the log flow threads it
   from search params and `items.release_year` persists it.
-- `src/auth/` — `useAuth()`/`AuthBackend` seam; `LocalAuthBackend` ships now
-  (AsyncStorage + expo-crypto).
+- `src/auth/` — `useAuth()`/`AuthBackend` seam; `SupabaseAuthBackend` (real
+  accounts, session persisted by the shared client, `onAuthStateChange`
+  tracked) or `LocalAuthBackend` (AsyncStorage + expo-crypto) chosen by env in
+  `provider.ts`. `use-require-auth.ts` gates account-only actions/screens;
+  browsing is open to guests (`GuestGate` for personal surfaces).
 - `src/music/` — `MusicCatalog` seam; `SpotifyCatalog` (`spotify.ts`) ships now
   (album + track search in one request, popularity-ranked tracks, cached app
   token). `cover-art.ts` builds Cover Art Archive URLs — used only by the mock
@@ -98,16 +105,16 @@ build order) that current work follows.
   Profile tab's SHOWS badges + shows stat and the leaderboard's concerts
   metric are real counts now.
 - `src/comments/` — `CommentsBackend` seam; `SupabaseCommentsBackend` is the
-  only implementation (ships Supabase-backed from day one — see "Comments,
-  likes & Supabase" below).
+  only implementation (Supabase-backed from day one — see "Supabase" below).
+  Users can delete their own comments (trash icon on the item page).
 - `src/likes/` — `LikesBackend` seam, same Supabase-backed-from-day-one
   treatment as comments. One generic `likes` table (discriminated by
   `target_type`) covers both item likes (song/album profile) and comment likes.
 - `src/streaks/` — pure day-boundary logic (`logic.ts`) + an `AsyncStorage`-backed
   `useStreaks()` store. `commitPlacement` (`src/data/store.ts`) and `postDrop`
   (`src/feed/store.tsx`) both call `recordActivity()` directly.
-- `src/lib/supabase.ts` — the Supabase client singleton, used by
-  `src/comments/` and `src/likes/`.
+- `src/lib/supabase.ts` — the Supabase client singleton (session persistence
+  on), used by the auth, ratings, social, concerts, comments, and likes seams.
 - `src/components/`, `src/constants/theme.ts`, `src/hooks/` — shared UI
   primitives (`ThemedText`, `ThemedView`, `EmptyState`, `Skeleton`,
   `CommentCard`, `useTheme`, `useHaptics`, `Spacing`).
@@ -139,25 +146,25 @@ build order) that current work follows.
 - Every head-to-head is logged to `comparisonLog` even though the current engine
   only needs final order — that banked data enables a future Elo engine (SPEC §5).
 
-## Comments, likes & Supabase
-Comments and likes are the pieces of this app backed by a real, hosted
-database — everything else (auth, ratings) is still local/in-memory. This is a
-deliberate, narrow scope, not a first step in a broader migration that's
-already underway.
+## Supabase
+With the env vars set, the whole app runs on hosted Supabase: auth, ratings,
+social graph + feed, concerts, comments, and likes. Without them, everything
+except comments/likes degrades to local backends (those two are
+Supabase-only by design).
 
-- **Setup required**: copy `.env.example` to `.env` and fill in
+- **Setup**: copy `.env.example` to `.env` and fill in
   `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY` from a Supabase
-  project (Project Settings → API). Without these, `src/lib/supabase.ts`
-  throws at module load — search/rating still work, only comments and likes
-  break. (The same `.env` also holds the Spotify keys that power search — see
-  the Stack section.)
-- Run `supabase/migrations/0001_comments.sql` through `0006_concerts.sql` in
-  the project's SQL Editor to create the `comments`, `likes`, `items`,
-  `ratings`, `comparisons`, `profiles`, `follows`, `feed_events`, `concerts`,
-  and `concert_tags` tables.
-- **Known trust gap**: auth is `LocalAuthBackend`, not Supabase Auth, so RLS
-  cannot cryptographically verify who's posting a comment or toggling a like.
-  Both tables' RLS policies allow public read and trust client-supplied
-  `user_id` (comments also trust `display_name`) on insert/delete — the same
-  trust level as the rest of this prototype. Revisit if auth ever migrates to
-  Supabase Auth.
+  project (Project Settings → API). The same `.env` also holds the Spotify
+  keys that power search — see the Stack section. `src/lib/supabase.ts` is
+  lazily initialized, so a missing config only breaks features on first use.
+- **Schema**: run `supabase/setup.sql` on a fresh project (it concatenates
+  `migrations/0001`–`0008`, ending in the hardened policies), or apply the
+  numbered migrations in order. `reset.sql` drops and recreates everything —
+  never run it on a DB with real data.
+- **RLS posture** (0007 + 0008): reads are public (guests browse ratings,
+  profiles, comments); writes and deletes are scoped to the owner via
+  `auth.uid()`. The `items` catalog cache is insert-only — clients upsert with
+  `ignoreDuplicates` so no one can rewrite shared metadata. Requires Supabase
+  Auth to be the active backend (it is whenever the env is configured).
+- Rows written before the auth migration under LocalAuthBackend ids are
+  orphaned (unowned but readable); clean up via SQL Editor if they bother you.

@@ -63,4 +63,13 @@ export class SupabaseCommentsBackend implements CommentsBackend {
     if (error) throw new CommentsError(error.message);
     return fromRow(data as CommentRow);
   }
+
+  async remove(id: string, userId: string): Promise<void> {
+    const { error } = await getSupabase()
+      .from('comments')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', userId);
+    if (error) throw new CommentsError(error.message);
+  }
 }
