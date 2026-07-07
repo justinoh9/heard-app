@@ -7,7 +7,8 @@
 > Companion docs: `SPEC.md` (rationale), `PRODUCT_BLUEPRINT.md` (mechanics +
 > data models). This file is the *sequenced* plan as of 2026-07-07, reflecting
 > what is actually built. Findings referenced as (R1)–(R12) come from the
-> 2026-07-07 full-codebase review.
+> 2026-07-07 full-codebase review; founder feature requests captured
+> 2026-07-07 are tagged (F1)–(F7) and slotted into the phase that fits them.
 
 ## Where we are
 
@@ -102,6 +103,23 @@ follow) is entirely real.
       Without this, every social action is a message into the void.
 - [ ] **Re-rank nudge v2** — the quick-match card exists; add the post-log
       1-in-N prompt so comparison data compounds passively.
+- [ ] **(F1) Frictionless sign-in — Google/Apple OAuth + a leaner login page** —
+      add `signInWithOAuth({ provider: 'google' })` (and Apple, required for iOS
+      review) beside the existing Spotify button, and streamline the auth screen
+      so the common path is one tap. Supabase Auth already supports these
+      providers, so it's mostly provider config + button wiring — and unlike
+      Spotify login (stuck behind Spotify's dev-mode allowlist), Google/Apple are
+      the real *public* sign-in path. Lowering sign-up friction is the cheapest
+      D1 lever short of onboarding itself.
+- [ ] **(F2) In-app playback (preview-first)** — tap a song to hear it. The
+      iTunes catalog already returns 30s `previewUrl`s, so a lightweight
+      `expo-audio` player on item pages, search rows, and the feed is a
+      near-term win; full-track playback (Spotify Web Playback SDK / Apple
+      MusicKit, premium-gated) is the heavier follow-up. Also unblocks (F5).
+- [ ] **(F4) Reposts** — let a user reshare someone else's rating/review/drop
+      into their own feed (with an optional note), emitting a `repost` feed
+      event. Extends the compounding loop (PRODUCT_BLUEPRINT §1.3) — the cheapest
+      way to give quiet users something to contribute and to spread good reviews.
 
 ## Phase 3 — Differentiators (what neither Beli nor Letterboxd has)
 
@@ -117,6 +135,11 @@ follow) is entirely real.
 - [ ] **Elo engine** — `EloEngine implements RankingEngine`, replayed from the
       banked `comparisons` table (the whole reason it's been logged since day
       one). Ship behind a flag; compare orderings before switching.
+- [ ] **(F5) Timestamped comments — react to a moment in a song** —
+      SoundCloud's signature mechanic: comments anchored to a position in the
+      track and shown on a scrub bar during playback. A real differentiator
+      neither Beli nor Letterboxd has; depends on (F2) playback plus a
+      `position_ms` column on comments.
 
 ## Phase 4 — Launch readiness & scale
 
@@ -135,6 +158,21 @@ follow) is entirely real.
       funnel beyond Spotify users.
 - [ ] **Analytics** — instrument the funnel (sign-up → first log → first
       follow → D7 return) so the roadmap above can be re-prioritized on data.
+- [ ] **(F6) Invite system (Beli-style)** — invite-gated onboarding + referral
+      credit: each user gets a handful of invite codes, joining via a code links
+      inviter↔invitee (seeding the follow graph immediately), and
+      invites-remaining becomes a status nudge. Beli's core growth + scarcity
+      loop; pairs with the share cards above as an acquisition surface.
+
+## Polish & quick wins
+
+Small, low-effort improvements that don't warrant a phase — pick them up
+between larger work.
+
+- [ ] **(F7) Vinyl covers face outward** — on the artist page's spinning-record
+      hero (`RecordPlayer` in `src/app/artist/[id].tsx`), rotate each rim album
+      cover radially so it faces away from the center instead of sitting
+      upright, so the disc reads like real objects on a turntable.
 
 ---
 
