@@ -88,6 +88,7 @@ export default function ProfileScreen() {
         icon="person-circle-outline"
         title="Your profile lives here"
         message="Sign in to rate albums, build your ranked list, log shows, and follow friends."
+        showSettings
       />
     );
   }

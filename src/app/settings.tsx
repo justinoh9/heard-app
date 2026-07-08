@@ -9,7 +9,6 @@ import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { useAuth } from '@/auth/store';
-import { useAuthGate } from '@/auth/use-require-auth';
 import { PageContainer } from '@/components/page-container';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -28,7 +27,8 @@ export default function SettingsScreen() {
   const theme = useTheme();
   const router = useRouter();
   const { user, signOut } = useAuth();
-  useAuthGate(); // account settings need an account — bounce guests to sign-in
+  // Settings is open to guests so anyone can change the theme (appearance is a
+  // device preference, not an account one). Only the ACCOUNT section is gated.
 
   return (
     <ThemedView style={styles.screen}>
@@ -43,17 +43,29 @@ export default function SettingsScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <PageContainer style={styles.inner}>
           <Section label="ACCOUNT">
-            <Row icon="person-outline" label="Display name" value={user?.displayName} theme={theme} />
-            <Row icon="mail-outline" label="Email" value={user?.email} theme={theme} />
-            <Row icon="key-outline" label="Change password" soon theme={theme} />
-            <Row
-              testID="sign-out"
-              icon="log-out-outline"
-              label="Sign out"
-              onPress={signOut}
-              danger
-              theme={theme}
-            />
+            {user ? (
+              <>
+                <Row icon="person-outline" label="Display name" value={user.displayName} theme={theme} />
+                <Row icon="mail-outline" label="Email" value={user.email} theme={theme} />
+                <Row icon="key-outline" label="Change password" soon theme={theme} />
+                <Row
+                  testID="sign-out"
+                  icon="log-out-outline"
+                  label="Sign out"
+                  onPress={signOut}
+                  danger
+                  theme={theme}
+                />
+              </>
+            ) : (
+              <Row
+                testID="settings-signin"
+                icon="log-in-outline"
+                label="Sign in or create account"
+                onPress={() => router.push('/(auth)/sign-in')}
+                theme={theme}
+              />
+            )}
           </Section>
 
           <Section label="CONNECTIONS">
