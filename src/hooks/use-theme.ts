@@ -16,6 +16,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import {
   DEFAULT_SELECTION,
+  DisplayFonts,
   Modes,
   defaultVariant,
   type Appearance,
@@ -114,6 +115,11 @@ export function useTheme(): Palette {
 export function useTreatment(): Treatment {
   const ctx = useContext(ThemePreferenceContext);
   return ctx?.treatment ?? resolve(DEFAULT_SELECTION, false).treatment;
+}
+
+/** The active mode's display font family (wordmark, headers, titles). */
+export function useDisplayFont(): string {
+  return DisplayFonts[useTreatment().font];
 }
 
 /** Full selection + setters, for the Settings appearance picker. */

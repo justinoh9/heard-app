@@ -1,4 +1,7 @@
-import { Fraunces_600SemiBold, useFonts } from '@expo-google-fonts/fraunces';
+import { Baloo2_600SemiBold } from '@expo-google-fonts/baloo-2';
+import { Caveat_600SemiBold } from '@expo-google-fonts/caveat';
+import { Fraunces_600SemiBold } from '@expo-google-fonts/fraunces';
+import { useFonts } from 'expo-font';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, useRouter, useSegments } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { ActivityIndicator, Platform } from 'react-native';
@@ -19,9 +22,13 @@ import { SocialContext, useSocialState } from '@/social/store';
 import { StreaksContext, useStreaksState } from '@/streaks/store';
 
 export default function RootLayout() {
-  // The display serif (wordmark + titles). Render waits for it so headings
-  // never flash the system font first.
-  const [fontsLoaded] = useFonts({ Fraunces_600SemiBold });
+  // The per-mode display faces (wordmark + titles). Render waits for them so
+  // headings never flash the system font first. Keep in sync with DisplayFonts.
+  const [fontsLoaded] = useFonts({
+    Fraunces_600SemiBold,
+    Baloo2_600SemiBold,
+    Caveat_600SemiBold,
+  });
 
   // Capture an OAuth-redirect error (e.g. Spotify login failing server-side)
   // off the URL during render — before the Supabase client, created in a child

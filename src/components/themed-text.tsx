@@ -1,7 +1,7 @@
 import { Platform, StyleSheet, Text, type TextProps } from 'react-native';
 
-import { DisplayFont, Fonts, ThemeColor } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { Fonts, ThemeColor } from '@/constants/theme';
+import { useDisplayFont, useTheme } from '@/hooks/use-theme';
 
 export type ThemedTextProps = TextProps & {
   type?: 'default' | 'title' | 'small' | 'smallBold' | 'subtitle' | 'link' | 'linkPrimary' | 'code';
@@ -10,11 +10,14 @@ export type ThemedTextProps = TextProps & {
 
 export function ThemedText({ style, type = 'default', themeColor, ...rest }: ThemedTextProps) {
   const theme = useTheme();
+  const displayFont = useDisplayFont();
+  const isDisplay = type === 'title' || type === 'subtitle';
 
   return (
     <Text
       style={[
         { color: theme[themeColor ?? 'text'] },
+        isDisplay && { fontFamily: displayFont },
         type === 'default' && styles.default,
         type === 'title' && styles.title,
         type === 'small' && styles.small,
@@ -46,18 +49,16 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     fontWeight: 500,
   },
-  // Titles + subtitles speak in the display serif (see DisplayFont). No
-  // fontWeight alongside the custom family — the loaded file IS the weight,
-  // and Android would silently fall back to the system font otherwise.
+  // Titles + subtitles speak in the mode's display face (applied inline via
+  // useDisplayFont). No fontWeight alongside the custom family — the loaded
+  // file IS the weight, and Android would silently fall back otherwise.
   title: {
     fontSize: 48,
     lineHeight: 52,
-    fontFamily: DisplayFont,
   },
   subtitle: {
     fontSize: 32,
     lineHeight: 44,
-    fontFamily: DisplayFont,
   },
   link: {
     lineHeight: 30,

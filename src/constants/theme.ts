@@ -180,6 +180,19 @@ export type ThemeColor = {
  */
 export const DisplayFont = 'Fraunces_600SemiBold';
 
+/**
+ * Per-mode display faces — a mode's `treatment.font` picks one for the wordmark,
+ * headers, and titles. All four are loaded in the root layout (keep the
+ * useFonts() call there in sync with these family names).
+ */
+export const DisplayFonts: Record<Treatment['font'], string> = {
+  serif: 'Fraunces_600SemiBold',
+  rounded: 'Baloo2_600SemiBold',
+  // System monospace — needs no font file and renders distinctly everywhere.
+  mono: Platform.select({ ios: 'Courier New', default: 'monospace' }) ?? 'monospace',
+  hand: 'Caveat_600SemiBold',
+};
+
 export const Fonts = Platform.select({
   ios: {
     /** iOS `UIFontDescriptorSystemDesignDefault` */
