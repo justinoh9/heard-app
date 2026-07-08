@@ -1,4 +1,5 @@
-import { Link } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { Link, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -8,6 +9,7 @@ import {
   ScrollView,
   StyleSheet,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PageContainer } from '@/components/page-container';
 import { ThemedText } from '@/components/themed-text';
@@ -22,6 +24,8 @@ import { useTheme } from '@/hooks/use-theme';
 
 export default function SignInScreen() {
   const theme = useTheme();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { signIn, signInWithSpotify } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -62,6 +66,15 @@ export default function SignInScreen() {
 
   return (
     <ThemedView style={styles.screen}>
+      {/* Browsing is open to guests, so give a way out of the auth screen back
+          to the app instead of stranding them here. */}
+      <Pressable
+        onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+        accessibilityLabel="Back to home"
+        hitSlop={8}
+        style={[styles.backBtn, { top: insets.top + Spacing.two }]}>
+        <Ionicons name="chevron-back" size={26} color={theme.text} />
+      </Pressable>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -132,6 +145,7 @@ export default function SignInScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   flex: { flex: 1 },
+  backBtn: { position: 'absolute', left: Spacing.two, zIndex: 10, padding: Spacing.two },
   content: {
     flexGrow: 1,
     justifyContent: 'center',

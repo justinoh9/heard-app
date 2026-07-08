@@ -271,7 +271,10 @@ function RecordPlayer({ image, albums, size }: { image?: string; albums: SearchR
               key={al.id}
               style={{
                 position: 'absolute',
-                transform: [{ rotate: `${angle}deg` }, { translateY: -orbit }, { rotate: `${-angle}deg` }],
+                // rotate → translate places the cover on the rim at `angle`;
+                // with no counter-rotation the cover's top points radially
+                // outward (facing away from the spindle), like labels on a disc.
+                transform: [{ rotate: `${angle}deg` }, { translateY: -orbit }],
               }}>
               <AlbumCover uri={al.coverUrl} size={artSize} radius={6} />
             </View>
