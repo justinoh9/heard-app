@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useRequireAuth } from '@/auth/use-require-auth';
 import { AlbumCover } from '@/components/album-cover';
 import { PageContainer } from '@/components/page-container';
+import { Surface } from '@/components/surface';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -66,14 +67,8 @@ export default function FeedScreen() {
           />
 
           {followingIds.size === 0 && (
-            <Pressable
-              testID="find-friends"
-              onPress={() => router.push('/people')}
-              style={({ pressed }) => [
-                styles.promptCard,
-                { borderColor: theme.accent, opacity: pressed ? 0.7 : 1 },
-              ]}>
-              <View style={[styles.promptIcon, { backgroundColor: theme.backgroundElement }]}>
+            <Surface testID="find-friends" onPress={() => router.push('/people')} style={styles.rowCard}>
+              <View style={[styles.promptIcon, { backgroundColor: theme.backgroundSelected }]}>
                 <Ionicons name="people" size={20} color={theme.accent} />
               </View>
               <View style={{ flex: 1 }}>
@@ -83,7 +78,7 @@ export default function FeedScreen() {
                 </ThemedText>
               </View>
               <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
-            </Pressable>
+            </Surface>
           )}
 
           {realEvents.map((event) => (
@@ -108,10 +103,7 @@ export default function FeedScreen() {
           </ThemedText>
 
           {mockDrop && (
-            <Pressable
-              testID="feed-drop"
-              onPress={() => openItem(mockDrop)}
-              style={[styles.dropCard, { borderColor: theme.accentAlt, backgroundColor: theme.backgroundElement }]}>
+            <Surface testID="feed-drop" onPress={() => openItem(mockDrop)} style={styles.tightCard}>
               <View style={styles.dropHeader}>
                 <Ionicons name="radio" size={16} color={theme.accentAlt} />
                 <ThemedText type="small" style={{ color: theme.accentAlt }}>
@@ -128,7 +120,7 @@ export default function FeedScreen() {
                   </ThemedText>
                 </View>
               </View>
-            </Pressable>
+            </Surface>
           )}
 
           {mockRest.map((event) => (
@@ -163,14 +155,8 @@ function YourDrop({
 }) {
   if (!drop) {
     return (
-      <Pressable
-        testID="compose-drop"
-        onPress={onCompose}
-        style={({ pressed }) => [
-          styles.promptCard,
-          { borderColor: theme.accentAlt, opacity: pressed ? 0.7 : 1 },
-        ]}>
-        <View style={[styles.promptIcon, { backgroundColor: theme.backgroundElement }]}>
+      <Surface testID="compose-drop" onPress={onCompose} style={styles.rowCard}>
+        <View style={[styles.promptIcon, { backgroundColor: theme.backgroundSelected }]}>
           <Ionicons name="radio" size={20} color={theme.accentAlt} />
         </View>
         <View style={{ flex: 1 }}>
@@ -180,12 +166,12 @@ function YourDrop({
           </ThemedText>
         </View>
         <Ionicons name="add-circle" size={26} color={theme.accentAlt} />
-      </Pressable>
+      </Surface>
     );
   }
 
   return (
-    <View style={[styles.dropCard, { borderColor: theme.accentAlt, backgroundColor: theme.backgroundElement }]}>
+    <Surface style={styles.tightCard}>
       <View style={styles.dropHeader}>
         <Ionicons name="radio" size={16} color={theme.accentAlt} />
         <ThemedText type="small" style={{ color: theme.accentAlt, flex: 1 }}>
@@ -214,7 +200,7 @@ function YourDrop({
           ) : null}
         </View>
       </Pressable>
-    </View>
+    </Surface>
   );
 }
 
@@ -242,12 +228,10 @@ function FeedRow({
   // Show the art+score body whenever there's something to show — AlbumCover
   // falls back to a disc icon, so a missing artUrl shouldn't hide the score.
   const showBody = event.kind !== 'streak' && (!!event.coverUrl || event.score != null);
-  const Container = event.itemId ? Pressable : View;
   return (
-    <Container
+    <Surface
       testID={event.itemId ? `feed-item-${event.id}` : undefined}
-      onPress={event.itemId ? onPress : undefined}
-      style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
+      onPress={event.itemId ? onPress : undefined}>
       <View style={styles.cardHeader}>
         <Pressable
           onPress={event.userId ? onOpenUser : undefined}
@@ -315,7 +299,7 @@ function FeedRow({
           </ThemedText>
         </View>
       </View>
-    </Container>
+    </Surface>
   );
 }
 
@@ -324,20 +308,12 @@ const styles = StyleSheet.create({
   content: { padding: Spacing.three },
   inner: { gap: Spacing.three },
   sectionLabel: { marginTop: Spacing.two },
-  dropCard: { borderWidth: 1, borderRadius: 12, padding: Spacing.three, gap: Spacing.two },
+  // Surface owns padding/gap/border; these only tune per-card layout.
+  rowCard: { flexDirection: 'row', alignItems: 'center' },
+  tightCard: { gap: Spacing.two },
   dropHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   dropBody: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
-  promptCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderRadius: 12,
-    padding: Spacing.three,
-  },
   promptIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  card: { borderRadius: 12, padding: Spacing.three, gap: Spacing.three },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   avatar: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   ratedBody: { flexDirection: 'row', gap: Spacing.three, alignItems: 'center' },
