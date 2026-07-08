@@ -17,8 +17,8 @@ import { ThemedView } from '@/components/themed-view';
 import { TextField } from '@/components/text-field';
 import { Spacing } from '@/constants/theme';
 import { useAuth } from '@/auth/store';
-import { BrandHeader, OrDivider, SpotifyButton } from '@/auth/ui';
-import { AuthError } from '@/auth/types';
+import { BrandHeader, OrDivider, OAuthButton } from '@/auth/ui';
+import { AuthError, type OAuthProvider } from '@/auth/types';
 import { friendlyMessage, takePendingOAuthError } from '@/auth/oauth-error';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -26,7 +26,7 @@ export default function SignInScreen() {
   const theme = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { signIn, signInWithSpotify } = useAuth();
+  const { signIn, signInWithOAuth } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   // Surface an OAuth-redirect failure (e.g. Spotify login) stashed by the root
@@ -36,7 +36,7 @@ export default function SignInScreen() {
     return oauth ? friendlyMessage(oauth) : null;
   });
   const [busy, setBusy] = useState(false);
-  const [spotifyBusy, setSpotifyBusy] = useState(false);
+  const [oauthBusy, setOauthBusy] = useState(false);
 
   async function submit() {
     if (busy) return;
@@ -51,16 +51,16 @@ export default function SignInScreen() {
     }
   }
 
-  async function spotify() {
-    if (!signInWithSpotify || spotifyBusy) return;
+  async function oauth(provider: OAuthProvider) {
+    if (!signInWithOAuth || oauthBusy) return;
     setError(null);
-    setSpotifyBusy(true);
+    setOauthBusy(true);
     try {
-      await signInWithSpotify();
-      // On web the page redirects to Spotify; the session lands on return.
+      await signInWithOAuth(provider);
+      // On web the page redirects out; the session lands on return.
     } catch (e) {
-      setError(e instanceof AuthError ? e.message : 'Spotify sign-in failed. Try again.');
-      setSpotifyBusy(false);
+      setError(e instanceof AuthError ? e.message : 'Sign-in failed. Try again.');
+      setOauthBusy(false);
     }
   }
 
@@ -82,9 +82,9 @@ export default function SignInScreen() {
           <PageContainer maxWidth={440} style={styles.inner}>
             <BrandHeader tagline="Welcome back" />
 
-            {signInWithSpotify && (
+            {signInWithOAuth && (
               <>
-                <SpotifyButton onPress={spotify} busy={spotifyBusy} />
+                <OAuthButton provider="google" onPress={() => oauth('google')} busy={oauthBusy} />
                 <OrDivider />
               </>
             )}

@@ -1,8 +1,8 @@
 /**
  * Settings skeleton (HANDOFF.md "Next/pending"). Account info + sign out are
  * real (wired to useAuth). Preferences/Privacy rows are structural stubs —
- * tagged "Soon", same convention as SpotifyButton (src/auth/ui.tsx) — until
- * there's a place to persist them (local prefs store or the Supabase seam).
+ * tagged "Soon" — until there's a place to persist them (local prefs store or
+ * the Supabase seam).
  */
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';

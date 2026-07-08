@@ -13,7 +13,14 @@ import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 import { getSupabase } from '@/lib/supabase';
 
-import { AuthError, type AuthBackend, type Session, type SignUpInput, type User } from './types';
+import {
+  AuthError,
+  type AuthBackend,
+  type OAuthProvider,
+  type Session,
+  type SignUpInput,
+  type User,
+} from './types';
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
@@ -21,8 +28,8 @@ function normalizeEmail(email: string): string {
 
 /** Map a Supabase auth user onto the app's `User` shape. */
 function toUser(u: SupabaseUser): User {
-  // Email/password sets display_name; Spotify OAuth populates the profile under
-  // full_name/name instead — check all three before falling back to the email.
+  // Email/password sets display_name; OAuth providers (Google/Spotify) populate
+  // the profile under full_name/name instead — check all three before the email.
   const meta = u.user_metadata ?? {};
   const displayName =
     (meta.display_name as string | undefined)?.trim() ||
@@ -95,21 +102,23 @@ export class SupabaseAuthBackend implements AuthBackend {
     return { user: toUser(data.session.user) };
   }
 
-  async signInWithSpotify(redirectTo?: string): Promise<void> {
+  async signInWithOAuth(provider: OAuthProvider, redirectTo?: string): Promise<void> {
     const { error } = await getSupabase().auth.signInWithOAuth({
-      provider: 'spotify',
+      provider,
       options: {
-        // Where Supabase sends the browser back to after Spotify consents. Must
-        // be on the project's redirect allowlist (Auth → URL Configuration).
+        // Where Supabase sends the browser back to after the provider consents.
+        // Must be on the project's redirect allowlist (Auth → URL Configuration).
         redirectTo,
-        // Ask for the email so accounts have one (and can auto-link to an
-        // existing email/password identity with the same verified address).
-        scopes: 'user-read-email',
+        // Spotify needs an explicit email scope (and it lets accounts auto-link
+        // to an existing email/password identity); Google/Apple return email by
+        // default, so only ask Spotify for it.
+        scopes: provider === 'spotify' ? 'user-read-email' : undefined,
       },
     });
-    // On web this rarely returns (the page has already navigated to Spotify);
-    // if it does error before redirecting, surface it.
-    if (error) throw new AuthError(error.message || 'Could not start Spotify sign-in.');
+    // On web this rarely returns (the page has already navigated out). If it
+    // errors first — e.g. the provider isn't enabled in the Supabase dashboard —
+    // surface it.
+    if (error) throw new AuthError(error.message || 'Could not start sign-in.');
   }
 
   async signOut(): Promise<void> {

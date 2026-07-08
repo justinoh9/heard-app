@@ -8,7 +8,7 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import { Platform } from 'react-native';
 
 import { authBackend } from './provider';
-import type { Session, SignUpInput } from './types';
+import type { OAuthProvider, Session, SignUpInput } from './types';
 
 type Status = 'loading' | 'authed' | 'signedOut';
 
@@ -19,11 +19,12 @@ export interface AuthApi {
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   /**
-   * Start Spotify OAuth, or `undefined` when the active backend has no OAuth
-   * (LocalAuthBackend) — the sign-in/up screens hide the button in that case.
-   * On web the page redirects out; the session lands via onAuthStateChange.
+   * Start OAuth sign-in with a provider (Google/Apple/Spotify), or `undefined`
+   * when the active backend has no OAuth (LocalAuthBackend) — the sign-in/up
+   * screens hide the buttons then. On web the page redirects out; the session
+   * lands via onAuthStateChange.
    */
-  signInWithSpotify?: () => Promise<void>;
+  signInWithOAuth?: (provider: OAuthProvider) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthApi | null>(null);
@@ -79,15 +80,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(null);
         setStatus('signedOut');
       },
-      signInWithSpotify: backend.signInWithSpotify
-        ? async () => {
+      signInWithOAuth: backend.signInWithOAuth
+        ? async (provider) => {
             // Return to the current web origin after consent; native (deep-link)
             // support is a later phase, so leave it undefined off-web for now.
             const redirectTo =
               Platform.OS === 'web' && typeof window !== 'undefined'
                 ? window.location.origin
                 : undefined;
-            await backend.signInWithSpotify!(redirectTo);
+            await backend.signInWithOAuth!(provider, redirectTo);
             // Success flips to 'authed' via onAuthStateChange after the redirect.
           }
         : undefined,

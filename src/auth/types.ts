@@ -21,6 +21,9 @@ export interface SignUpInput {
   password: string;
 }
 
+/** Third-party identity providers wired through Supabase Auth's OAuth flow. */
+export type OAuthProvider = 'spotify' | 'google' | 'apple';
+
 /** Thrown for expected, user-facing failures (e.g. wrong password). */
 export class AuthError extends Error {}
 
@@ -31,13 +34,14 @@ export interface AuthBackend {
   signIn(email: string, password: string): Promise<Session>;
   signOut(): Promise<void>;
   /**
-   * Optional: begin a Spotify OAuth sign-in. On web this redirects the page to
-   * Spotify and resolves as the navigation starts — the authed session arrives
-   * afterwards via `onAuthStateChange` (not from this promise). `redirectTo` is
-   * the URL Spotify/Supabase returns to (the app origin on web). Backends
-   * without OAuth (LocalAuthBackend) omit this, and the UI hides the button.
+   * Optional: begin an OAuth sign-in with a third-party provider (Google/Apple/
+   * Spotify). On web this redirects the page out to the provider and resolves as
+   * navigation starts — the authed session arrives afterwards via
+   * `onAuthStateChange` (not from this promise). `redirectTo` is the URL the
+   * provider/Supabase returns to (the app origin on web). Backends without OAuth
+   * (LocalAuthBackend) omit this, and the UI hides the buttons.
    */
-  signInWithSpotify?(redirectTo?: string): Promise<void>;
+  signInWithOAuth?(provider: OAuthProvider, redirectTo?: string): Promise<void>;
   /**
    * Optional: notify on session changes the app didn't initiate — token
    * refresh failure/expiry, sign-out in another tab. Returns an unsubscribe.
