@@ -7,6 +7,7 @@ import { useAuthGate } from '@/auth/use-require-auth';
 import { AlbumCover } from '@/components/album-cover';
 import { EmptyState } from '@/components/empty-state';
 import { ModalDialogFrame } from '@/components/modal-dialog-frame';
+import { Surface } from '@/components/surface';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
@@ -148,13 +149,7 @@ export default function DropModal() {
               ) : null
             }
             renderItem={({ item }) => (
-              <Pressable
-                testID="drop-result"
-                onPress={() => setSelected(item)}
-                style={({ pressed }) => [
-                  styles.row,
-                  { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.6 : 1 },
-                ]}>
+              <Surface testID="drop-result" onPress={() => setSelected(item)} style={styles.row}>
                 <AlbumCover uri={item.coverUrl} size={56} />
                 <View style={styles.rowText}>
                   <ThemedText type="smallBold" numberOfLines={1}>
@@ -166,7 +161,7 @@ export default function DropModal() {
                   </ThemedText>
                 </View>
                 <Ionicons name="radio-outline" size={22} color={theme.textSecondary} />
-              </Pressable>
+              </Surface>
             )}
           />
         </>
@@ -203,13 +198,7 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, paddingVertical: Spacing.three, fontSize: 16 },
   error: { paddingHorizontal: Spacing.four, marginBottom: Spacing.two },
   list: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.four, gap: Spacing.two },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three,
-    padding: Spacing.two,
-    borderRadius: 12,
-  },
+  row: { flexDirection: 'row', alignItems: 'center' },
   rowText: { flex: 1, gap: 2 },
   empty: { alignItems: 'center', gap: Spacing.two, paddingTop: Spacing.six },
 });

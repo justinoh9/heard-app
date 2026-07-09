@@ -216,14 +216,11 @@ export default function ProfileScreen() {
                   {ranked
                     .filter((r) => !currentIds().includes(r.item.id))
                     .map((r) => (
-                      <Pressable
+                      <Surface
                         key={r.item.id}
                         testID={`pick-${r.item.id}`}
                         onPress={() => addFavorite(r.item.id)}
-                        style={({ pressed }) => [
-                          styles.rankRow,
-                          { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.6 : 1 },
-                        ]}>
+                        style={styles.rankRow}>
                         <AlbumCover uri={r.item.artUrl} size={44} radius={6} />
                         <View style={{ flex: 1 }}>
                           <ThemedText type="small" numberOfLines={1}>
@@ -236,7 +233,7 @@ export default function ProfileScreen() {
                         <ThemedText type="smallBold" style={{ color: theme.accent }}>
                           {r.score.toFixed(1)}
                         </ThemedText>
-                      </Pressable>
+                      </Surface>
                     ))}
                 </ScrollView>
               </View>
@@ -474,7 +471,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rankRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, padding: Spacing.two, borderRadius: 10 },
+  rankRow: { flexDirection: 'row', alignItems: 'center' },
   rankNum: { width: 16, textAlign: 'center' },
   badges: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   badge: {
