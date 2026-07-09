@@ -39,6 +39,9 @@ export interface Palette {
   warning: string;
 }
 
+/** Font role keys; resolved to concrete families by `DisplayFonts`. */
+export type FontKey = 'serif' | 'rounded' | 'mono' | 'hand' | 'sans';
+
 /**
  * A visual mode's *structural* treatment — the non-color part of its identity.
  * Colors live on `Palette`; this holds the texture (borders, shadows, grain)
@@ -60,8 +63,14 @@ export interface Treatment {
   wobble: boolean;
   /** Riso grain overlay on surfaces. */
   grain: boolean;
-  /** Display-font hint; the loader maps this to a concrete family. */
-  font: 'serif' | 'rounded' | 'mono' | 'hand';
+  /** Display-font hint (wordmark, titles); the loader maps this to a family. */
+  font: FontKey;
+  /** Body-font hint (labels + paragraphs). Lets Scribble stay hand at heading
+   *  size but clean at body size, so the app isn't uniformly cursive. */
+  bodyFont: FontKey;
+  /** Draw the card border as a wobbly hand-drawn path instead of a crisp
+   *  rectangle (Scribble's fluid, sketched look). */
+  sketch: boolean;
 }
 
 /** A named palette that ships light + dark counterparts for the global toggle. */
@@ -86,18 +95,40 @@ export interface Mode {
 export const Modes = {
   scribble: {
     label: 'Scribble',
-    treatment: { borderWidth: 2.5, borderStyle: 'solid', radius: 14, shadow: 'sticker', underline: 'wavy', wobble: false, grain: false, font: 'hand' },
+    // Fluid + minimalist: a hand-drawn wobbly border (sketch) carries the card,
+    // so no heavy sticker shadow. Hand display font, clean sans body.
+    treatment: { borderWidth: 2, borderStyle: 'solid', radius: 20, shadow: 'none', underline: 'wavy', wobble: false, grain: false, font: 'hand', bodyFont: 'sans', sketch: true },
     variants: {
-      cream: {
-        label: 'Cream paper',
-        light: { isDark: false, background: '#FBF6EA', backgroundElement: '#FFFFFF', backgroundSelected: '#F1E7D2', text: '#2A2621', textSecondary: '#8B7F6B', accent: '#F26B3A', onAccent: '#FFF8F1', accentSoft: '#FBE2D3', accentAlt: '#3FA789', onAccentAlt: '#FFFFFF', danger: '#E8503C', warning: '#F0A81E' },
-        dark: { isDark: true, background: '#191510', backgroundElement: '#241F18', backgroundSelected: '#332B20', text: '#F4ECDC', textSecondary: '#B7A98F', accent: '#FF8A52', onAccent: '#2A1408', accentSoft: '#3A2A1C', accentAlt: '#57C0A0', onAccentAlt: '#141009', danger: '#F0604A', warning: '#F2B33A' },
+      ink: {
+        label: 'Charcoal',
+        light: { isDark: false, background: '#FAF6EC', backgroundElement: '#FFFFFF', backgroundSelected: '#EFE7D6', text: '#2B2724', textSecondary: '#8C8377', accent: '#4A443B', onAccent: '#FAF6EC', accentSoft: '#E7E0D2', accentAlt: '#B0752F', onAccentAlt: '#FFFFFF', danger: '#E0503C', warning: '#E8A21E' },
+        dark: { isDark: true, background: '#17140F', backgroundElement: '#211D17', backgroundSelected: '#2E281F', text: '#F1EADB', textSecondary: '#ADA089', accent: '#E7D9BE', onAccent: '#1A1610', accentSoft: '#2E281F', accentAlt: '#D9A85A', onAccentAlt: '#17140F', danger: '#F0604A', warning: '#F2B33A' },
+      },
+      tangerine: {
+        label: 'Tangerine',
+        light: { isDark: false, background: '#FAF6EC', backgroundElement: '#FFFFFF', backgroundSelected: '#EFE7D6', text: '#2B2724', textSecondary: '#8C8377', accent: '#EE6B3B', onAccent: '#FFF7F1', accentSoft: '#FBE1D2', accentAlt: '#3FA789', onAccentAlt: '#FFFFFF', danger: '#E0503C', warning: '#E8A21E' },
+        dark: { isDark: true, background: '#17140F', backgroundElement: '#211D17', backgroundSelected: '#2E281F', text: '#F1EADB', textSecondary: '#ADA089', accent: '#FF8C54', onAccent: '#2A1408', accentSoft: '#3A2A1C', accentAlt: '#57C0A0', onAccentAlt: '#141009', danger: '#F0604A', warning: '#F2B33A' },
+      },
+      berry: {
+        label: 'Berry',
+        light: { isDark: false, background: '#FAF6EC', backgroundElement: '#FFFFFF', backgroundSelected: '#EFE7D6', text: '#2B2724', textSecondary: '#8C8377', accent: '#D8476B', onAccent: '#FFF5F7', accentSoft: '#FAD9E2', accentAlt: '#E0973C', onAccentAlt: '#FFFFFF', danger: '#E0503C', warning: '#E8A21E' },
+        dark: { isDark: true, background: '#17140F', backgroundElement: '#211D17', backgroundSelected: '#2E281F', text: '#F1EADB', textSecondary: '#ADA089', accent: '#FF6E92', onAccent: '#2A0E16', accentSoft: '#3A1E28', accentAlt: '#E6A94E', onAccentAlt: '#17140F', danger: '#F0604A', warning: '#F2B33A' },
+      },
+      sky: {
+        label: 'Sky',
+        light: { isDark: false, background: '#FAF6EC', backgroundElement: '#FFFFFF', backgroundSelected: '#EFE7D6', text: '#2B2724', textSecondary: '#8C8377', accent: '#3E82C4', onAccent: '#F3F8FE', accentSoft: '#D6E7F5', accentAlt: '#E0973C', onAccentAlt: '#FFFFFF', danger: '#E0503C', warning: '#E8A21E' },
+        dark: { isDark: true, background: '#17140F', backgroundElement: '#211D17', backgroundSelected: '#2E281F', text: '#F1EADB', textSecondary: '#ADA089', accent: '#6FA9E0', onAccent: '#0A1A2A', accentSoft: '#1E2A3A', accentAlt: '#E6A94E', onAccentAlt: '#17140F', danger: '#F0604A', warning: '#F2B33A' },
+      },
+      matcha: {
+        label: 'Matcha',
+        light: { isDark: false, background: '#FAF6EC', backgroundElement: '#FFFFFF', backgroundSelected: '#EFE7D6', text: '#2B2724', textSecondary: '#8C8377', accent: '#5B9E5B', onAccent: '#F4FAF3', accentSoft: '#DCEBD6', accentAlt: '#D8843C', onAccentAlt: '#FFFFFF', danger: '#E0503C', warning: '#E8A21E' },
+        dark: { isDark: true, background: '#17140F', backgroundElement: '#211D17', backgroundSelected: '#2E281F', text: '#F1EADB', textSecondary: '#ADA089', accent: '#82C182', onAccent: '#0E1E0E', accentSoft: '#1E2E1E', accentAlt: '#E0973C', onAccentAlt: '#17140F', danger: '#F0604A', warning: '#F2B33A' },
       },
     },
   },
   jelly: {
     label: 'Jelly',
-    treatment: { borderWidth: 1, borderStyle: 'solid', radius: 22, shadow: 'gel', underline: 'none', wobble: true, grain: false, font: 'rounded' },
+    treatment: { borderWidth: 1, borderStyle: 'solid', radius: 22, shadow: 'gel', underline: 'none', wobble: true, grain: false, font: 'rounded', bodyFont: 'rounded', sketch: false },
     variants: {
       blueberry: {
         label: 'Blueberry Jam',
@@ -113,7 +144,7 @@ export const Modes = {
   },
   pbj: {
     label: 'PB & J',
-    treatment: { borderWidth: 2, borderStyle: 'dashed', radius: 16, shadow: 'none', underline: 'straight', wobble: false, grain: false, font: 'serif' },
+    treatment: { borderWidth: 2, borderStyle: 'dashed', radius: 16, shadow: 'none', underline: 'straight', wobble: false, grain: false, font: 'serif', bodyFont: 'serif', sketch: false },
     variants: {
       classic: {
         label: 'Peanut + grape',
@@ -124,7 +155,7 @@ export const Modes = {
   },
   riso: {
     label: 'Riso zine',
-    treatment: { borderWidth: 2, borderStyle: 'solid', radius: 0, shadow: 'hard', underline: 'none', wobble: false, grain: true, font: 'mono' },
+    treatment: { borderWidth: 2, borderStyle: 'solid', radius: 0, shadow: 'hard', underline: 'none', wobble: false, grain: true, font: 'mono', bodyFont: 'mono', sketch: false },
     variants: {
       inkAndFlame: {
         label: 'Ink + flame',
@@ -135,7 +166,7 @@ export const Modes = {
   },
   classic: {
     label: 'Classic vinyl',
-    treatment: { borderWidth: 1, borderStyle: 'solid', radius: 12, shadow: 'none', underline: 'none', wobble: false, grain: false, font: 'serif' },
+    treatment: { borderWidth: 1, borderStyle: 'solid', radius: 12, shadow: 'none', underline: 'none', wobble: false, grain: false, font: 'serif', bodyFont: 'sans', sketch: false },
     variants: {
       vinyl: {
         label: 'Vinyl red',
@@ -159,7 +190,7 @@ export interface ThemeSelection {
 
 export const DEFAULT_SELECTION: ThemeSelection = {
   mode: 'scribble',
-  variant: 'cream',
+  variant: 'ink',
   appearance: 'light',
 };
 
@@ -181,16 +212,18 @@ export type ThemeColor = {
 export const DisplayFont = 'Fraunces_600SemiBold';
 
 /**
- * Per-mode display faces — a mode's `treatment.font` picks one for the wordmark,
- * headers, and titles. All four are loaded in the root layout (keep the
- * useFonts() call there in sync with these family names).
+ * Font families per role key — a mode's `treatment.font` / `bodyFont` pick from
+ * these. Loaded families (Fraunces, Baloo 2, Patrick Hand) must stay in sync
+ * with the useFonts() call in the root layout; `mono`/`sans` are system stacks
+ * that need no file. `hand` is Patrick Hand (a legible hand *print*, not a
+ * flowing cursive) so Scribble reads as sketched, not scripty.
  */
-export const DisplayFonts: Record<Treatment['font'], string> = {
+export const DisplayFonts: Record<FontKey, string> = {
   serif: 'Fraunces_600SemiBold',
   rounded: 'Baloo2_600SemiBold',
-  // System monospace — needs no font file and renders distinctly everywhere.
   mono: Platform.select({ ios: 'Courier New', default: 'monospace' }) ?? 'monospace',
-  hand: 'Caveat_600SemiBold',
+  hand: 'PatrickHand_400Regular',
+  sans: Platform.select({ web: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif', ios: 'System', default: 'sans-serif' }) ?? 'sans-serif',
 };
 
 export const Fonts = Platform.select({

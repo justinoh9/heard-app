@@ -122,6 +122,11 @@ export function useDisplayFont(): string {
   return DisplayFonts[useTreatment().font];
 }
 
+/** The active mode's body font family (labels, paragraphs). */
+export function useBodyFont(): string {
+  return DisplayFonts[useTreatment().bodyFont];
+}
+
 /** Full selection + setters, for the Settings appearance picker. */
 export function useThemeControls(): ThemePreference {
   const ctx = useContext(ThemePreferenceContext);

@@ -1,7 +1,7 @@
 import { Platform, StyleSheet, Text, type TextProps } from 'react-native';
 
 import { Fonts, ThemeColor } from '@/constants/theme';
-import { useDisplayFont, useTheme } from '@/hooks/use-theme';
+import { useBodyFont, useDisplayFont, useTheme } from '@/hooks/use-theme';
 
 export type ThemedTextProps = TextProps & {
   type?: 'default' | 'title' | 'small' | 'smallBold' | 'subtitle' | 'link' | 'linkPrimary' | 'code';
@@ -11,13 +11,16 @@ export type ThemedTextProps = TextProps & {
 export function ThemedText({ style, type = 'default', themeColor, ...rest }: ThemedTextProps) {
   const theme = useTheme();
   const displayFont = useDisplayFont();
+  const bodyFont = useBodyFont();
+  const isDisplay = type === 'title' || type === 'subtitle';
 
   return (
     <Text
       style={[
-        // The mode font is the app-wide default, so every label/body/heading
-        // reads in the active theme's voice. `code` re-overrides to mono below.
-        { color: theme[themeColor ?? 'text'], fontFamily: displayFont },
+        // Headings speak in the display face, everything else in the body face —
+        // so a mode can be hand-drawn at title size and clean at body size
+        // (Scribble) without being uniformly one font. `code` overrides to mono.
+        { color: theme[themeColor ?? 'text'], fontFamily: isDisplay ? displayFont : bodyFont },
         type === 'default' && styles.default,
         type === 'title' && styles.title,
         type === 'small' && styles.small,

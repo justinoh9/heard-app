@@ -1,6 +1,6 @@
 import { Baloo2_600SemiBold } from '@expo-google-fonts/baloo-2';
-import { Caveat_600SemiBold } from '@expo-google-fonts/caveat';
 import { Fraunces_600SemiBold } from '@expo-google-fonts/fraunces';
+import { PatrickHand_400Regular } from '@expo-google-fonts/patrick-hand';
 import { useFonts } from 'expo-font';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, useRouter, useSegments } from 'expo-router';
 import { useEffect, useRef } from 'react';
@@ -27,7 +27,7 @@ export default function RootLayout() {
   const [fontsLoaded] = useFonts({
     Fraunces_600SemiBold,
     Baloo2_600SemiBold,
-    Caveat_600SemiBold,
+    PatrickHand_400Regular,
   });
 
   // Capture an OAuth-redirect error (e.g. Spotify login failing server-side)
