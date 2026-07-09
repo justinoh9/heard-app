@@ -45,3 +45,6 @@ example
 
 # Claude Code local config
 .claude/
+
+# graphify knowledge-graph output (local artifact)
+graphify-out/
