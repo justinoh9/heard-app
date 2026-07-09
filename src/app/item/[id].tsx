@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'reac
 
 import { useRequireAuth } from '@/auth/use-require-auth';
 import { AlbumCover } from '@/components/album-cover';
+import { BreadRating } from '@/components/bread-rating';
 import { CommentCard } from '@/components/comment-card';
 import { EmptyState } from '@/components/empty-state';
 import { PageContainer } from '@/components/page-container';
@@ -160,11 +161,14 @@ export default function ItemProfileScreen() {
             </ThemedText>
 
             {existing ? (
-              <View style={[styles.scorePill, { backgroundColor: theme.accent }]}>
-                <ThemedText type="smallBold" style={{ color: theme.onAccent }}>
-                  {existing.score.toFixed(1)}
-                </ThemedText>
-              </View>
+              <>
+                <BreadRating score={existing.score} size={26} />
+                <View style={[styles.scorePill, { backgroundColor: theme.accent }]}>
+                  <ThemedText type="smallBold" style={{ color: theme.onAccent }}>
+                    {existing.score.toFixed(1)}
+                  </ThemedText>
+                </View>
+              </>
             ) : null}
 
             <View style={styles.actionsRow}>

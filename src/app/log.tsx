@@ -5,6 +5,7 @@ import { Animated, Pressable, StyleSheet, View } from 'react-native';
 
 import { useAuthGate } from '@/auth/use-require-auth';
 import { AlbumCover } from '@/components/album-cover';
+import { BreadRating } from '@/components/bread-rating';
 import { ModalDialogFrame } from '@/components/modal-dialog-frame';
 import { ScoreInput } from '@/components/score-input';
 import { TextField } from '@/components/text-field';
@@ -304,6 +305,7 @@ export default function LogModal() {
           <ThemedText type="subtitle" style={styles.center}>
             {album.title}
           </ThemedText>
+          <BreadRating score={score} size={30} />
           <ThemedText themeColor="textSecondary" style={styles.center}>
             Rated {score.toFixed(1)} · #{result.rank} of {result.total}
           </ThemedText>

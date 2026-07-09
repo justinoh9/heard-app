@@ -4,6 +4,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { useRequireAuth } from '@/auth/use-require-auth';
 import { AlbumCover } from '@/components/album-cover';
+import { BreadRating } from '@/components/bread-rating';
 import { PageContainer } from '@/components/page-container';
 import { Surface } from '@/components/surface';
 import { ThemedText } from '@/components/themed-text';
@@ -265,13 +266,7 @@ function FeedRow({
           />
           <View style={{ flex: 1, gap: 3 }}>
             <View style={styles.scoreRow}>
-              {event.score != null && (
-                <View style={[styles.scorePill, { backgroundColor: theme.accent }]}>
-                  <ThemedText type="smallBold" style={{ color: theme.onAccent }}>
-                    {event.score.toFixed(1)}
-                  </ThemedText>
-                </View>
-              )}
+              {event.score != null && <BreadRating score={event.score} size={18} />}
               <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
                 {event.artist}
               </ThemedText>
