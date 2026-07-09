@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRequireAuth } from '@/auth/use-require-auth';
 import { EmptyState } from '@/components/empty-state';
 import { PageContainer } from '@/components/page-container';
+import { Surface } from '@/components/surface';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -30,7 +31,10 @@ export default function PeopleScreen() {
     <ThemedView style={[styles.screen, { paddingTop: insets.top }]}>
       <PageContainer style={styles.container}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} accessibilityLabel="Back" hitSlop={8}>
+          <Pressable
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+            accessibilityLabel="Back"
+            hitSlop={8}>
             <Ionicons name="chevron-back" size={24} color={theme.text} />
           </Pressable>
           <ThemedText type="subtitle">Find friends</ThemedText>
@@ -80,7 +84,7 @@ function PersonRow({
   theme: ReturnType<typeof useTheme>;
 }) {
   return (
-    <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
+    <Surface style={styles.row}>
       <Pressable
         testID={`person-${person.userId}`}
         onPress={onOpen}
@@ -110,7 +114,7 @@ function PersonRow({
           {following ? 'Following' : 'Follow'}
         </ThemedText>
       </Pressable>
-    </View>
+    </Surface>
   );
 }
 
@@ -119,13 +123,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, padding: Spacing.three, gap: Spacing.three },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   list: { gap: Spacing.two },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three,
-    borderRadius: 12,
-    padding: Spacing.three,
-  },
+  row: { flexDirection: 'row', alignItems: 'center' },
   avatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   personBody: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   name: { flex: 1 },

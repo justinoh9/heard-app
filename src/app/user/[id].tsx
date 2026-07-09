@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AlbumCover } from '@/components/album-cover';
 import { PageContainer } from '@/components/page-container';
+import { Surface } from '@/components/surface';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -78,7 +79,10 @@ export default function UserProfileScreen() {
       <ScrollView>
         <PageContainer style={styles.container}>
           <View style={styles.header}>
-            <Pressable onPress={() => router.back()} accessibilityLabel="Back" hitSlop={8}>
+            <Pressable
+              onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+              accessibilityLabel="Back"
+              hitSlop={8}>
               <Ionicons name="chevron-back" size={24} color={theme.text} />
             </Pressable>
             <ThemedText type="subtitle">{displayName}</ThemedText>
@@ -114,7 +118,7 @@ export default function UserProfileScreen() {
             </View>
           ) : (
             <>
-              <View style={[styles.matchCard, { backgroundColor: theme.backgroundElement }]}>
+              <Surface style={styles.matchCard}>
                 <View style={styles.matchHeader}>
                   <ThemedText style={[styles.matchPercent, { color: theme.accent }]}>
                     {compat.percent}%
@@ -145,7 +149,7 @@ export default function UserProfileScreen() {
                     </View>
                   </>
                 )}
-              </View>
+              </Surface>
 
               {theirTop4?.chosen && (
                 <>
@@ -248,7 +252,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   center: { paddingVertical: Spacing.six, alignItems: 'center' },
-  matchCard: { borderRadius: 12, padding: Spacing.three, gap: Spacing.two },
+  matchCard: { gap: Spacing.two },
   matchHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   matchPercent: { fontSize: 34, fontWeight: '800' },
   favoritesRow: { flexDirection: 'row', gap: Spacing.three },

@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { EmptyState } from '@/components/empty-state';
 import { PageContainer } from '@/components/page-container';
+import { Surface } from '@/components/surface';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -35,7 +36,10 @@ export default function StreakScreen() {
   return (
     <ThemedView style={styles.screen}>
       <View style={styles.topBar}>
-        <Pressable onPress={() => router.back()} accessibilityLabel="Back" hitSlop={8}>
+        <Pressable
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+          accessibilityLabel="Back"
+          hitSlop={8}>
           <Ionicons name="chevron-back" size={26} color={theme.text} />
         </Pressable>
         <ThemedText type="smallBold">Streak</ThemedText>
@@ -53,14 +57,14 @@ export default function StreakScreen() {
             </ThemedText>
           </View>
 
-          <View style={[styles.longest, { backgroundColor: theme.backgroundElement }]}>
+          <Surface style={styles.longest}>
             <ThemedText type="smallBold" style={{ fontSize: 20 }}>
               {longest}
             </ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
               longest streak
             </ThemedText>
-          </View>
+          </Surface>
 
           <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
             LAST {GRID_DAYS} DAYS
@@ -102,7 +106,7 @@ const styles = StyleSheet.create({
   inner: { gap: Spacing.three },
   hero: { alignItems: 'center', gap: 4, marginTop: Spacing.two },
   current: { fontSize: 40 },
-  longest: { alignItems: 'center', paddingVertical: Spacing.three, borderRadius: 12, gap: 2 },
+  longest: { alignItems: 'center', gap: 2 },
   sectionLabel: { marginTop: Spacing.two },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   cell: { width: 28, height: 28, borderRadius: 6, borderWidth: 2 },
