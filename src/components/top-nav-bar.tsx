@@ -31,7 +31,7 @@ export function TopNavBar() {
   return (
     <ThemedView style={[styles.bar, { borderBottomColor: theme.backgroundElement }]}>
       <PageContainer style={styles.row}>
-        <ThemedText style={[styles.logo, { fontFamily: displayFont }]}>Jelli</ThemedText>
+        <ThemedText style={[styles.logo, { fontFamily: displayFont }]}>jelli</ThemedText>
 
         <View style={styles.links}>
           {LINKS.map((link) => {

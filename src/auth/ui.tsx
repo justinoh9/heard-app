@@ -10,7 +10,7 @@ export function BrandHeader({ tagline }: { tagline: string }) {
   const displayFont = useDisplayFont();
   return (
     <View style={styles.brand}>
-      <ThemedText style={[styles.logo, { fontFamily: displayFont }]}>Jelli</ThemedText>
+      <ThemedText style={[styles.logo, { fontFamily: displayFont }]}>jelli</ThemedText>
       <ThemedText themeColor="textSecondary">{tagline}</ThemedText>
     </View>
   );

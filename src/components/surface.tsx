@@ -27,15 +27,17 @@ interface SurfaceProps {
   onPress?: () => void;
   testID?: string;
   accessibilityLabel?: string;
+  /** Override the card fill (defaults to the palette's element color). */
+  background?: string;
 }
 
-export function Surface({ children, style, onPress, testID, accessibilityLabel }: SurfaceProps) {
+export function Surface({ children, style, onPress, testID, accessibilityLabel, background }: SurfaceProps) {
   const theme = useTheme();
   const t = useTreatment();
 
   const chrome = useMemo<ViewStyle>(() => {
     const base: ViewStyle = {
-      backgroundColor: theme.backgroundElement,
+      backgroundColor: background ?? theme.backgroundElement,
       borderRadius: t.radius,
       borderWidth: t.borderWidth,
       borderStyle: t.borderStyle,
@@ -58,7 +60,7 @@ export function Surface({ children, style, onPress, testID, accessibilityLabel }
       default:
         return { ...base, borderColor: t.borderStyle === 'dashed' ? theme.accentAlt : theme.backgroundSelected };
     }
-  }, [theme, t]);
+  }, [theme, t, background]);
 
   const offsetShadow = t.shadow === 'sticker' || t.shadow === 'hard';
 

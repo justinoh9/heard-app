@@ -90,8 +90,8 @@ export const Modes = {
     variants: {
       cream: {
         label: 'Cream paper',
-        light: { isDark: false, background: '#F6F1E7', backgroundElement: '#FFFDF7', backgroundSelected: '#E1D6BE', text: '#2B2620', textSecondary: '#7A705F', accent: '#C1512B', onAccent: '#FBF6EC', accentSoft: '#F0D9CC', accentAlt: '#6E7A4E', onAccentAlt: '#F6F1E7', danger: '#B23A2E', warning: '#9A6A10' },
-        dark: { isDark: true, background: '#1A1712', backgroundElement: '#24201A', backgroundSelected: '#332C22', text: '#F3ECDD', textSecondary: '#B3A68E', accent: '#E08B4C', onAccent: '#241A10', accentSoft: '#3A2E1E', accentAlt: '#9BB06B', onAccentAlt: '#1A1712', danger: '#E8604C', warning: '#EFA72A' },
+        light: { isDark: false, background: '#FBF6EA', backgroundElement: '#FFFFFF', backgroundSelected: '#F1E7D2', text: '#2A2621', textSecondary: '#8B7F6B', accent: '#F26B3A', onAccent: '#FFF8F1', accentSoft: '#FBE2D3', accentAlt: '#3FA789', onAccentAlt: '#FFFFFF', danger: '#E8503C', warning: '#F0A81E' },
+        dark: { isDark: true, background: '#191510', backgroundElement: '#241F18', backgroundSelected: '#332B20', text: '#F4ECDC', textSecondary: '#B7A98F', accent: '#FF8A52', onAccent: '#2A1408', accentSoft: '#3A2A1C', accentAlt: '#57C0A0', onAccentAlt: '#141009', danger: '#F0604A', warning: '#F2B33A' },
       },
     },
   },

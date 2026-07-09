@@ -10,6 +10,7 @@ import { EmptyState } from '@/components/empty-state';
 import { PageContainer } from '@/components/page-container';
 import { ScoreBreakdown } from '@/components/score-breakdown';
 import { Segmented } from '@/components/segmented';
+import { Surface } from '@/components/surface';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -146,7 +147,7 @@ export default function ItemProfileScreen() {
 
       <ScrollView contentContainerStyle={styles.content}>
         <PageContainer style={styles.inner}>
-          <View style={styles.header}>
+          <Surface style={styles.header}>
             <AlbumCover uri={artUrl} size={140} radius={12} />
             <ThemedText type="subtitle" style={styles.center}>
               {title}
@@ -192,7 +193,7 @@ export default function ItemProfileScreen() {
                 </ThemedText>
               </Pressable>
             </View>
-          </View>
+          </Surface>
 
           {type === 'album' && (
             <>

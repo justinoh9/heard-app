@@ -27,6 +27,7 @@ export default function TabsLayout() {
           headerShadowVisible: false,
           tabBarActiveTintColor: colors.accent,
           tabBarInactiveTintColor: colors.textSecondary,
+          tabBarLabelStyle: { fontFamily: displayFont, fontSize: 12 },
           tabBarStyle: {
             backgroundColor: colors.background,
             borderTopColor: colors.backgroundElement,
@@ -35,7 +36,7 @@ export default function TabsLayout() {
         <Tabs.Screen
           name="index"
           options={{
-            title: 'Jelli',
+            title: 'jelli',
             tabBarLabel: 'Feed',
             tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size} color={color} />,
           }}
