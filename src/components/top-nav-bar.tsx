@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, usePathname } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { AnimatedWordmark } from '@/components/animated-wordmark';
 import { PageContainer } from '@/components/page-container';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -31,7 +32,7 @@ export function TopNavBar() {
   return (
     <ThemedView style={[styles.bar, { borderBottomColor: theme.backgroundElement }]}>
       <PageContainer style={styles.row}>
-        <ThemedText style={[styles.logo, { fontFamily: displayFont }]}>jelli</ThemedText>
+        <AnimatedWordmark text="jelli" style={[styles.logo, { fontFamily: displayFont, color: theme.text }]} />
 
         <View style={styles.links}>
           {LINKS.map((link) => {

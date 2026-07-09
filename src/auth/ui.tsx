@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { AnimatedWordmark } from '@/components/animated-wordmark';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useDisplayFont, useTheme } from '@/hooks/use-theme';
@@ -8,9 +9,10 @@ import type { OAuthProvider } from './types';
 
 export function BrandHeader({ tagline }: { tagline: string }) {
   const displayFont = useDisplayFont();
+  const theme = useTheme();
   return (
     <View style={styles.brand}>
-      <ThemedText style={[styles.logo, { fontFamily: displayFont }]}>jelli</ThemedText>
+      <AnimatedWordmark text="jelli" style={[styles.logo, { fontFamily: displayFont, color: theme.text }]} />
       <ThemedText themeColor="textSecondary">{tagline}</ThemedText>
     </View>
   );

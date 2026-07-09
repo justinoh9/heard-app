@@ -15,8 +15,10 @@ import { useTheme } from '@/hooks/use-theme';
 
 const SLICES = 5;
 const MAX_SCORE = 10;
-// A sandwich-bread slice: flat-ish base, domed top shoulders.
-const BREAD = 'M18,52 C18,26 33,14 50,14 C67,14 82,26 82,52 L82,83 C82,90 77,92 70,92 L30,92 C23,92 18,90 18,83 Z';
+// A slice of sandwich bread: wide flat base, rounded bottom corners, and two
+// rounded shoulders rising to a broad flat-topped crown (not a narrow arch).
+const BREAD =
+  'M16,90 Q9,90 9,81 L9,45 Q9,29 25,23 Q33,14 50,14 Q67,14 75,23 Q91,29 91,45 L91,81 Q91,90 84,90 Z';
 
 export function BreadRating({
   score,

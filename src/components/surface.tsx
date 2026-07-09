@@ -4,12 +4,13 @@
  * active mode's chrome —
  *   Scribble → a hand-drawn, wobbly SVG border (each card drawn slightly
  *              differently, so a feed of cards looks sketched, not stamped)
- *   Jelly    → hairline + glossy top highlight + soft glow, wobble-on-tap
+ *   Jelly    → hairline + glossy top highlight + soft glow
  *   PB & J   → dashed label border
  *   Riso     → hard 0-radius print block with an offset ink shadow
  *   Classic  → quiet hairline card
- * Content is untouched — screens wrap their card body in <Surface> and get the
- * texture for free in every theme.
+ * Every *interactive* Surface (one with onPress) also gets a subtle, universal
+ * interaction movement — a press-scale + hover-lift — so the whole app feels
+ * responsive to touch, not just static panels.
  */
 
 import { useMemo, useState } from 'react';
@@ -71,10 +72,27 @@ export function Surface({ children, style, onPress, testID, accessibilityLabel, 
   const theme = useTheme();
   const t = useTreatment();
   const [dims, setDims] = useState({ w: 0, h: 0 });
-  // Stable per-instance seed so a card's wobble doesn't jitter on re-render.
   const sketchSeed = useMemo(() => Math.floor(Math.random() * 100000) + 1, []);
+
+  // Universal interaction movement: a press-scale + hover-lift on any tappable
+  // card, in every mode (Jelly presses a touch deeper for its squishy feel).
   const scale = useSharedValue(1);
-  const wobbleStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const lift = useSharedValue(0);
+  const interactStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }, { translateY: lift.value }],
+  }));
+  const pressIn = () => {
+    scale.value = withSpring(t.wobble ? 0.96 : 0.98, { damping: 14, stiffness: 260 });
+  };
+  const pressOut = () => {
+    scale.value = withSpring(1, { damping: 10, stiffness: 240 });
+  };
+  const hoverIn = () => {
+    lift.value = withSpring(-2, { damping: 16, stiffness: 240 });
+  };
+  const hoverOut = () => {
+    lift.value = withSpring(0, { damping: 16, stiffness: 240 });
+  };
 
   const chrome = useMemo<ViewStyle>(() => {
     const base: ViewStyle = {
@@ -136,9 +154,18 @@ export function Surface({ children, style, onPress, testID, accessibilityLabel, 
     // A rounded-rect base fill under the SVG masks the pre-measure first frame.
     const sketchStyle = [styles.card, { backgroundColor: bg, borderRadius: t.radius }, style];
     return onPress ? (
-      <Pressable onLayout={onLayout} testID={testID} accessibilityLabel={accessibilityLabel} onPress={onPress} style={sketchStyle}>
+      <AnimatedPressable
+        onLayout={onLayout}
+        testID={testID}
+        accessibilityLabel={accessibilityLabel}
+        onPress={onPress}
+        onPressIn={pressIn}
+        onPressOut={pressOut}
+        onHoverIn={hoverIn}
+        onHoverOut={hoverOut}
+        style={[sketchStyle, interactStyle]}>
         {drawn}
-      </Pressable>
+      </AnimatedPressable>
     ) : (
       <View onLayout={onLayout} testID={testID} style={sketchStyle}>
         {drawn}
@@ -167,13 +194,11 @@ export function Surface({ children, style, onPress, testID, accessibilityLabel, 
       testID={testID}
       accessibilityLabel={accessibilityLabel}
       onPress={onPress}
-      onPressIn={() => {
-        if (t.wobble) scale.value = withSpring(0.96, { damping: 12, stiffness: 260 });
-      }}
-      onPressOut={() => {
-        if (t.wobble) scale.value = withSpring(1, { damping: 9, stiffness: 240 });
-      }}
-      style={[cardStyle, t.wobble ? wobbleStyle : null]}>
+      onPressIn={pressIn}
+      onPressOut={pressOut}
+      onHoverIn={hoverIn}
+      onHoverOut={hoverOut}
+      style={[cardStyle, interactStyle]}>
       {body}
     </AnimatedPressable>
   ) : (
