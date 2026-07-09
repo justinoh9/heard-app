@@ -11,13 +11,13 @@ export type ThemedTextProps = TextProps & {
 export function ThemedText({ style, type = 'default', themeColor, ...rest }: ThemedTextProps) {
   const theme = useTheme();
   const displayFont = useDisplayFont();
-  const isDisplay = type === 'title' || type === 'subtitle';
 
   return (
     <Text
       style={[
-        { color: theme[themeColor ?? 'text'] },
-        isDisplay && { fontFamily: displayFont },
+        // The mode font is the app-wide default, so every label/body/heading
+        // reads in the active theme's voice. `code` re-overrides to mono below.
+        { color: theme[themeColor ?? 'text'], fontFamily: displayFont },
         type === 'default' && styles.default,
         type === 'title' && styles.title,
         type === 'small' && styles.small,
