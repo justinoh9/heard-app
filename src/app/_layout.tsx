@@ -4,8 +4,9 @@ import { PatrickHand_400Regular } from '@expo-google-fonts/patrick-hand';
 import { useFonts } from 'expo-font';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, useRouter, useSegments } from 'expo-router';
 import { useEffect, useRef } from 'react';
-import { ActivityIndicator, Platform } from 'react-native';
+import { Platform } from 'react-native';
 
+import { JelliLoader } from '@/components/jelli-loader';
 import { ThemedView } from '@/components/themed-view';
 import { AuthProvider, useAuth } from '@/auth/store';
 import {
@@ -168,7 +169,7 @@ function RootNavigator() {
   if (status === 'loading') {
     return (
       <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator />
+        <JelliLoader scale={1.4} />
       </ThemedView>
     );
   }

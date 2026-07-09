@@ -1,17 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  View,
-} from 'react-native';
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { AlbumCover } from '@/components/album-cover';
 import { EmptyState } from '@/components/empty-state';
+import { JelliLoader } from '@/components/jelli-loader';
 import { PageContainer } from '@/components/page-container';
 import { RecentPlaysTray } from '@/components/recent-plays-tray';
 import { Surface } from '@/components/surface';
@@ -113,7 +107,7 @@ export default function RateSearchScreen() {
         </ScrollView>
       ) : loading && results.length === 0 ? (
         <View style={styles.center}>
-          <ActivityIndicator />
+          <JelliLoader />
         </View>
       ) : results.length === 0 ? (
         <EmptyState icon="sad-outline" message={`No results for “${trimmed}”`} />
