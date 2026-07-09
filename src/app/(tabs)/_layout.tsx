@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import { View } from 'react-native';
 
+import { AnimatedWordmark } from '@/components/animated-wordmark';
 import { TopNavBar } from '@/components/top-nav-bar';
 import { useResponsive } from '@/hooks/use-responsive';
 import { useDisplayFont, useTheme } from '@/hooks/use-theme';
@@ -37,6 +38,9 @@ export default function TabsLayout() {
           name="index"
           options={{
             title: 'jelli',
+            headerTitle: () => (
+              <AnimatedWordmark text="jelli" style={{ fontFamily: displayFont, fontSize: 20, color: colors.text }} />
+            ),
             tabBarLabel: 'Feed',
             tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size} color={color} />,
           }}

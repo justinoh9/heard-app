@@ -15,10 +15,11 @@ import { useTheme } from '@/hooks/use-theme';
 
 const SLICES = 5;
 const MAX_SCORE = 10;
-// A slice of sandwich bread: wide flat base, rounded bottom corners, and two
-// rounded shoulders rising to a broad flat-topped crown (not a narrow arch).
+// A slice of sandwich bread: a rectangular body with a flat rounded base and
+// vertical sides, capped by one smooth, wide domed crust — the classic bread
+// silhouette (not a narrow gravestone arch).
 const BREAD =
-  'M16,90 Q9,90 9,81 L9,45 Q9,29 25,23 Q33,14 50,14 Q67,14 75,23 Q91,29 91,45 L91,81 Q91,90 84,90 Z';
+  'M18,88 Q10,88 10,80 L10,42 C10,20 28,12 50,12 C72,12 90,20 90,42 L90,80 Q90,88 82,88 Z';
 
 export function BreadRating({
   score,

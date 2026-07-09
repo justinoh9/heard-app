@@ -16,40 +16,45 @@ export type ThemedTextProps = TextProps & {
   themeColor?: ThemeColor;
 };
 
-// One global clock drives every wiggling label (each reads it with its own phase),
-// so a whole screen of hand-drawn text costs a single animation loop, not one
-// per node. It stays at 0 — and every derived style is static — until a wiggle
-// mode actually mounts and starts it.
-const wiggleClock = makeMutable(0);
-let wiggleStarted = false;
-function startWiggle() {
-  if (wiggleStarted) return;
-  wiggleStarted = true;
-  wiggleClock.value = withRepeat(withTiming(Math.PI * 2, { duration: 2600, easing: Easing.linear }), -1, false);
+// One global clock drives every wave (each letter reads it with its own phase),
+// so a whole screen of animated text costs a single loop, not one per letter.
+// It stays at 0 — all derived styles static — until a wiggle mode mounts.
+const waveClock = makeMutable(0);
+let waveStarted = false;
+function startWave() {
+  if (waveStarted) return;
+  waveStarted = true;
+  // reverse:true (bounce) so it loops forever — a plain -1 repeat settles at the
+  // target after the first pass on web. The worm travels one way, then back.
+  waveClock.value = withRepeat(withTiming(Math.PI * 2, { duration: 2800, easing: Easing.inOut(Easing.sin) }), -1, true);
 }
 
-export function ThemedText({ style, type = 'default', themeColor, ...rest }: ThemedTextProps) {
+// Only short strings wave, so a feed doesn't animate thousands of letter nodes
+// (long body copy / reviews render plain). Vertical-only, smooth traveling sine.
+const WAVE_MAX_LEN = 30;
+const WAVE_AMP = 2.4;
+const WAVE_STEP = 0.55; // radians of phase between adjacent letters → the "worm"
+
+function WaveLetter({ ch, index }: { ch: string; index: number }) {
+  const animated = useAnimatedStyle(() => ({
+    // `top` (not translate) so letters stay inline — safe even inside nested
+    // <Text>, and it flows/truncates normally. Web-only motion; harmless on native.
+    top: Math.sin(waveClock.value + index * WAVE_STEP) * WAVE_AMP,
+    position: 'relative',
+  }));
+  return <Animated.Text style={animated}>{ch}</Animated.Text>;
+}
+
+export function ThemedText({ style, type = 'default', themeColor, children, ...rest }: ThemedTextProps) {
   const theme = useTheme();
   const displayFont = useDisplayFont();
   const bodyFont = useBodyFont();
   const treatment = useTreatment();
   const isDisplay = type === 'title' || type === 'subtitle';
-  const wiggle = treatment.wiggle;
-
-  // Per-instance phase so labels bob out of sync with their neighbours (breaks
-  // the "uniformly typeset" feel) — a tiny, almost-entirely-vertical drift, no
-  // rotation or horizontal motion. Per-letter motion lives on the wordmark
-  // (AnimatedWordmark), where it's safe from text nesting/truncation.
-  const phase = useMemo(() => Math.random() * Math.PI * 2, []);
 
   useEffect(() => {
-    if (wiggle) startWiggle();
-  }, [wiggle]);
-
-  const wiggleStyle = useAnimatedStyle(() => {
-    if (!wiggle) return {};
-    return { transform: [{ translateY: Math.sin(wiggleClock.value + phase) * 0.5 }] };
-  });
+    if (treatment.wiggle) startWave();
+  }, [treatment.wiggle]);
 
   const baseStyle = [
     // Headings use the display face, everything else the body face; `code`
@@ -66,10 +71,25 @@ export function ThemedText({ style, type = 'default', themeColor, ...rest }: The
     style,
   ];
 
-  if (wiggle) {
-    return <Animated.Text style={[baseStyle, wiggleStyle]} {...rest} />;
+  // Per-letter wave: only for a plain, short string (nested/array children and
+  // long copy render normally). Letters inherit font/color from this <Text>.
+  const waveable = treatment.wiggle && typeof children === 'string' && children.length <= WAVE_MAX_LEN;
+  if (waveable) {
+    const text = children as string;
+    return (
+      <Text style={baseStyle} {...rest}>
+        {Array.from(text).map((ch, i) => (
+          <WaveLetter key={i} ch={ch} index={i} />
+        ))}
+      </Text>
+    );
   }
-  return <Text style={baseStyle} {...rest} />;
+
+  return (
+    <Text style={baseStyle} {...rest}>
+      {children}
+    </Text>
+  );
 }
 
 const styles = StyleSheet.create({
