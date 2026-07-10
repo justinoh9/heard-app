@@ -1,11 +1,13 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect } from 'react';
 import { Platform, StyleSheet, Text, type TextProps } from 'react-native';
 import Animated, {
   Easing,
   makeMutable,
   useAnimatedStyle,
+  useSharedValue,
   withRepeat,
   withTiming,
+  type SharedValue,
 } from 'react-native-reanimated';
 
 import { Fonts, ThemeColor } from '@/constants/theme';
@@ -16,32 +18,48 @@ export type ThemedTextProps = TextProps & {
   themeColor?: ThemeColor;
 };
 
-// One global clock drives every wave (each letter reads it with its own phase),
-// so a whole screen of animated text costs a single loop, not one per letter.
-// It stays at 0 — all derived styles static — until a wiggle mode mounts.
-const waveClock = makeMutable(0);
-let waveStarted = false;
-function startWave() {
-  if (waveStarted) return;
-  waveStarted = true;
+// One global clock advances every float (each letter reads it with its own
+// phase), so a whole screen of animated text costs a single loop. It stays at 0
+// — every derived style static — until a wiggle mode mounts. The per-element
+// `hover` factor gates it: at rest nothing moves; the clock only shows through
+// where the pointer is.
+const floatClock = makeMutable(0);
+let floatStarted = false;
+function startFloat() {
+  if (floatStarted) return;
+  floatStarted = true;
   // reverse:true (bounce) so it loops forever — a plain -1 repeat settles at the
-  // target after the first pass on web. The worm travels one way, then back.
-  waveClock.value = withRepeat(withTiming(Math.PI * 2, { duration: 2800, easing: Easing.inOut(Easing.sin) }), -1, true);
+  // target after the first pass on web. inOut(sin) easing softens the turns so
+  // the drift never snaps direction.
+  floatClock.value = withRepeat(withTiming(Math.PI * 2, { duration: 3400, easing: Easing.inOut(Easing.sin) }), -1, true);
 }
 
-// Only short strings wave, so a feed doesn't animate thousands of letter nodes
-// (long body copy / reviews render plain). Vertical-only, smooth traveling sine.
-const WAVE_MAX_LEN = 30;
-const WAVE_AMP = 2.4;
-const WAVE_STEP = 0.55; // radians of phase between adjacent letters → the "worm"
+// Only short strings float, so a feed doesn't animate thousands of letter nodes
+// (long body copy / reviews render plain). Vertical-only, and small.
+const FLOAT_MAX_LEN = 30;
+const FLOAT_AMP = 1.2; // px — a subtle bob, not a wave
 
-function WaveLetter({ ch, index }: { ch: string; index: number }) {
-  const animated = useAnimatedStyle(() => ({
+function FloatLetter({
+  ch,
+  index,
+  hover,
+}: {
+  ch: string;
+  index: number;
+  hover: SharedValue<number>;
+}) {
+  // Per-letter phase seed (not a fixed step) so letters drift on their own
+  // schedule — the word floats like it's suspended instead of rippling across.
+  const seed = index * 1.7;
+  const animated = useAnimatedStyle(() => {
+    const t = floatClock.value;
+    // Two summed sines of different rates = a gentle, non-repetitive float.
+    const drift = Math.sin(t + seed) * 0.7 + Math.sin(t * 0.6 + seed * 2.3) * 0.3;
     // `top` (not translate) so letters stay inline — safe even inside nested
-    // <Text>, and it flows/truncates normally. Web-only motion; harmless on native.
-    top: Math.sin(waveClock.value + index * WAVE_STEP) * WAVE_AMP,
-    position: 'relative',
-  }));
+    // <Text>, and it flows/truncates normally. `hover` (0→1) is what makes it
+    // move only while the element is hovered; at rest top is 0. Web-only.
+    return { top: drift * FLOAT_AMP * hover.value, position: 'relative' };
+  });
   return <Animated.Text style={animated}>{ch}</Animated.Text>;
 }
 
@@ -51,9 +69,12 @@ export function ThemedText({ style, type = 'default', themeColor, children, ...r
   const bodyFont = useBodyFont();
   const treatment = useTreatment();
   const isDisplay = type === 'title' || type === 'subtitle';
+  // 0 at rest, eased to 1 while this element is hovered — the float only shows
+  // through where the pointer is.
+  const hover = useSharedValue(0);
 
   useEffect(() => {
-    if (treatment.wiggle) startWave();
+    if (treatment.wiggle) startFloat();
   }, [treatment.wiggle]);
 
   const baseStyle = [
@@ -71,15 +92,29 @@ export function ThemedText({ style, type = 'default', themeColor, children, ...r
     style,
   ];
 
-  // Per-letter wave: only for a plain, short string (nested/array children and
+  // Per-letter float: only for a plain, short string (nested/array children and
   // long copy render normally). Letters inherit font/color from this <Text>.
-  const waveable = treatment.wiggle && typeof children === 'string' && children.length <= WAVE_MAX_LEN;
-  if (waveable) {
+  // Motion is gated on hover, so the whole thing is stationary until pointed at.
+  const floatable = treatment.wiggle && typeof children === 'string' && children.length <= FLOAT_MAX_LEN;
+  if (floatable) {
     const text = children as string;
+    // Pointer hover is web-only and not in RN's Text types, so spread it cast.
+    // On native these never fire, so the text simply stays at rest.
+    const hoverProps =
+      Platform.OS === 'web'
+        ? {
+            onPointerEnter: () => {
+              hover.value = withTiming(1, { duration: 220 });
+            },
+            onPointerLeave: () => {
+              hover.value = withTiming(0, { duration: 420 });
+            },
+          }
+        : {};
     return (
-      <Text style={baseStyle} {...rest}>
+      <Text style={baseStyle} {...(hoverProps as object)} {...rest}>
         {Array.from(text).map((ch, i) => (
-          <WaveLetter key={i} ch={ch} index={i} />
+          <FloatLetter key={i} ch={ch} index={i} hover={hover} />
         ))}
       </Text>
     );
