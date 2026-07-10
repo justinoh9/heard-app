@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -12,7 +12,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useRatings } from '@/data/store';
-import { useDisplayFont, useTheme } from '@/hooks/use-theme';
+import { useTheme } from '@/hooks/use-theme';
 import { artistImages, musicCatalog, MusicCatalogError, type SearchResult } from '@/music';
 
 type Theme = ReturnType<typeof useTheme>;
@@ -29,7 +29,6 @@ const POPULAR_PREVIEW = 5;
  */
 export default function ArtistProfileScreen() {
   const theme = useTheme();
-  const displayFont = useDisplayFont();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { ratingFor } = useRatings();
@@ -112,9 +111,11 @@ export default function ArtistProfileScreen() {
           <View style={[StyleSheet.absoluteFill, styles.bannerTint]} pointerEvents="none" />
 
           <RecordPlayer image={heroImage} albums={albums} size={216} />
-          <Text style={[styles.bannerName, { fontFamily: displayFont }]} numberOfLines={2}>
+          {/* subtitle → the mode's display face + the hover ripple; bannerName
+              overrides color/size/shadow for the on-image hero treatment. */}
+          <ThemedText type="subtitle" numberOfLines={2} style={styles.bannerName}>
             {name}
-          </Text>
+          </ThemedText>
         </View>
 
         {loading && (
@@ -207,7 +208,7 @@ export default function ArtistProfileScreen() {
       </ScrollView>
 
       <Pressable
-        onPress={() => router.back()}
+        onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
         accessibilityLabel="Back"
         hitSlop={8}
         style={[styles.backBtn, { top: insets.top + Spacing.two }]}>
