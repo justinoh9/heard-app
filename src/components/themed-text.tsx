@@ -5,9 +5,8 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withDelay,
-  withRepeat,
+  withSequence,
   withTiming,
-  type SharedValue,
 } from 'react-native-reanimated';
 
 import { Fonts, ThemeColor } from '@/constants/theme';
@@ -18,64 +17,55 @@ export type ThemedTextProps = TextProps & {
   themeColor?: ThemeColor;
 };
 
-const FLOAT_AMP = 1.6; // px — a subtle bob
-const FLOAT_PERIOD = 1500; // ms for one up (or down) leg of the bob
-const FLOAT_STAGGER = 110; // ms of delay per letter → a gentle travelling undulation
-// Per-string cap: labels/titles float; a long review stays plain rather than
+// A one-shot "worm" ripple on hover — each letter lifts and tilts, then springs
+// back and STOPS. Same playful character as the wordmark, but self-terminating:
+// nothing animates once the ripple has passed, so there's no perpetual motion to
+// lag anything.
+const RIPPLE_LIFT = 3; // px the letter hops up at the crest
+const RIPPLE_TILT = 8; // degrees of playful tilt at the crest
+const RIPPLE_STAGGER = 45; // ms between adjacent letters → the wave travels across
+// Per-string cap: labels/titles ripple; a long review stays plain rather than
 // exploding into inline nodes (and breaking ellipsis truncation).
 const FLOAT_MAX_LEN = 40;
 // Letters animate a GPU-composited transform (no per-frame layout reflow), which
 // needs a non-inline box — so each is inline-block on web. Native ignores it.
 const LETTER_STYLE = Platform.OS === 'web' ? ({ display: 'inline-block' } as object) : undefined;
 
-function FloatLetter({
-  ch,
-  index,
-  hover,
-}: {
-  ch: string;
-  index: number;
-  hover: SharedValue<number>;
-}) {
-  // Each letter runs its own eased sine bob via Reanimated (not a shared rAF
-  // clock — rAF is throttled in background tabs, Reanimated's scheduler isn't).
-  // inOut(sin) easing means velocity is zero at the extremes, so there's no snap
-  // at the turnaround — the motion is smooth. A per-letter start delay staggers
-  // the phase so the word gently undulates instead of bobbing in lockstep.
-  const bob = useSharedValue(-1);
+function FloatLetter({ ch, index }: { ch: string; index: number }) {
+  // `t` pulses 0 → 1 → 0 once, staggered by index, so a single crest travels the
+  // word and settles. Driven by Reanimated's scheduler (not rAF). Because it ends
+  // at 0 and never repeats, the letter is completely static afterwards.
+  const t = useSharedValue(0);
   useEffect(() => {
-    bob.value = withDelay(
-      index * FLOAT_STAGGER,
-      withRepeat(withTiming(1, { duration: FLOAT_PERIOD, easing: Easing.inOut(Easing.sin) }), -1, true),
+    t.value = withDelay(
+      index * RIPPLE_STAGGER,
+      withSequence(
+        withTiming(1, { duration: 150, easing: Easing.out(Easing.quad) }),
+        withTiming(0, { duration: 340, easing: Easing.inOut(Easing.quad) }),
+      ),
     );
-    // Mounts only while hovered, so this runs once per hover; no deps needed.
+    // Mounts fresh on each hover, so this runs once per ripple; no deps needed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  // `hover` (0→1, eased) gates the amplitude, so on leave every letter settles
-  // smoothly back to the baseline even while the bob keeps oscillating.
+  const dir = index % 2 === 0 ? 1 : -1; // alternate tilt → a hand-drawn wiggle
   const animated = useAnimatedStyle(() => ({
-    transform: [{ translateY: bob.value * FLOAT_AMP * hover.value }],
+    transform: [{ translateY: -t.value * RIPPLE_LIFT }, { rotate: `${t.value * RIPPLE_TILT * dir}deg` }],
   }));
   return <Animated.Text style={[LETTER_STYLE, animated]}>{ch}</Animated.Text>;
 }
 
 /**
- * Wrap every plain-string segment in `children` (at this level) into floating
+ * Wrap every plain-string segment in `children` (at this level) into rippling
  * letters, passing anything else through untouched — so nested <ThemedText>,
  * icons, etc. still render. Only called while an element is actually hovered.
  */
-function floatize(children: ReactNode, hover: SharedValue<number>): ReactNode {
-  let offset = 0; // keeps letter keys unique across multiple string segments
+function floatize(children: ReactNode): ReactNode {
   const wrap = (node: ReactNode, key: number): ReactNode => {
     if (typeof node === 'string' || typeof node === 'number') {
       const s = String(node);
-      // Too long to float letter-by-letter — leave as plain text.
+      // Too long to ripple letter-by-letter — leave as plain text.
       if (s.length > FLOAT_MAX_LEN) return node;
-      const base = offset;
-      offset += s.length;
-      return Array.from(s).map((ch, i) => (
-        <FloatLetter key={`${key}-${i}`} ch={ch} index={base + i} hover={hover} />
-      ));
+      return Array.from(s).map((ch, i) => <FloatLetter key={`${key}-${i}`} ch={ch} index={i} />);
     }
     return node;
   };
@@ -92,7 +82,6 @@ export function ThemedText({ style, type = 'default', themeColor, children, ...r
   // the per-letter version: at rest a wiggle ThemedText is a single plain <Text>
   // (zero animated nodes), so a whole screen of them costs nothing. Only the
   // element under the pointer splits into animated letters.
-  const hover = useSharedValue(0);
   const [active, setActive] = useState(false);
   const revert = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -101,13 +90,12 @@ export function ThemedText({ style, type = 'default', themeColor, children, ...r
       clearTimeout(revert.current);
       revert.current = null;
     }
-    setActive(true);
-    hover.value = withTiming(1, { duration: 240 });
+    setActive(true); // mount the letters → the ripple plays once, then settles
   };
   const leave = () => {
-    hover.value = withTiming(0, { duration: 420 });
-    // Drop back to plain text once the settle finishes, freeing the letter nodes.
-    revert.current = setTimeout(() => setActive(false), 480);
+    // Drop back to plain text a beat later, freeing the letter nodes, so a
+    // re-hover replays the ripple from the start.
+    revert.current = setTimeout(() => setActive(false), 700);
   };
 
   // Cancel a pending revert on unmount so it can't fire after we're gone.
@@ -132,7 +120,7 @@ export function ThemedText({ style, type = 'default', themeColor, children, ...r
     style,
   ];
 
-  // Float in every wiggle-mode ThemedText, whatever the children look like.
+  // Ripple in every wiggle-mode ThemedText, whatever the children look like.
   // Pointer hover is web-only and not in RN's Text types, so spread it cast; on
   // native these never fire, so the text just stays plain and at rest.
   if (treatment.wiggle) {
@@ -140,7 +128,7 @@ export function ThemedText({ style, type = 'default', themeColor, children, ...r
       Platform.OS === 'web' ? { onPointerEnter: enter, onPointerLeave: leave } : {};
     return (
       <Text style={baseStyle} {...(hoverProps as object)} {...rest}>
-        {active ? floatize(children, hover) : children}
+        {active ? floatize(children) : children}
       </Text>
     );
   }
