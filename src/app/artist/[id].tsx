@@ -12,7 +12,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useRatings } from '@/data/store';
-import { useTheme } from '@/hooks/use-theme';
+import { useDisplayFont, useTheme } from '@/hooks/use-theme';
 import { artistImages, musicCatalog, MusicCatalogError, type SearchResult } from '@/music';
 
 type Theme = ReturnType<typeof useTheme>;
@@ -29,6 +29,7 @@ const POPULAR_PREVIEW = 5;
  */
 export default function ArtistProfileScreen() {
   const theme = useTheme();
+  const displayFont = useDisplayFont();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { ratingFor } = useRatings();
@@ -111,7 +112,7 @@ export default function ArtistProfileScreen() {
           <View style={[StyleSheet.absoluteFill, styles.bannerTint]} pointerEvents="none" />
 
           <RecordPlayer image={heroImage} albums={albums} size={216} />
-          <Text style={styles.bannerName} numberOfLines={2}>
+          <Text style={[styles.bannerName, { fontFamily: displayFont }]} numberOfLines={2}>
             {name}
           </Text>
         </View>
@@ -341,9 +342,11 @@ const styles = StyleSheet.create({
   banner: { alignItems: 'center', gap: Spacing.three, paddingBottom: Spacing.five, overflow: 'hidden' },
   bannerTint: { backgroundColor: 'rgba(0,0,0,0.55)' },
   bannerName: {
+    // fontFamily (the mode's display face) is applied inline; no fontWeight
+    // alongside it — the loaded font file IS the weight (Android would else
+    // silently fall back to system).
     color: '#fff',
-    fontSize: 30,
-    fontWeight: '800',
+    fontSize: 34,
     letterSpacing: 0.2,
     textAlign: 'center',
     paddingHorizontal: Spacing.four,

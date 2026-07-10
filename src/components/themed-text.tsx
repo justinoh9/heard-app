@@ -28,8 +28,12 @@ const RIPPLE_STAGGER = 45; // ms between adjacent letters → the wave travels a
 // exploding into inline nodes (and breaking ellipsis truncation).
 const FLOAT_MAX_LEN = 40;
 // Letters animate a GPU-composited transform (no per-frame layout reflow), which
-// needs a non-inline box — so each is inline-block on web. Native ignores it.
-const LETTER_STYLE = Platform.OS === 'web' ? ({ display: 'inline-block' } as object) : undefined;
+// needs a non-inline box — so each is inline-block on web. `whiteSpace: pre`
+// stops the browser trimming a letter that IS a space (inline-blocks collapse
+// their own leading/trailing whitespace), which would otherwise close the gaps
+// between words on hover. Native ignores both.
+const LETTER_STYLE =
+  Platform.OS === 'web' ? ({ display: 'inline-block', whiteSpace: 'pre' } as object) : undefined;
 
 function FloatLetter({ ch, index }: { ch: string; index: number }) {
   // `t` pulses 0 → 1 → 0 once, staggered by index, so a single crest travels the
