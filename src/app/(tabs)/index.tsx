@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { useRequireAuth } from '@/auth/use-require-auth';
 import { AlbumCover } from '@/components/album-cover';
 import { BreadRating } from '@/components/bread-rating';
+import { JarRefresh } from '@/components/jar-refresh';
 import { PageContainer } from '@/components/page-container';
 import { Surface } from '@/components/surface';
 import { ThemedText } from '@/components/themed-text';
@@ -21,7 +22,7 @@ export default function FeedScreen() {
   const theme = useTheme();
   const router = useRouter();
   const { myDrop } = useFeed();
-  const { feed, followingIds } = useSocial();
+  const { feed, followingIds, refresh } = useSocial();
   const { requireAuth } = useRequireAuth();
 
   // Real activity (you + people you follow), rendered above the mock filler.
@@ -58,7 +59,7 @@ export default function FeedScreen() {
 
   return (
     <ThemedView style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <JarRefresh onRefresh={refresh} contentContainerStyle={styles.content}>
         <PageContainer style={styles.inner}>
           <YourDrop
             drop={myDrop}
@@ -138,7 +139,7 @@ export default function FeedScreen() {
             </ThemedText>
           </Pressable>
         </PageContainer>
-      </ScrollView>
+      </JarRefresh>
     </ThemedView>
   );
 }
