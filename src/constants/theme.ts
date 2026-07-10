@@ -71,6 +71,9 @@ export interface Treatment {
   /** Draw the card border as a wobbly hand-drawn path instead of a crisp
    *  rectangle (Scribble's fluid, sketched look). */
   sketch: boolean;
+  /** Give text a hand-drawn jiggle — a per-element tilt + gentle wobble so a
+   *  screen of labels reads as scrawled, not uniformly typeset (Scribble). */
+  wiggle: boolean;
 }
 
 /** A named palette that ships light + dark counterparts for the global toggle. */
@@ -97,7 +100,7 @@ export const Modes = {
     label: 'Scribble',
     // Fluid + minimalist: a hand-drawn wobbly border (sketch) carries the card,
     // so no heavy sticker shadow. Hand display font, clean sans body.
-    treatment: { borderWidth: 2, borderStyle: 'solid', radius: 20, shadow: 'none', underline: 'wavy', wobble: false, grain: false, font: 'hand', bodyFont: 'sans', sketch: true },
+    treatment: { borderWidth: 2, borderStyle: 'solid', radius: 20, shadow: 'none', underline: 'wavy', wobble: false, grain: false, font: 'hand', bodyFont: 'hand', sketch: true, wiggle: true },
     variants: {
       ink: {
         label: 'Charcoal',
@@ -128,7 +131,7 @@ export const Modes = {
   },
   jelly: {
     label: 'Jelly',
-    treatment: { borderWidth: 1, borderStyle: 'solid', radius: 22, shadow: 'gel', underline: 'none', wobble: true, grain: false, font: 'rounded', bodyFont: 'rounded', sketch: false },
+    treatment: { borderWidth: 1, borderStyle: 'solid', radius: 22, shadow: 'gel', underline: 'none', wobble: true, grain: false, font: 'rounded', bodyFont: 'rounded', sketch: false, wiggle: false },
     variants: {
       blueberry: {
         label: 'Blueberry Jam',
@@ -144,7 +147,7 @@ export const Modes = {
   },
   pbj: {
     label: 'PB & J',
-    treatment: { borderWidth: 2, borderStyle: 'dashed', radius: 16, shadow: 'none', underline: 'straight', wobble: false, grain: false, font: 'serif', bodyFont: 'serif', sketch: false },
+    treatment: { borderWidth: 2, borderStyle: 'dashed', radius: 16, shadow: 'none', underline: 'straight', wobble: false, grain: false, font: 'serif', bodyFont: 'serif', sketch: false, wiggle: false },
     variants: {
       classic: {
         label: 'Peanut + grape',
@@ -155,7 +158,7 @@ export const Modes = {
   },
   riso: {
     label: 'Riso zine',
-    treatment: { borderWidth: 2, borderStyle: 'solid', radius: 0, shadow: 'hard', underline: 'none', wobble: false, grain: true, font: 'mono', bodyFont: 'mono', sketch: false },
+    treatment: { borderWidth: 2, borderStyle: 'solid', radius: 0, shadow: 'hard', underline: 'none', wobble: false, grain: true, font: 'mono', bodyFont: 'mono', sketch: false, wiggle: false },
     variants: {
       inkAndFlame: {
         label: 'Ink + flame',
@@ -166,7 +169,7 @@ export const Modes = {
   },
   classic: {
     label: 'Classic vinyl',
-    treatment: { borderWidth: 1, borderStyle: 'solid', radius: 12, shadow: 'none', underline: 'none', wobble: false, grain: false, font: 'serif', bodyFont: 'sans', sketch: false },
+    treatment: { borderWidth: 1, borderStyle: 'solid', radius: 12, shadow: 'none', underline: 'none', wobble: false, grain: false, font: 'serif', bodyFont: 'sans', sketch: false, wiggle: false },
     variants: {
       vinyl: {
         label: 'Vinyl red',

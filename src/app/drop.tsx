@@ -10,6 +10,7 @@ import { ModalDialogFrame } from '@/components/modal-dialog-frame';
 import { Surface } from '@/components/surface';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
+import { useToast } from '@/components/toast';
 import { Spacing } from '@/constants/theme';
 import { useFeed, type DropItem } from '@/feed/store';
 import { useHaptics } from '@/hooks/use-haptics';
@@ -25,6 +26,7 @@ export default function DropModal() {
   const theme = useTheme();
   const router = useRouter();
   const haptics = useHaptics();
+  const toast = useToast();
   const { postDrop } = useFeed();
   useAuthGate(); // posting a drop needs an account — bounce guests to sign-in
 
@@ -45,6 +47,7 @@ export default function DropModal() {
     };
     postDrop({ item, caption });
     router.back();
+    toast('Drop shared', '🎧');
   }
 
   return (

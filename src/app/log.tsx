@@ -10,6 +10,7 @@ import { ModalDialogFrame } from '@/components/modal-dialog-frame';
 import { ScoreInput } from '@/components/score-input';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
+import { useToast } from '@/components/toast';
 import { postComment } from '@/comments';
 import { Spacing } from '@/constants/theme';
 import { useRatings } from '@/data/store';
@@ -34,6 +35,7 @@ export default function LogModal() {
   const theme = useTheme();
   const router = useRouter();
   const haptics = useHaptics();
+  const toast = useToast();
   const user = useAuthGate();
   const params = useLocalSearchParams<{
     id: string;
@@ -311,7 +313,10 @@ export default function LogModal() {
           </ThemedText>
           <Pressable
             testID="done"
-            onPress={() => router.back()}
+            onPress={() => {
+              router.back();
+              toast(`${isUpdate ? 'Updated' : 'Logged'} · #${result.rank} of ${result.total}`, '🔥');
+            }}
             style={({ pressed }) => [
               styles.primary,
               { backgroundColor: theme.accent, opacity: pressed ? 0.7 : 1 },
