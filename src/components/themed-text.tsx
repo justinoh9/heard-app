@@ -1,12 +1,11 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Platform, StyleSheet, Text, type TextProps } from 'react-native';
 import Animated, {
-  makeMutable,
-  runOnJS,
-  useAnimatedReaction,
+  Easing,
   useAnimatedStyle,
-  useFrameCallback,
   useSharedValue,
+  withDelay,
+  withRepeat,
   withTiming,
   type SharedValue,
 } from 'react-native-reanimated';
@@ -19,41 +18,15 @@ export type ThemedTextProps = TextProps & {
   themeColor?: ThemeColor;
 };
 
-// A single global phase clock drives every floating letter. It advances
-// *monotonically* (no bounce/turnaround) so the motion is perfectly smooth —
-// pure sine, no velocity snap. It only ticks while at least one element is
-// hovered (`hoverCount`), so at rest the page is completely still: no rAF, and
-// every letter's worklet early-returns without even subscribing to the clock.
-const floatClock = makeMutable(0);
-const hoverCount = makeMutable(0);
-const FLOAT_SPEED = 1.1; // radians per second — a slow, gentle drift
-const FLOAT_AMP = 1.3; // px — a subtle bob, not a wave
+const FLOAT_AMP = 1.6; // px — a subtle bob
+const FLOAT_PERIOD = 1500; // ms for one up (or down) leg of the bob
+const FLOAT_STAGGER = 110; // ms of delay per letter → a gentle travelling undulation
 // Per-string cap: labels/titles float; a long review stays plain rather than
-// exploding into hundreds of inline nodes (and breaking ellipsis truncation).
+// exploding into inline nodes (and breaking ellipsis truncation).
 const FLOAT_MAX_LEN = 40;
-
-/**
- * Mount once (in the root layout). Owns the shared phase clock and only runs the
- * per-frame loop while something is hovered — flipped on/off by `hoverCount`.
- */
-export function FloatClockDriver() {
-  const frame = useFrameCallback((info) => {
-    'worklet';
-    const dt = (info.timeSincePreviousFrame ?? 16) / 1000;
-    // Wrap on a large multiple of 2π so the summed sines stay continuous while
-    // never growing unbounded (float precision).
-    floatClock.value = (floatClock.value + dt * FLOAT_SPEED) % (Math.PI * 2 * 1000);
-  }, false);
-
-  useAnimatedReaction(
-    () => hoverCount.value > 0,
-    (active, prev) => {
-      if (active !== prev) runOnJS(frame.setActive)(active);
-    },
-  );
-
-  return null;
-}
+// Letters animate a GPU-composited transform (no per-frame layout reflow), which
+// needs a non-inline box — so each is inline-block on web. Native ignores it.
+const LETTER_STYLE = Platform.OS === 'web' ? ({ display: 'inline-block' } as object) : undefined;
 
 function FloatLetter({
   ch,
@@ -64,30 +37,32 @@ function FloatLetter({
   index: number;
   hover: SharedValue<number>;
 }) {
-  // Per-letter phase seed (not a fixed step) so letters drift on their own
-  // schedule — the word floats like it's suspended instead of rippling across.
-  const seed = index * 1.7;
-  const animated = useAnimatedStyle(() => {
-    // Reading `hover` first and bailing at 0 means an un-hovered letter never
-    // touches `floatClock`, so it isn't subscribed to it — the whole screen of
-    // resting text costs nothing per frame. Only the hovered element animates.
-    if (hover.value === 0) return { top: 0, position: 'relative' };
-    const t = floatClock.value;
-    // Two summed sines of different rates = a gentle, non-repetitive float.
-    const drift = Math.sin(t + seed) * 0.7 + Math.sin(t * 0.6 + seed * 2.3) * 0.3;
-    // `top` (not translate) so letters stay inline — safe even inside nested
-    // <Text>, and it flows/truncates normally. Web-only motion.
-    return { top: drift * FLOAT_AMP * hover.value, position: 'relative' };
-  });
-  return <Animated.Text style={animated}>{ch}</Animated.Text>;
+  // Each letter runs its own eased sine bob via Reanimated (not a shared rAF
+  // clock — rAF is throttled in background tabs, Reanimated's scheduler isn't).
+  // inOut(sin) easing means velocity is zero at the extremes, so there's no snap
+  // at the turnaround — the motion is smooth. A per-letter start delay staggers
+  // the phase so the word gently undulates instead of bobbing in lockstep.
+  const bob = useSharedValue(-1);
+  useEffect(() => {
+    bob.value = withDelay(
+      index * FLOAT_STAGGER,
+      withRepeat(withTiming(1, { duration: FLOAT_PERIOD, easing: Easing.inOut(Easing.sin) }), -1, true),
+    );
+    // Mounts only while hovered, so this runs once per hover; no deps needed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // `hover` (0→1, eased) gates the amplitude, so on leave every letter settles
+  // smoothly back to the baseline even while the bob keeps oscillating.
+  const animated = useAnimatedStyle(() => ({
+    transform: [{ translateY: bob.value * FLOAT_AMP * hover.value }],
+  }));
+  return <Animated.Text style={[LETTER_STYLE, animated]}>{ch}</Animated.Text>;
 }
 
 /**
  * Wrap every plain-string segment in `children` (at this level) into floating
  * letters, passing anything else through untouched — so nested <ThemedText>,
- * icons, etc. still render, and each nested ThemedText runs its own float. This
- * is what makes the effect global: mixed/nested content floats too, not just a
- * bare short string.
+ * icons, etc. still render. Only called while an element is actually hovered.
  */
 function floatize(children: ReactNode, hover: SharedValue<number>): ReactNode {
   let offset = 0; // keeps letter keys unique across multiple string segments
@@ -113,17 +88,33 @@ export function ThemedText({ style, type = 'default', themeColor, children, ...r
   const bodyFont = useBodyFont();
   const treatment = useTreatment();
   const isDisplay = type === 'title' || type === 'subtitle';
-  // 0 at rest, eased to 1 while this element is hovered — the float only shows
-  // through where the pointer is.
+  // 0 at rest, eased to 1 while hovered. `active` gates whether we even render
+  // the per-letter version: at rest a wiggle ThemedText is a single plain <Text>
+  // (zero animated nodes), so a whole screen of them costs nothing. Only the
+  // element under the pointer splits into animated letters.
   const hover = useSharedValue(0);
+  const [active, setActive] = useState(false);
+  const revert = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Balance the global hover ref-count on unmount if we leave while hovered
-  // (e.g. navigating away mid-hover), so the clock doesn't stay running.
+  const enter = () => {
+    if (revert.current) {
+      clearTimeout(revert.current);
+      revert.current = null;
+    }
+    setActive(true);
+    hover.value = withTiming(1, { duration: 240 });
+  };
+  const leave = () => {
+    hover.value = withTiming(0, { duration: 420 });
+    // Drop back to plain text once the settle finishes, freeing the letter nodes.
+    revert.current = setTimeout(() => setActive(false), 480);
+  };
+
+  // Cancel a pending revert on unmount so it can't fire after we're gone.
   useEffect(() => {
     return () => {
-      if (hover.value !== 0) hoverCount.value = Math.max(0, hoverCount.value - 1);
+      if (revert.current) clearTimeout(revert.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const baseStyle = [
@@ -141,29 +132,15 @@ export function ThemedText({ style, type = 'default', themeColor, children, ...r
     style,
   ];
 
-  // Float in every wiggle-mode ThemedText, whatever the children look like —
-  // plain strings, numbers, or mixed/nested content (floatize wraps the string
-  // parts and passes the rest through). Hover-gated, so it's stationary at rest.
+  // Float in every wiggle-mode ThemedText, whatever the children look like.
+  // Pointer hover is web-only and not in RN's Text types, so spread it cast; on
+  // native these never fire, so the text just stays plain and at rest.
   if (treatment.wiggle) {
-    // Pointer hover is web-only and not in RN's Text types, so spread it cast.
-    // Each enter/leave also bumps the global count that runs the phase clock.
-    // On native these never fire, so the text simply stays at rest.
     const hoverProps =
-      Platform.OS === 'web'
-        ? {
-            onPointerEnter: () => {
-              hover.value = withTiming(1, { duration: 220 });
-              hoverCount.value += 1;
-            },
-            onPointerLeave: () => {
-              hover.value = withTiming(0, { duration: 420 });
-              hoverCount.value = Math.max(0, hoverCount.value - 1);
-            },
-          }
-        : {};
+      Platform.OS === 'web' ? { onPointerEnter: enter, onPointerLeave: leave } : {};
     return (
       <Text style={baseStyle} {...(hoverProps as object)} {...rest}>
-        {floatize(children, hover)}
+        {active ? floatize(children, hover) : children}
       </Text>
     );
   }
