@@ -8,6 +8,7 @@ import { Platform } from 'react-native';
 
 import { JelliLoader } from '@/components/jelli-loader';
 import { ThemedView } from '@/components/themed-view';
+import { FloatClockDriver } from '@/components/themed-text';
 import { ToastProvider } from '@/components/toast';
 import { AuthProvider, useAuth } from '@/auth/store';
 import {
@@ -56,6 +57,7 @@ export default function RootLayout() {
                   <PlaylistsBridge>
                     <NavThemeProvider>
                       <ToastProvider>
+                        <FloatClockDriver />
                         <RootNavigator />
                       </ToastProvider>
                     </NavThemeProvider>

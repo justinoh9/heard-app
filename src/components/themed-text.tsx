@@ -1,11 +1,12 @@
-import { useEffect } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { Platform, StyleSheet, Text, type TextProps } from 'react-native';
 import Animated, {
-  Easing,
   makeMutable,
+  runOnJS,
+  useAnimatedReaction,
   useAnimatedStyle,
+  useFrameCallback,
   useSharedValue,
-  withRepeat,
   withTiming,
   type SharedValue,
 } from 'react-native-reanimated';
@@ -18,26 +19,41 @@ export type ThemedTextProps = TextProps & {
   themeColor?: ThemeColor;
 };
 
-// One global clock advances every float (each letter reads it with its own
-// phase), so a whole screen of animated text costs a single loop. It stays at 0
-// — every derived style static — until a wiggle mode mounts. The per-element
-// `hover` factor gates it: at rest nothing moves; the clock only shows through
-// where the pointer is.
+// A single global phase clock drives every floating letter. It advances
+// *monotonically* (no bounce/turnaround) so the motion is perfectly smooth —
+// pure sine, no velocity snap. It only ticks while at least one element is
+// hovered (`hoverCount`), so at rest the page is completely still: no rAF, and
+// every letter's worklet early-returns without even subscribing to the clock.
 const floatClock = makeMutable(0);
-let floatStarted = false;
-function startFloat() {
-  if (floatStarted) return;
-  floatStarted = true;
-  // reverse:true (bounce) so it loops forever — a plain -1 repeat settles at the
-  // target after the first pass on web. inOut(sin) easing softens the turns so
-  // the drift never snaps direction.
-  floatClock.value = withRepeat(withTiming(Math.PI * 2, { duration: 3400, easing: Easing.inOut(Easing.sin) }), -1, true);
-}
+const hoverCount = makeMutable(0);
+const FLOAT_SPEED = 1.1; // radians per second — a slow, gentle drift
+const FLOAT_AMP = 1.3; // px — a subtle bob, not a wave
+// Per-string cap: labels/titles float; a long review stays plain rather than
+// exploding into hundreds of inline nodes (and breaking ellipsis truncation).
+const FLOAT_MAX_LEN = 40;
 
-// Only short strings float, so a feed doesn't animate thousands of letter nodes
-// (long body copy / reviews render plain). Vertical-only, and small.
-const FLOAT_MAX_LEN = 30;
-const FLOAT_AMP = 1.2; // px — a subtle bob, not a wave
+/**
+ * Mount once (in the root layout). Owns the shared phase clock and only runs the
+ * per-frame loop while something is hovered — flipped on/off by `hoverCount`.
+ */
+export function FloatClockDriver() {
+  const frame = useFrameCallback((info) => {
+    'worklet';
+    const dt = (info.timeSincePreviousFrame ?? 16) / 1000;
+    // Wrap on a large multiple of 2π so the summed sines stay continuous while
+    // never growing unbounded (float precision).
+    floatClock.value = (floatClock.value + dt * FLOAT_SPEED) % (Math.PI * 2 * 1000);
+  }, false);
+
+  useAnimatedReaction(
+    () => hoverCount.value > 0,
+    (active, prev) => {
+      if (active !== prev) runOnJS(frame.setActive)(active);
+    },
+  );
+
+  return null;
+}
 
 function FloatLetter({
   ch,
@@ -52,15 +68,43 @@ function FloatLetter({
   // schedule — the word floats like it's suspended instead of rippling across.
   const seed = index * 1.7;
   const animated = useAnimatedStyle(() => {
+    // Reading `hover` first and bailing at 0 means an un-hovered letter never
+    // touches `floatClock`, so it isn't subscribed to it — the whole screen of
+    // resting text costs nothing per frame. Only the hovered element animates.
+    if (hover.value === 0) return { top: 0, position: 'relative' };
     const t = floatClock.value;
     // Two summed sines of different rates = a gentle, non-repetitive float.
     const drift = Math.sin(t + seed) * 0.7 + Math.sin(t * 0.6 + seed * 2.3) * 0.3;
     // `top` (not translate) so letters stay inline — safe even inside nested
-    // <Text>, and it flows/truncates normally. `hover` (0→1) is what makes it
-    // move only while the element is hovered; at rest top is 0. Web-only.
+    // <Text>, and it flows/truncates normally. Web-only motion.
     return { top: drift * FLOAT_AMP * hover.value, position: 'relative' };
   });
   return <Animated.Text style={animated}>{ch}</Animated.Text>;
+}
+
+/**
+ * Wrap every plain-string segment in `children` (at this level) into floating
+ * letters, passing anything else through untouched — so nested <ThemedText>,
+ * icons, etc. still render, and each nested ThemedText runs its own float. This
+ * is what makes the effect global: mixed/nested content floats too, not just a
+ * bare short string.
+ */
+function floatize(children: ReactNode, hover: SharedValue<number>): ReactNode {
+  let offset = 0; // keeps letter keys unique across multiple string segments
+  const wrap = (node: ReactNode, key: number): ReactNode => {
+    if (typeof node === 'string' || typeof node === 'number') {
+      const s = String(node);
+      // Too long to float letter-by-letter — leave as plain text.
+      if (s.length > FLOAT_MAX_LEN) return node;
+      const base = offset;
+      offset += s.length;
+      return Array.from(s).map((ch, i) => (
+        <FloatLetter key={`${key}-${i}`} ch={ch} index={base + i} hover={hover} />
+      ));
+    }
+    return node;
+  };
+  return Array.isArray(children) ? children.map(wrap) : wrap(children, 0);
 }
 
 export function ThemedText({ style, type = 'default', themeColor, children, ...rest }: ThemedTextProps) {
@@ -73,9 +117,14 @@ export function ThemedText({ style, type = 'default', themeColor, children, ...r
   // through where the pointer is.
   const hover = useSharedValue(0);
 
+  // Balance the global hover ref-count on unmount if we leave while hovered
+  // (e.g. navigating away mid-hover), so the clock doesn't stay running.
   useEffect(() => {
-    if (treatment.wiggle) startFloat();
-  }, [treatment.wiggle]);
+    return () => {
+      if (hover.value !== 0) hoverCount.value = Math.max(0, hoverCount.value - 1);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const baseStyle = [
     // Headings use the display face, everything else the body face; `code`
@@ -92,30 +141,29 @@ export function ThemedText({ style, type = 'default', themeColor, children, ...r
     style,
   ];
 
-  // Per-letter float: only for a plain, short string (nested/array children and
-  // long copy render normally). Letters inherit font/color from this <Text>.
-  // Motion is gated on hover, so the whole thing is stationary until pointed at.
-  const floatable = treatment.wiggle && typeof children === 'string' && children.length <= FLOAT_MAX_LEN;
-  if (floatable) {
-    const text = children as string;
+  // Float in every wiggle-mode ThemedText, whatever the children look like —
+  // plain strings, numbers, or mixed/nested content (floatize wraps the string
+  // parts and passes the rest through). Hover-gated, so it's stationary at rest.
+  if (treatment.wiggle) {
     // Pointer hover is web-only and not in RN's Text types, so spread it cast.
+    // Each enter/leave also bumps the global count that runs the phase clock.
     // On native these never fire, so the text simply stays at rest.
     const hoverProps =
       Platform.OS === 'web'
         ? {
             onPointerEnter: () => {
               hover.value = withTiming(1, { duration: 220 });
+              hoverCount.value += 1;
             },
             onPointerLeave: () => {
               hover.value = withTiming(0, { duration: 420 });
+              hoverCount.value = Math.max(0, hoverCount.value - 1);
             },
           }
         : {};
     return (
       <Text style={baseStyle} {...(hoverProps as object)} {...rest}>
-        {Array.from(text).map((ch, i) => (
-          <FloatLetter key={i} ch={ch} index={i} hover={hover} />
-        ))}
+        {floatize(children, hover)}
       </Text>
     );
   }
