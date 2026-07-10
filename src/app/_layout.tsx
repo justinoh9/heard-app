@@ -1,9 +1,14 @@
-import { Fraunces_600SemiBold, useFonts } from '@expo-google-fonts/fraunces';
+import { Baloo2_600SemiBold } from '@expo-google-fonts/baloo-2';
+import { Fraunces_600SemiBold } from '@expo-google-fonts/fraunces';
+import { PatrickHand_400Regular } from '@expo-google-fonts/patrick-hand';
+import { useFonts } from 'expo-font';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, useRouter, useSegments } from 'expo-router';
 import { useEffect, useRef } from 'react';
-import { ActivityIndicator, Platform } from 'react-native';
+import { Platform } from 'react-native';
 
+import { JelliLoader } from '@/components/jelli-loader';
 import { ThemedView } from '@/components/themed-view';
+import { ToastProvider } from '@/components/toast';
 import { AuthProvider, useAuth } from '@/auth/store';
 import {
   parseOAuthError,
@@ -19,9 +24,13 @@ import { SocialContext, useSocialState } from '@/social/store';
 import { StreaksContext, useStreaksState } from '@/streaks/store';
 
 export default function RootLayout() {
-  // The display serif (wordmark + titles). Render waits for it so headings
-  // never flash the system font first.
-  const [fontsLoaded] = useFonts({ Fraunces_600SemiBold });
+  // The per-mode display faces (wordmark + titles). Render waits for them so
+  // headings never flash the system font first. Keep in sync with DisplayFonts.
+  const [fontsLoaded] = useFonts({
+    Fraunces_600SemiBold,
+    Baloo2_600SemiBold,
+    PatrickHand_400Regular,
+  });
 
   // Capture an OAuth-redirect error (e.g. Spotify login failing server-side)
   // off the URL during render — before the Supabase client, created in a child
@@ -46,7 +55,9 @@ export default function RootLayout() {
                 <ConcertsBridge>
                   <PlaylistsBridge>
                     <NavThemeProvider>
-                      <RootNavigator />
+                      <ToastProvider>
+                        <RootNavigator />
+                      </ToastProvider>
                     </NavThemeProvider>
                   </PlaylistsBridge>
                 </ConcertsBridge>
@@ -161,7 +172,7 @@ function RootNavigator() {
   if (status === 'loading') {
     return (
       <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator />
+        <JelliLoader scale={1.4} />
       </ThemedView>
     );
   }

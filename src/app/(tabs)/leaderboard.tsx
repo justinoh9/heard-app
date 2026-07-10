@@ -5,6 +5,7 @@ import { EmptyState } from '@/components/empty-state';
 import { PageContainer } from '@/components/page-container';
 import { QuickMatchCard } from '@/components/quick-match-card';
 import { Segmented } from '@/components/segmented';
+import { Surface } from '@/components/surface';
 import { useConcerts } from '@/concerts/store';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -131,15 +132,10 @@ export default function LeaderboardScreen() {
           {rows.map((u, i) => {
             const isYou = u.userId === youId;
             return (
-              <View
+              <Surface
                 key={u.userId}
-                style={[
-                  styles.row,
-                  {
-                    backgroundColor: isYou ? theme.accentSoft : theme.backgroundElement,
-                    borderColor: isYou ? theme.accent : 'transparent',
-                  },
-                ]}>
+                style={styles.row}
+                background={isYou ? theme.accentSoft : undefined}>
                 <ThemedText
                   type="smallBold"
                   style={[styles.rank, { color: MEDALS[i] ?? theme.textSecondary }]}>
@@ -161,7 +157,7 @@ export default function LeaderboardScreen() {
                   )}
                 </View>
                 <ThemedText type="smallBold">{metric.get(u)}</ThemedText>
-              </View>
+              </Surface>
             );
           })}
 
@@ -183,14 +179,7 @@ const styles = StyleSheet.create({
   inner: { gap: Spacing.two },
   chips: { flexDirection: 'row', gap: Spacing.two, marginBottom: Spacing.two },
   chip: { paddingVertical: 6, paddingHorizontal: Spacing.three, borderRadius: 999 },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three,
-    padding: Spacing.three,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
+  row: { flexDirection: 'row', alignItems: 'center' },
   rank: { width: 22, textAlign: 'center', fontSize: 16 },
   avatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   youBadge: {

@@ -5,11 +5,13 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'reac
 
 import { useRequireAuth } from '@/auth/use-require-auth';
 import { AlbumCover } from '@/components/album-cover';
+import { BreadRating } from '@/components/bread-rating';
 import { CommentCard } from '@/components/comment-card';
 import { EmptyState } from '@/components/empty-state';
 import { PageContainer } from '@/components/page-container';
 import { ScoreBreakdown } from '@/components/score-breakdown';
 import { Segmented } from '@/components/segmented';
+import { Surface } from '@/components/surface';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -137,7 +139,10 @@ export default function ItemProfileScreen() {
   return (
     <ThemedView style={styles.screen}>
       <View style={styles.topBar}>
-        <Pressable onPress={() => router.back()} accessibilityLabel="Back" hitSlop={8}>
+        <Pressable
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+          accessibilityLabel="Back"
+          hitSlop={8}>
           <Ionicons name="chevron-back" size={26} color={theme.text} />
         </Pressable>
         <ThemedText type="smallBold">{type === 'song' ? 'Song' : 'Album'}</ThemedText>
@@ -146,7 +151,7 @@ export default function ItemProfileScreen() {
 
       <ScrollView contentContainerStyle={styles.content}>
         <PageContainer style={styles.inner}>
-          <View style={styles.header}>
+          <Surface style={styles.header}>
             <AlbumCover uri={artUrl} size={140} radius={12} />
             <ThemedText type="subtitle" style={styles.center}>
               {title}
@@ -156,11 +161,14 @@ export default function ItemProfileScreen() {
             </ThemedText>
 
             {existing ? (
-              <View style={[styles.scorePill, { backgroundColor: theme.accent }]}>
-                <ThemedText type="smallBold" style={{ color: theme.onAccent }}>
-                  {existing.score.toFixed(1)}
-                </ThemedText>
-              </View>
+              <>
+                <BreadRating score={existing.score} size={26} />
+                <View style={[styles.scorePill, { backgroundColor: theme.accent }]}>
+                  <ThemedText type="smallBold" style={{ color: theme.onAccent }}>
+                    {existing.score.toFixed(1)}
+                  </ThemedText>
+                </View>
+              </>
             ) : null}
 
             <View style={styles.actionsRow}>
@@ -192,7 +200,7 @@ export default function ItemProfileScreen() {
                 </ThemedText>
               </Pressable>
             </View>
-          </View>
+          </Surface>
 
           {type === 'album' && (
             <>

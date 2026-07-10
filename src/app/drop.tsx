@@ -7,8 +7,10 @@ import { useAuthGate } from '@/auth/use-require-auth';
 import { AlbumCover } from '@/components/album-cover';
 import { EmptyState } from '@/components/empty-state';
 import { ModalDialogFrame } from '@/components/modal-dialog-frame';
+import { Surface } from '@/components/surface';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
+import { useToast } from '@/components/toast';
 import { Spacing } from '@/constants/theme';
 import { useFeed, type DropItem } from '@/feed/store';
 import { useHaptics } from '@/hooks/use-haptics';
@@ -24,6 +26,7 @@ export default function DropModal() {
   const theme = useTheme();
   const router = useRouter();
   const haptics = useHaptics();
+  const toast = useToast();
   const { postDrop } = useFeed();
   useAuthGate(); // posting a drop needs an account — bounce guests to sign-in
 
@@ -44,6 +47,7 @@ export default function DropModal() {
     };
     postDrop({ item, caption });
     router.back();
+    toast('Drop shared', '🎧');
   }
 
   return (
@@ -148,13 +152,7 @@ export default function DropModal() {
               ) : null
             }
             renderItem={({ item }) => (
-              <Pressable
-                testID="drop-result"
-                onPress={() => setSelected(item)}
-                style={({ pressed }) => [
-                  styles.row,
-                  { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.6 : 1 },
-                ]}>
+              <Surface testID="drop-result" onPress={() => setSelected(item)} style={styles.row}>
                 <AlbumCover uri={item.coverUrl} size={56} />
                 <View style={styles.rowText}>
                   <ThemedText type="smallBold" numberOfLines={1}>
@@ -166,7 +164,7 @@ export default function DropModal() {
                   </ThemedText>
                 </View>
                 <Ionicons name="radio-outline" size={22} color={theme.textSecondary} />
-              </Pressable>
+              </Surface>
             )}
           />
         </>
@@ -203,13 +201,7 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, paddingVertical: Spacing.three, fontSize: 16 },
   error: { paddingHorizontal: Spacing.four, marginBottom: Spacing.two },
   list: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.four, gap: Spacing.two },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three,
-    padding: Spacing.two,
-    borderRadius: 12,
-  },
+  row: { flexDirection: 'row', alignItems: 'center' },
   rowText: { flex: 1, gap: 2 },
   empty: { alignItems: 'center', gap: Spacing.two, paddingTop: Spacing.six },
 });

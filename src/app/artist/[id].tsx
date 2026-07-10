@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -111,9 +111,11 @@ export default function ArtistProfileScreen() {
           <View style={[StyleSheet.absoluteFill, styles.bannerTint]} pointerEvents="none" />
 
           <RecordPlayer image={heroImage} albums={albums} size={216} />
-          <Text style={styles.bannerName} numberOfLines={2}>
+          {/* subtitle → the mode's display face + the hover ripple; bannerName
+              overrides color/size/shadow for the on-image hero treatment. */}
+          <ThemedText type="subtitle" numberOfLines={2} style={styles.bannerName}>
             {name}
-          </Text>
+          </ThemedText>
         </View>
 
         {loading && (
@@ -206,7 +208,7 @@ export default function ArtistProfileScreen() {
       </ScrollView>
 
       <Pressable
-        onPress={() => router.back()}
+        onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
         accessibilityLabel="Back"
         hitSlop={8}
         style={[styles.backBtn, { top: insets.top + Spacing.two }]}>
@@ -341,9 +343,11 @@ const styles = StyleSheet.create({
   banner: { alignItems: 'center', gap: Spacing.three, paddingBottom: Spacing.five, overflow: 'hidden' },
   bannerTint: { backgroundColor: 'rgba(0,0,0,0.55)' },
   bannerName: {
+    // fontFamily (the mode's display face) is applied inline; no fontWeight
+    // alongside it — the loaded font file IS the weight (Android would else
+    // silently fall back to system).
     color: '#fff',
-    fontSize: 30,
-    fontWeight: '800',
+    fontSize: 34,
     letterSpacing: 0.2,
     textAlign: 'center',
     paddingHorizontal: Spacing.four,

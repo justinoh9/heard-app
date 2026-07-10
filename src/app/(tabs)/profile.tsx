@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/empty-state';
 import { GuestGate } from '@/components/guest-gate';
 import { PageContainer } from '@/components/page-container';
 import { PlaylistCover } from '@/components/playlist-cover';
+import { Surface } from '@/components/surface';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useConcerts } from '@/concerts/store';
@@ -88,6 +89,7 @@ export default function ProfileScreen() {
         icon="person-circle-outline"
         title="Your profile lives here"
         message="Sign in to rate albums, build your ranked list, log shows, and follow friends."
+        showSettings
       />
     );
   }
@@ -131,13 +133,7 @@ export default function ProfileScreen() {
             />
           </View>
 
-          <Pressable
-            testID="open-wrapped"
-            onPress={() => router.push('/wrapped')}
-            style={({ pressed }) => [
-              styles.wrappedCard,
-              { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.7 : 1 },
-            ]}>
+          <Surface testID="open-wrapped" onPress={() => router.push('/wrapped')} style={styles.wrappedCard}>
             <Ionicons name="sparkles" size={18} color={theme.accent} />
             <View style={{ flex: 1 }}>
               <ThemedText type="smallBold">Your Wrapped</ThemedText>
@@ -146,7 +142,7 @@ export default function ProfileScreen() {
               </ThemedText>
             </View>
             <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
-          </Pressable>
+          </Surface>
 
           {ranked.length > 0 && (
             <>
@@ -220,14 +216,11 @@ export default function ProfileScreen() {
                   {ranked
                     .filter((r) => !currentIds().includes(r.item.id))
                     .map((r) => (
-                      <Pressable
+                      <Surface
                         key={r.item.id}
                         testID={`pick-${r.item.id}`}
                         onPress={() => addFavorite(r.item.id)}
-                        style={({ pressed }) => [
-                          styles.rankRow,
-                          { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.6 : 1 },
-                        ]}>
+                        style={styles.rankRow}>
                         <AlbumCover uri={r.item.artUrl} size={44} radius={6} />
                         <View style={{ flex: 1 }}>
                           <ThemedText type="small" numberOfLines={1}>
@@ -240,7 +233,7 @@ export default function ProfileScreen() {
                         <ThemedText type="smallBold" style={{ color: theme.accent }}>
                           {r.score.toFixed(1)}
                         </ThemedText>
-                      </Pressable>
+                      </Surface>
                     ))}
                 </ScrollView>
               </View>
@@ -429,13 +422,7 @@ const styles = StyleSheet.create({
   settingsBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   stats: { flexDirection: 'row', gap: Spacing.two },
   stat: { flex: 1, alignItems: 'center', paddingVertical: Spacing.three, borderRadius: 10, gap: 2 },
-  wrappedCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three,
-    borderRadius: 12,
-    padding: Spacing.three,
-  },
+  wrappedCard: { flexDirection: 'row', alignItems: 'center' },
   sectionLabel: { marginTop: Spacing.two },
   top4Header: {
     flexDirection: 'row',
@@ -484,7 +471,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rankRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, padding: Spacing.two, borderRadius: 10 },
+  rankRow: { flexDirection: 'row', alignItems: 'center' },
   rankNum: { width: 16, textAlign: 'center' },
   badges: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   badge: {

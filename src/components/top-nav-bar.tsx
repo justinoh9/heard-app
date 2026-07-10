@@ -9,11 +9,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, usePathname } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { AnimatedWordmark } from '@/components/animated-wordmark';
 import { PageContainer } from '@/components/page-container';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { DisplayFont, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { Spacing } from '@/constants/theme';
+import { useDisplayFont, useTheme } from '@/hooks/use-theme';
 
 const LINKS = [
   { href: '/', label: 'Feed', match: '/' },
@@ -24,13 +25,14 @@ const LINKS = [
 
 export function TopNavBar() {
   const theme = useTheme();
+  const displayFont = useDisplayFont();
   const router = useRouter();
   const pathname = usePathname();
 
   return (
     <ThemedView style={[styles.bar, { borderBottomColor: theme.backgroundElement }]}>
       <PageContainer style={styles.row}>
-        <ThemedText style={styles.logo}>Jelli</ThemedText>
+        <AnimatedWordmark text="jelli" style={[styles.logo, { fontFamily: displayFont, color: theme.text }]} />
 
         <View style={styles.links}>
           {LINKS.map((link) => {
@@ -71,7 +73,7 @@ const styles = StyleSheet.create({
     height: 60,
     paddingHorizontal: Spacing.three,
   },
-  logo: { fontSize: 22, fontFamily: DisplayFont },
+  logo: { fontSize: 22 },
   links: { flexDirection: 'row', gap: Spacing.one },
   link: { paddingVertical: Spacing.two, paddingHorizontal: Spacing.three, borderRadius: 8 },
   settingsBtn: {

@@ -9,30 +9,34 @@ import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { useAuth } from '@/auth/store';
-import { useAuthGate } from '@/auth/use-require-auth';
 import { PageContainer } from '@/components/page-container';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Palettes, Spacing, type ThemeName } from '@/constants/theme';
+import { Modes, Spacing, type Appearance, type ModeName, type Variant } from '@/constants/theme';
 import { useTheme, useThemeControls } from '@/hooks/use-theme';
 import { useSpotifyConnection } from '@/music/use-spotify-connection';
 
-/** Display names for the theme picker, in presentation order. */
-const THEME_LABELS: Record<ThemeName, string> = {
-  vinyl: 'Vinyl red',
-  cream: 'Cream paper',
-};
+/** Appearance toggle options, in presentation order. */
+const APPEARANCE_OPTIONS: { key: Appearance; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { key: 'light', label: 'Light', icon: 'sunny-outline' },
+  { key: 'dark', label: 'Dark', icon: 'moon-outline' },
+  { key: 'system', label: 'System', icon: 'phone-portrait-outline' },
+];
 
 export default function SettingsScreen() {
   const theme = useTheme();
   const router = useRouter();
   const { user, signOut } = useAuth();
-  useAuthGate(); // account settings need an account — bounce guests to sign-in
+  // Settings is open to guests so anyone can change the theme (appearance is a
+  // device preference, not an account one). Only the ACCOUNT section is gated.
 
   return (
     <ThemedView style={styles.screen}>
       <View style={styles.topBar}>
-        <Pressable onPress={() => router.back()} accessibilityLabel="Back" hitSlop={8}>
+        <Pressable
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+          accessibilityLabel="Back"
+          hitSlop={8}>
           <Ionicons name="chevron-back" size={26} color={theme.text} />
         </Pressable>
         <ThemedText type="smallBold">Settings</ThemedText>
@@ -42,17 +46,29 @@ export default function SettingsScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <PageContainer style={styles.inner}>
           <Section label="ACCOUNT">
-            <Row icon="person-outline" label="Display name" value={user?.displayName} theme={theme} />
-            <Row icon="mail-outline" label="Email" value={user?.email} theme={theme} />
-            <Row icon="key-outline" label="Change password" soon theme={theme} />
-            <Row
-              testID="sign-out"
-              icon="log-out-outline"
-              label="Sign out"
-              onPress={signOut}
-              danger
-              theme={theme}
-            />
+            {user ? (
+              <>
+                <Row icon="person-outline" label="Display name" value={user.displayName} theme={theme} />
+                <Row icon="mail-outline" label="Email" value={user.email} theme={theme} />
+                <Row icon="key-outline" label="Change password" soon theme={theme} />
+                <Row
+                  testID="sign-out"
+                  icon="log-out-outline"
+                  label="Sign out"
+                  onPress={signOut}
+                  danger
+                  theme={theme}
+                />
+              </>
+            ) : (
+              <Row
+                testID="settings-signin"
+                icon="log-in-outline"
+                label="Sign in or create account"
+                onPress={() => router.push('/(auth)/sign-in')}
+                theme={theme}
+              />
+            )}
           </Section>
 
           <Section label="CONNECTIONS">
@@ -82,45 +98,99 @@ export default function SettingsScreen() {
   );
 }
 
-/** Swatch cards for each palette — tap to switch the whole app live. */
+/**
+ * The theme switcher: appearance toggle (light/dark/system) + a card per visual
+ * mode + palette-variant chips for the active mode. Tapping any control swaps
+ * the whole app live via useThemeControls().
+ */
 function ThemePicker() {
   const theme = useTheme();
-  const { name, setName } = useThemeControls();
+  const { selection, setMode, setVariant, setAppearance } = useThemeControls();
+  const modeKeys = Object.keys(Modes) as ModeName[];
+  const variants = Modes[selection.mode].variants as Record<string, Variant>;
+  const variantKeys = Object.keys(variants);
+  // Which side of each palette to preview, matching the chosen appearance.
+  const previewDark = selection.appearance === 'dark' || (selection.appearance === 'system' && theme.isDark);
+
   return (
-    <View style={styles.swatchRow}>
-      {(Object.keys(Palettes) as ThemeName[]).map((key) => {
-        const palette = Palettes[key];
-        const active = key === name;
-        return (
-          <Pressable
-            key={key}
-            testID={`theme-${key}`}
-            onPress={() => setName(key)}
-            accessibilityLabel={`Use the ${THEME_LABELS[key]} theme`}
-            style={[
-              styles.swatch,
-              {
-                backgroundColor: palette.background,
-                borderColor: active ? theme.accent : theme.backgroundSelected,
-                borderWidth: active ? 2 : 1,
-              },
-            ]}>
-            <View style={styles.swatchChips}>
-              <View style={[styles.swatchChip, { backgroundColor: palette.accent }]} />
-              <View style={[styles.swatchChip, { backgroundColor: palette.accentAlt }]} />
-              <View style={[styles.swatchChip, { backgroundColor: palette.backgroundElement }]} />
-            </View>
-            <ThemedText type="small" style={{ color: palette.text, fontWeight: '600' }}>
-              {THEME_LABELS[key]}
-            </ThemedText>
-            {active && (
-              <View style={styles.swatchCheck}>
-                <Ionicons name="checkmark-circle" size={18} color={theme.accent} />
+    <View style={{ gap: Spacing.three }}>
+      <View style={[styles.segment, { backgroundColor: theme.backgroundSelected }]}>
+        {APPEARANCE_OPTIONS.map((opt) => {
+          const active = selection.appearance === opt.key;
+          return (
+            <Pressable
+              key={opt.key}
+              testID={`appearance-${opt.key}`}
+              onPress={() => setAppearance(opt.key)}
+              accessibilityLabel={`${opt.label} appearance`}
+              style={[styles.segmentItem, active && { backgroundColor: theme.accent }]}>
+              <Ionicons name={opt.icon} size={15} color={active ? theme.onAccent : theme.textSecondary} />
+              <ThemedText type="small" style={{ color: active ? theme.onAccent : theme.text, fontWeight: '600' }}>
+                {opt.label}
+              </ThemedText>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      <View style={styles.modeGrid}>
+        {modeKeys.map((key) => {
+          const mode = Modes[key];
+          const active = key === selection.mode;
+          const preview = Object.values(mode.variants)[0] as Variant;
+          const p = previewDark ? preview.dark : preview.light;
+          return (
+            <Pressable
+              key={key}
+              testID={`mode-${key}`}
+              onPress={() => setMode(key)}
+              accessibilityLabel={`Use the ${mode.label} theme`}
+              style={[
+                styles.modeCard,
+                { backgroundColor: p.background, borderColor: active ? theme.accent : theme.backgroundSelected, borderWidth: active ? 2 : 1 },
+              ]}>
+              <View style={styles.swatchChips}>
+                <View style={[styles.swatchChip, { backgroundColor: p.accent }]} />
+                <View style={[styles.swatchChip, { backgroundColor: p.accentAlt }]} />
+                <View style={[styles.swatchChip, { backgroundColor: p.backgroundElement }]} />
               </View>
-            )}
-          </Pressable>
-        );
-      })}
+              <ThemedText type="small" style={{ color: p.text, fontWeight: '600' }}>
+                {mode.label}
+              </ThemedText>
+              {active && (
+                <View style={styles.swatchCheck}>
+                  <Ionicons name="checkmark-circle" size={18} color={theme.accent} />
+                </View>
+              )}
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {variantKeys.length > 1 && (
+        <View style={styles.variantRow}>
+          {variantKeys.map((vkey) => {
+            const active = vkey === selection.variant;
+            const vp = previewDark ? variants[vkey].dark : variants[vkey].light;
+            return (
+              <Pressable
+                key={vkey}
+                testID={`variant-${vkey}`}
+                onPress={() => setVariant(vkey)}
+                accessibilityLabel={`${variants[vkey].label} palette`}
+                style={[
+                  styles.variantChip,
+                  { backgroundColor: active ? theme.accentSoft : theme.backgroundElement, borderColor: active ? theme.accent : 'transparent' },
+                ]}>
+                <View style={[styles.variantDot, { backgroundColor: vp.accent }]} />
+                <ThemedText type="small" style={{ color: theme.text }}>
+                  {variants[vkey].label}
+                </ThemedText>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
     </View>
   );
 }
@@ -267,13 +337,35 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two,
   },
   connectionError: { width: '100%' },
-  swatchRow: { flexDirection: 'row', gap: Spacing.two },
-  swatch: {
+  segment: { flexDirection: 'row', borderRadius: 999, padding: 3 },
+  segmentItem: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.one,
+    paddingVertical: Spacing.two,
+    borderRadius: 999,
+  },
+  modeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+  modeCard: {
+    flexBasis: '48%',
+    flexGrow: 1,
     borderRadius: 12,
     padding: Spacing.three,
     gap: Spacing.two,
   },
+  variantRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+  variantChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  variantDot: { width: 14, height: 14, borderRadius: 7 },
   swatchChips: { flexDirection: 'row', gap: Spacing.one },
   swatchChip: { width: 18, height: 18, borderRadius: 9 },
   swatchCheck: { position: 'absolute', top: Spacing.two, right: Spacing.two },

@@ -18,15 +18,28 @@ export function GuestGate({
   icon = 'person-circle-outline',
   title,
   message,
+  showSettings = false,
 }: {
   icon?: keyof typeof Ionicons.glyphMap;
   title: string;
   message: string;
+  /** Show a settings gear (top-right) so guests can still reach Appearance. */
+  showSettings?: boolean;
 }) {
   const theme = useTheme();
   const router = useRouter();
   return (
     <ThemedView style={styles.screen}>
+      {showSettings && (
+        <Pressable
+          testID="guest-settings"
+          onPress={() => router.push('/settings')}
+          accessibilityLabel="Settings"
+          hitSlop={8}
+          style={({ pressed }) => [styles.settingsBtn, { opacity: pressed ? 0.6 : 1 }]}>
+          <Ionicons name="settings-outline" size={22} color={theme.textSecondary} />
+        </Pressable>
+      )}
       <View style={styles.inner}>
         <Ionicons name={icon} size={52} color={theme.textSecondary} />
         <ThemedText type="subtitle" style={styles.center}>
@@ -53,6 +66,7 @@ export function GuestGate({
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
+  settingsBtn: { position: 'absolute', top: Spacing.five, right: Spacing.four, zIndex: 1, padding: Spacing.two },
   inner: {
     flex: 1,
     alignItems: 'center',

@@ -1,15 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { AnimatedWordmark } from '@/components/animated-wordmark';
 import { ThemedText } from '@/components/themed-text';
-import { DisplayFont, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { Spacing } from '@/constants/theme';
+import { useDisplayFont, useTheme } from '@/hooks/use-theme';
 import type { OAuthProvider } from './types';
 
 export function BrandHeader({ tagline }: { tagline: string }) {
+  const displayFont = useDisplayFont();
+  const theme = useTheme();
   return (
     <View style={styles.brand}>
-      <ThemedText style={styles.logo}>Jelli</ThemedText>
+      <AnimatedWordmark text="jelli" style={[styles.logo, { fontFamily: displayFont, color: theme.text }]} />
       <ThemedText themeColor="textSecondary">{tagline}</ThemedText>
     </View>
   );
@@ -76,7 +79,7 @@ export function OrDivider() {
 
 const styles = StyleSheet.create({
   brand: { alignItems: 'center', gap: Spacing.one, marginBottom: Spacing.two },
-  logo: { fontSize: 42, lineHeight: 50, fontFamily: DisplayFont },
+  logo: { fontSize: 42, lineHeight: 50 },
   oauth: {
     flexDirection: 'row',
     alignItems: 'center',

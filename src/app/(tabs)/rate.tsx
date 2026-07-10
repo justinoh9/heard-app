@@ -1,19 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  View,
-} from 'react-native';
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { AlbumCover } from '@/components/album-cover';
 import { EmptyState } from '@/components/empty-state';
+import { JelliLoader } from '@/components/jelli-loader';
 import { PageContainer } from '@/components/page-container';
 import { RecentPlaysTray } from '@/components/recent-plays-tray';
+import { Surface } from '@/components/surface';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -112,7 +107,7 @@ export default function RateSearchScreen() {
         </ScrollView>
       ) : loading && results.length === 0 ? (
         <View style={styles.center}>
-          <ActivityIndicator />
+          <JelliLoader />
         </View>
       ) : results.length === 0 ? (
         <EmptyState icon="sad-outline" message={`No results for “${trimmed}”`} />
@@ -127,7 +122,6 @@ export default function RateSearchScreen() {
                 result={topResult}
                 score={ratingFor(topResult.id)?.score}
                 onPress={() => open(topResult)}
-                theme={theme}
               />
             </>
           )}
@@ -208,23 +202,15 @@ function TopResultCard({
   result,
   score,
   onPress,
-  theme,
 }: {
   result: SearchResult;
   score?: number;
   onPress: () => void;
-  theme: Theme;
 }) {
   const isArtist = result.kind === 'artist';
   const label = isArtist ? 'Artist' : result.kind === 'song' ? 'Song' : 'Album';
   return (
-    <Pressable
-      testID="top-result"
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.topCard,
-        { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.7 : 1 },
-      ]}>
+    <Surface testID="top-result" onPress={onPress} style={styles.topCard}>
       <AlbumCover
         uri={result.coverUrl}
         size={84}
@@ -240,7 +226,7 @@ function TopResultCard({
         </ThemedText>
         {score != null && <ScorePill score={score} />}
       </View>
-    </Pressable>
+    </Surface>
   );
 }
 
@@ -321,7 +307,7 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', paddingTop: Spacing.six },
   list: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.six, gap: Spacing.two },
   sectionHeader: { marginTop: Spacing.three, marginBottom: Spacing.one },
-  topCard: { borderRadius: 12, padding: Spacing.three, gap: Spacing.two },
+  topCard: { gap: Spacing.two },
   topTitle: { marginTop: Spacing.one },
   topMetaRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   row: {

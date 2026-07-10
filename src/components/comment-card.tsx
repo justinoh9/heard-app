@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { Surface } from '@/components/surface';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useHaptics } from '@/hooks/use-haptics';
@@ -34,7 +35,7 @@ export function CommentCard({ comment, likeSummary, onToggleLike, onDelete }: Pr
   }
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
+    <Surface style={styles.card}>
       <View style={[styles.avatar, { backgroundColor: theme.backgroundSelected }]}>
         <ThemedText type="smallBold">{initialsFrom(comment.displayName)}</ThemedText>
       </View>
@@ -71,12 +72,12 @@ export function CommentCard({ comment, likeSummary, onToggleLike, onDelete }: Pr
           </Pressable>
         )}
       </View>
-    </View>
+    </Surface>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { flexDirection: 'row', gap: Spacing.two, padding: Spacing.three, borderRadius: 12 },
+  card: { flexDirection: 'row' },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   avatar: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   likeRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },

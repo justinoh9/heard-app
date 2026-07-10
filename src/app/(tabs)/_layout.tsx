@@ -2,13 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import { View } from 'react-native';
 
+import { AnimatedWordmark } from '@/components/animated-wordmark';
 import { TopNavBar } from '@/components/top-nav-bar';
-import { DisplayFont } from '@/constants/theme';
 import { useResponsive } from '@/hooks/use-responsive';
-import { useTheme } from '@/hooks/use-theme';
+import { useDisplayFont, useTheme } from '@/hooks/use-theme';
 
 export default function TabsLayout() {
   const colors = useTheme();
+  const displayFont = useDisplayFont();
   const { isWide } = useResponsive();
 
   return (
@@ -23,10 +24,11 @@ export default function TabsLayout() {
           // bottom tabs' own per-screen header would be redundant above it.
           headerShown: !isWide,
           headerStyle: { backgroundColor: colors.background },
-          headerTitleStyle: { color: colors.text, fontFamily: DisplayFont, fontSize: 20 },
+          headerTitleStyle: { color: colors.text, fontFamily: displayFont, fontSize: 20 },
           headerShadowVisible: false,
           tabBarActiveTintColor: colors.accent,
           tabBarInactiveTintColor: colors.textSecondary,
+          tabBarLabelStyle: { fontFamily: displayFont, fontSize: 12 },
           tabBarStyle: {
             backgroundColor: colors.background,
             borderTopColor: colors.backgroundElement,
@@ -35,7 +37,10 @@ export default function TabsLayout() {
         <Tabs.Screen
           name="index"
           options={{
-            title: 'Jelli',
+            title: 'jelli',
+            headerTitle: () => (
+              <AnimatedWordmark text="jelli" style={{ fontFamily: displayFont, fontSize: 20, color: colors.text }} />
+            ),
             tabBarLabel: 'Feed',
             tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size} color={color} />,
           }}
