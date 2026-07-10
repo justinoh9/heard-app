@@ -33,13 +33,13 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import Svg, { Circle, Line } from 'react-native-svg';
+import Svg, { Line, Path, Rect } from 'react-native-svg';
 
 import { useTheme } from '@/hooks/use-theme';
 
 const THRESHOLD = 62; // pull past this (px) to trigger a refresh
-const MAX_PULL = 96; // clamp the drag so it can't run away
-const REST = 50; // header height held open while the refresh runs
+const MAX_PULL = 100; // clamp the drag so it can't run away
+const REST = 68; // header height held open while the refresh runs (jar + hover room)
 const RESISTANCE = 0.5; // drag feels heavier than a 1:1 follow
 
 export function JarRefresh({
@@ -122,6 +122,7 @@ function WebJarRefresh({
   const theme = useTheme();
   const pull = useSharedValue(0);
   const spin = useSharedValue(0);
+  const lift = useSharedValue(0);
   const pop = useSharedValue(1);
 
   // Plain refs (not shared values) for the pointer bookkeeping — it all runs on
@@ -133,12 +134,16 @@ function WebJarRefresh({
   useEffect(() => {
     if (refreshing) {
       pull.value = withSpring(REST, { damping: 15, stiffness: 150 });
+      // The lid pops off the jar and hovers above it, spinning, while we load.
+      lift.value = withSpring(14, { damping: 9, stiffness: 180 });
       spin.value = 0;
-      spin.value = withRepeat(withTiming(360, { duration: 850, easing: Easing.linear }), -1, false);
-      pop.value = withSequence(withTiming(1.25, { duration: 130 }), withSpring(1, { damping: 6 }));
+      spin.value = withRepeat(withTiming(360, { duration: 900, easing: Easing.linear }), -1, false);
+      pop.value = withSequence(withTiming(1.18, { duration: 130 }), withSpring(1, { damping: 6 }));
     } else {
+      // Screw the lid back on: stop the spin at a flat face, drop the lid, close.
       cancelAnimation(spin);
-      spin.value = withTiming(0, { duration: 220 });
+      spin.value = withTiming(0, { duration: 240 });
+      lift.value = withSpring(0, { damping: 14, stiffness: 200 });
       pull.value = withTiming(0, { duration: 280, easing: Easing.out(Easing.quad) });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -173,13 +178,26 @@ function WebJarRefresh({
   };
 
   const headerStyle = useAnimatedStyle(() => ({ height: pull.value }));
-  const lidStyle = useAnimatedStyle(() => {
+  // The whole jar fades/scales in as the pull opens the header.
+  const jarStyle = useAnimatedStyle(() => {
     const prog = Math.min(1, pull.value / THRESHOLD);
-    // Unscrew as you pull; once refreshing, hand off to the continuous spin.
-    const rotate = prog * 200 + spin.value;
     return {
       opacity: Math.min(1, pull.value / 16),
-      transform: [{ scale: (0.55 + prog * 0.45) * pop.value }, { rotate: `${rotate}deg` }],
+      transform: [{ scale: (0.6 + prog * 0.4) * pop.value }],
+    };
+  });
+  // The lid, side-on: pulling twists it loose (tilt + rise); refreshing pops it
+  // off to hover and spin like a flipped coin (scaleX = cos) with a slight rock;
+  // finishing screws it back down flat onto the neck.
+  const lidStyle = useAnimatedStyle(() => {
+    const prog = Math.min(1, pull.value / THRESHOLD);
+    const rad = (spin.value * Math.PI) / 180;
+    return {
+      transform: [
+        { translateY: -(prog * 5 + lift.value) },
+        { rotate: `${-prog * 16 + Math.sin(rad) * 9}deg` },
+        { scaleX: Math.cos(rad) },
+      ],
     };
   });
 
@@ -196,8 +214,11 @@ function WebJarRefresh({
     <View testID={testID} style={[styles.flex, style]} {...(pointerProps as object)}>
       <ScrollView onScroll={onScroll} scrollEventThrottle={16} contentContainerStyle={contentContainerStyle}>
         <Animated.View style={[styles.lidHeader, headerStyle]} pointerEvents="none">
-          <Animated.View style={lidStyle}>
-            <JarLid color={theme.accent} ridge={theme.onAccent} jam={theme.accentAlt} />
+          <Animated.View style={[styles.jar, jarStyle]}>
+            <Animated.View style={[styles.lid, lidStyle]}>
+              <JarLidSide color={theme.accent} ridge={theme.onAccent} />
+            </Animated.View>
+            <JarBody glass={theme.accent} jam={theme.accentAlt} shine={theme.onAccent} />
           </Animated.View>
         </Animated.View>
         {children}
@@ -206,34 +227,52 @@ function WebJarRefresh({
   );
 }
 
-/** A screw-top jam-jar lid, seen from above — ridged rim + a jelly dollop. */
-function JarLid({ color, ridge, jam }: { color: string; ridge: string; jam: string }) {
-  const ridges = Array.from({ length: 16 }).map((_, i) => {
-    const a = (i / 16) * Math.PI * 2;
-    return (
-      <Line
-        key={i}
-        x1={50 + Math.cos(a) * 44}
-        y1={50 + Math.sin(a) * 44}
-        x2={50 + Math.cos(a) * 36}
-        y2={50 + Math.sin(a) * 36}
-        stroke={ridge}
-        strokeWidth={3}
-        strokeLinecap="round"
-      />
-    );
-  });
+/** The screw-top lid seen from the side — a shallow cap with knurled ridges. */
+function JarLidSide({ color, ridge }: { color: string; ridge: string }) {
+  const ridges = Array.from({ length: 8 }).map((_, i) => (
+    <Line
+      key={i}
+      x1={17 + i * 11}
+      y1={16}
+      x2={17 + i * 11}
+      y2={31}
+      stroke={ridge}
+      strokeWidth={3.5}
+      strokeLinecap="round"
+      opacity={0.65}
+    />
+  ));
   return (
-    <Svg width={34} height={34} viewBox="0 0 100 100">
-      <Circle cx="50" cy="50" r="45" fill={color} />
+    <Svg width={42} height={15} viewBox="0 0 110 40">
+      <Rect x={5} y={2} width={100} height={36} rx={10} fill={color} />
       {ridges}
-      <Circle cx="50" cy="50" r="32" fill="none" stroke={ridge} strokeWidth={2.5} opacity={0.5} />
-      <Circle cx="50" cy="50" r="13" fill={jam} />
+    </Svg>
+  );
+}
+
+/** The glass jar body, side-on — outlined glass, jam filling the lower half. */
+function JarBody({ glass, jam, shine }: { glass: string; jam: string; shine: string }) {
+  return (
+    <Svg width={38} height={30} viewBox="0 0 100 78">
+      <Path
+        d="M24,22 L20,10 L20,4 L80,4 L80,10 L76,22 L80,30 L80,56 Q80,74 62,74 L38,74 Q20,74 20,56 L20,30 Z"
+        fill={jam}
+        fillOpacity={0.16}
+        stroke={glass}
+        strokeWidth={5}
+        strokeLinejoin="round"
+      />
+      <Path d="M25,40 L75,40 L75,56 Q75,69 61,69 L39,69 Q25,69 25,56 Z" fill={jam} />
+      <Line x1={30} y1={30} x2={30} y2={58} stroke={shine} strokeWidth={4} strokeLinecap="round" opacity={0.5} />
     </Svg>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  lidHeader: { alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  lidHeader: { alignItems: 'center', justifyContent: 'flex-end', overflow: 'hidden' },
+  // Headroom above the lid so it can pop off and hover without clipping; the
+  // lid tucks into the jar neck with a slight overlap.
+  jar: { alignItems: 'center', paddingTop: 16, paddingBottom: 4 },
+  lid: { marginBottom: -2, zIndex: 1 },
 });
