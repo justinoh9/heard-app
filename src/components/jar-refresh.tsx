@@ -132,6 +132,10 @@ function WebJarRefresh({
   const unscrew = useSharedValue(0);
   const spin = useSharedValue(0); // extra free-spin while hovering, after the threads release
   const pop = useSharedValue(1);
+  // How hard the pull is squeezing the lid down onto the jar (0..1). Tracks the
+  // drag, then springs back to 0 when the refresh fires — the stored squash is
+  // what makes the launch read as "sprung off" rather than floated off.
+  const press = useSharedValue(0);
 
   // Plain refs (not shared values) for the pointer bookkeeping — it all runs on
   // the JS thread on web anyway.
@@ -142,9 +146,13 @@ function WebJarRefresh({
   useEffect(() => {
     if (refreshing) {
       pull.value = withSpring(REST, { damping: 15, stiffness: 150 });
-      // Thread off: ~2.5 turns while rising (both driven by `unscrew`), then the
-      // freed lid keeps spinning above the jar for as long as the load takes.
-      unscrew.value = withTiming(1, { duration: UNSCREW_MS, easing: Easing.inOut(Easing.quad) });
+      // Release the squeeze with a boing — the compressed lid springs back to
+      // shape just as it launches.
+      press.value = withSpring(0, { damping: 7, stiffness: 260 });
+      // Thread off: ~2.5 turns while rising (both driven by `unscrew`). A spring
+      // (not a flat timing curve) launches it fast out of the squeeze and lets it
+      // overshoot a touch before the freed lid settles into its hover spin.
+      unscrew.value = withSpring(1, { damping: 12, stiffness: 50 });
       spin.value = 0;
       spin.value = withDelay(
         UNSCREW_MS,
@@ -180,17 +188,23 @@ function WebJarRefresh({
     const dy = e.clientY - startY.current;
     if (dy > 0 && scrollTop.current <= 0) {
       pull.value = Math.min(MAX_PULL, dy * RESISTANCE);
+      // The deeper the pull, the harder the lid is squeezed onto the jar.
+      press.value = Math.min(1, pull.value / THRESHOLD);
     } else if (dy <= 0) {
       // They're scrolling the list, not pulling — bail out of the pull.
       dragging.current = false;
       pull.value = withTiming(0, { duration: 160 });
+      press.value = withTiming(0, { duration: 160 });
     }
   };
   const onPointerUp = () => {
     if (!dragging.current) return;
     dragging.current = false;
     if (pull.value >= THRESHOLD) begin();
-    else pull.value = withTiming(0, { duration: 220 });
+    else {
+      pull.value = withTiming(0, { duration: 220 });
+      press.value = withTiming(0, { duration: 220 });
+    }
   };
 
   const headerStyle = useAnimatedStyle(() => ({ height: pull.value }));
@@ -212,11 +226,16 @@ function WebJarRefresh({
   const lidStyle = useAnimatedStyle(() => {
     const angle = unscrew.value * TURNS * 360 + spin.value;
     const rad = (angle * Math.PI) / 180;
+    // Squeeze: the pull squashes the lid down onto the jar — shorter, a little
+    // wider, pressed into the neck — and the refresh springs it back to shape
+    // (press bounces to 0) right as the threads launch it.
+    const squash = press.value;
     return {
       transform: [
-        { translateY: -unscrew.value * 15 },
+        { translateY: squash * 2.5 - unscrew.value * 15 },
         { rotate: `${Math.sin(rad) * 4}deg` },
-        { scaleX: Math.cos(rad) },
+        { scaleX: Math.cos(rad) * (1 + squash * 0.18) },
+        { scaleY: 1 - squash * 0.45 },
       ],
     };
   });
