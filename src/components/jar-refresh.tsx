@@ -28,6 +28,7 @@ import Animated, {
   Easing,
   useAnimatedStyle,
   useSharedValue,
+  withDelay,
   withRepeat,
   withSequence,
   withSpring,
@@ -41,10 +42,14 @@ const THRESHOLD = 62; // pull past this (px) to trigger a refresh
 const MAX_PULL = 100; // clamp the drag so it can't run away
 const REST = 68; // header height held open while the refresh runs (jar + hover room)
 const RESISTANCE = 0.5; // drag feels heavier than a 1:1 follow
+const UNSCREW_MS = 850; // time to thread the lid off (and back on)
+const TURNS = 2.5; // full revolutions the lid makes while threading off
 
 export function JarRefresh({
   onRefresh,
-  refreshingMinMs = 650,
+  // Long enough for the lid to thread fully off (UNSCREW_MS) plus a beat of
+  // free-spin, so a fast refresh still plays the whole unscrew.
+  refreshingMinMs = 1700,
   children,
   style,
   contentContainerStyle,
@@ -121,8 +126,11 @@ function WebJarRefresh({
 }) {
   const theme = useTheme();
   const pull = useSharedValue(0);
-  const spin = useSharedValue(0);
-  const lift = useSharedValue(0);
+  // Unscrew progress, 0 = seated on the neck → 1 = fully off. Rotation and rise
+  // are BOTH derived from this one value, so they stay coupled like a thread —
+  // the lid visibly turns as it climbs, instead of levitating straight up.
+  const unscrew = useSharedValue(0);
+  const spin = useSharedValue(0); // extra free-spin while hovering, after the threads release
   const pop = useSharedValue(1);
 
   // Plain refs (not shared values) for the pointer bookkeeping — it all runs on
@@ -134,17 +142,25 @@ function WebJarRefresh({
   useEffect(() => {
     if (refreshing) {
       pull.value = withSpring(REST, { damping: 15, stiffness: 150 });
-      // The lid pops off the jar and hovers above it, spinning, while we load.
-      lift.value = withSpring(14, { damping: 9, stiffness: 180 });
+      // Thread off: ~2.5 turns while rising (both driven by `unscrew`), then the
+      // freed lid keeps spinning above the jar for as long as the load takes.
+      unscrew.value = withTiming(1, { duration: UNSCREW_MS, easing: Easing.inOut(Easing.quad) });
       spin.value = 0;
-      spin.value = withRepeat(withTiming(360, { duration: 900, easing: Easing.linear }), -1, false);
-      pop.value = withSequence(withTiming(1.18, { duration: 130 }), withSpring(1, { damping: 6 }));
+      spin.value = withDelay(
+        UNSCREW_MS,
+        withRepeat(withTiming(360, { duration: 900, easing: Easing.linear }), -1, false),
+      );
+      pop.value = withSequence(
+        withDelay(UNSCREW_MS, withTiming(1.15, { duration: 120 })),
+        withSpring(1, { damping: 6 }),
+      );
     } else {
-      // Screw the lid back on: stop the spin at a flat face, drop the lid, close.
+      // Thread back on: stop the free spin, reverse-turn down onto the neck,
+      // and only close the header once the lid has finished seating.
       cancelAnimation(spin);
-      spin.value = withTiming(0, { duration: 240 });
-      lift.value = withSpring(0, { damping: 14, stiffness: 200 });
-      pull.value = withTiming(0, { duration: 280, easing: Easing.out(Easing.quad) });
+      spin.value = withTiming(0, { duration: 200 });
+      unscrew.value = withTiming(0, { duration: UNSCREW_MS, easing: Easing.inOut(Easing.quad) });
+      pull.value = withDelay(UNSCREW_MS, withTiming(0, { duration: 280, easing: Easing.out(Easing.quad) }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshing]);
@@ -186,16 +202,20 @@ function WebJarRefresh({
       transform: [{ scale: (0.6 + prog * 0.4) * pop.value }],
     };
   });
-  // The lid, side-on: pulling twists it loose (tilt + rise); refreshing pops it
-  // off to hover and spin like a flipped coin (scaleX = cos) with a slight rock;
-  // finishing screws it back down flat onto the neck.
+  // The lid, side-on. It stays seated on the neck for the whole pull — the jar
+  // arrives intact. Only when the refresh begins does `unscrew` thread it off:
+  // rotation and rise both derive from that one value, so every degree of turn
+  // buys a bit of height (reading as threads), `spin` free-spins it once it's
+  // off, and the reverse plays it backwards to screw it back on. Seen edge-on,
+  // each revolution shows as scaleX = cos(angle); a small z-tilt wobble sells
+  // the off-axis wobble of a hand-turned lid.
   const lidStyle = useAnimatedStyle(() => {
-    const prog = Math.min(1, pull.value / THRESHOLD);
-    const rad = (spin.value * Math.PI) / 180;
+    const angle = unscrew.value * TURNS * 360 + spin.value;
+    const rad = (angle * Math.PI) / 180;
     return {
       transform: [
-        { translateY: -(prog * 5 + lift.value) },
-        { rotate: `${-prog * 16 + Math.sin(rad) * 9}deg` },
+        { translateY: -unscrew.value * 15 },
+        { rotate: `${Math.sin(rad) * 4}deg` },
         { scaleX: Math.cos(rad) },
       ],
     };
@@ -243,7 +263,7 @@ function JarLidSide({ color, ridge }: { color: string; ridge: string }) {
     />
   ));
   return (
-    <Svg width={42} height={15} viewBox="0 0 110 40">
+    <Svg width={30} height={11} viewBox="0 0 110 40">
       <Rect x={5} y={2} width={100} height={36} rx={10} fill={color} />
       {ridges}
     </Svg>
