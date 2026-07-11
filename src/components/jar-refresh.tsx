@@ -294,5 +294,7 @@ const styles = StyleSheet.create({
   // Headroom above the lid so it can pop off and hover without clipping; the
   // lid tucks into the jar neck with a slight overlap.
   jar: { alignItems: 'center', paddingTop: 16, paddingBottom: 4 },
-  lid: { marginBottom: -2, zIndex: 1 },
+  // Seated, the lid's skirt wraps down OVER the jar mouth (like a real screw
+  // cap), so the first turns of the unscrew visibly climb up off the neck.
+  lid: { marginBottom: -6, zIndex: 1 },
 });
