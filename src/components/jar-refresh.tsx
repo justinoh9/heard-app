@@ -146,13 +146,13 @@ function WebJarRefresh({
   useEffect(() => {
     if (refreshing) {
       pull.value = withSpring(REST, { damping: 15, stiffness: 150 });
-      // Release the squeeze with a boing — the compressed lid springs back to
-      // shape just as it launches.
-      press.value = withSpring(0, { damping: 7, stiffness: 260 });
+      // Release the squeeze with a soft boing — enough to read as sprung, only a
+      // small stretch past its true shape.
+      press.value = withSpring(0, { damping: 14, stiffness: 260 });
       // Thread off: ~2.5 turns while rising (both driven by `unscrew`). A spring
-      // (not a flat timing curve) launches it fast out of the squeeze and lets it
-      // overshoot a touch before the freed lid settles into its hover spin.
-      unscrew.value = withSpring(1, { damping: 12, stiffness: 50 });
+      // (not a flat timing curve) launches it fast out of the squeeze; near-
+      // critical damping so it rises to the hover height without bouncing past.
+      unscrew.value = withSpring(1, { damping: 18, stiffness: 50 });
       spin.value = 0;
       spin.value = withDelay(
         UNSCREW_MS,
@@ -188,8 +188,10 @@ function WebJarRefresh({
     const dy = e.clientY - startY.current;
     if (dy > 0 && scrollTop.current <= 0) {
       pull.value = Math.min(MAX_PULL, dy * RESISTANCE);
-      // The deeper the pull, the harder the lid is squeezed onto the jar.
-      press.value = Math.min(1, pull.value / THRESHOLD);
+      // The deeper the pull, the harder the lid is squeezed onto the jar —
+      // quadratic, so the squash builds slowly at first and lands late.
+      const p = Math.min(1, pull.value / THRESHOLD);
+      press.value = p * p;
     } else if (dy <= 0) {
       // They're scrolling the list, not pulling — bail out of the pull.
       dragging.current = false;
@@ -228,8 +230,10 @@ function WebJarRefresh({
     const rad = (angle * Math.PI) / 180;
     // Squeeze: the pull squashes the lid down onto the jar — shorter, a little
     // wider, pressed into the neck — and the refresh springs it back to shape
-    // (press bounces to 0) right as the threads launch it.
-    const squash = press.value;
+    // (press bounces to 0) right as the threads launch it. The rebound side of
+    // the spring (press swinging negative) is attenuated so the boing past its
+    // true shape stays a hint, not a big rubbery stretch.
+    const squash = press.value < 0 ? press.value * 0.4 : press.value;
     return {
       transform: [
         { translateY: squash * 2.5 - unscrew.value * 15 },
