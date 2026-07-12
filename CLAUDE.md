@@ -170,6 +170,15 @@ retention, differentiators).
   done. Ratings persist through `commitPlacement` (no per-item feed spam). The
   seed is deliberately catalog-based, not Spotify top-tracks (Spotify OAuth is
   allowlist-gated) — see ROADMAP.
+- `src/audio/` — **preview playback** (ROADMAP Phase 2 / F2): `preview.tsx` is a
+  single shared `expo-audio` player mounted once in the root layout
+  (`PreviewContext`/`usePreview`), so only one 30s clip sounds at a time —
+  tapping a new preview replaces the current one. `components/preview-button.tsx`
+  is the play/pause affordance (renders nothing without a `previewUrl`), placed
+  on search rows, album tracklists, and the item-page header. iTunes'
+  `previewUrl` flows via `SearchResult`/`AlbumTrack` (now kept in
+  `parseAlbumTracks`) and the item route params. expo-audio works on web +
+  native, so no platform branching.
 - `src/queue/` — the **want-to-listen queue** (ROADMAP Phase 2 / G1; blueprint
   §2.A): a one-tap bookmark feeding a personal listen-later list, behind a
   `QueueBackend` seam (`0012_queue.sql` — `queue_items`, one row per

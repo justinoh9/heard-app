@@ -56,6 +56,8 @@ export interface AlbumTrack {
   durationMs: number;
   /** Credited artists, comma-joined. */
   artist: string;
+  /** 30-second preview MP3, when the provider offers one (best-effort). */
+  previewUrl?: string;
 }
 
 export interface SearchOptions {

@@ -7,6 +7,7 @@ import { AlbumCover } from '@/components/album-cover';
 import { EmptyState } from '@/components/empty-state';
 import { JelliLoader } from '@/components/jelli-loader';
 import { PageContainer } from '@/components/page-container';
+import { PreviewButton } from '@/components/preview-button';
 import { QueueButton } from '@/components/queue-button';
 import { RecentPlaysTray } from '@/components/recent-plays-tray';
 import { Surface } from '@/components/surface';
@@ -53,6 +54,7 @@ export default function RateSearchScreen() {
         artUrl: item.coverUrl ?? '',
         year: item.year ?? '',
         genre: item.genre ?? '',
+        previewUrl: item.previewUrl ?? '',
       },
     });
   }
@@ -257,6 +259,7 @@ function ResultRow({
           {subtitleFor(item)}
         </ThemedText>
       </View>
+      <PreviewButton url={item.previewUrl} size={24} />
       {score != null ? (
         <ScorePill score={score} />
       ) : (

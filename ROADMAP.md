@@ -167,11 +167,16 @@ follow) is entirely real.
       buttons surface a "provider not enabled" error. *Follow-up:* native Apple
       sign-in via `expo-apple-authentication` when the iOS app ships (web uses
       the Supabase redirect flow today).
-- [ ] **(F2) In-app playback (preview-first)** — tap a song to hear it. The
-      iTunes catalog already returns 30s `previewUrl`s, so a lightweight
-      `expo-audio` player on item pages, search rows, and the feed is a
-      near-term win; full-track playback (Spotify Web Playback SDK / Apple
-      MusicKit, premium-gated) is the heavier follow-up. Also unblocks (F5).
+- [x] **(F2) In-app playback (preview-first)** — shipped. A single shared
+      `expo-audio` player (`src/audio/preview.tsx`, mounted in the root layout so
+      only one clip sounds at a time) backs a `PreviewButton`
+      (`components/preview-button.tsx`) on search rows, album tracklists, and the
+      song/album item header. iTunes' 30s `previewUrl` now flows through
+      `AlbumTrack` (previously dropped in `parseAlbumTracks`) and the item-route
+      params. Renders nothing when a release has no preview. *Follow-ups:* a
+      preview affordance on feed cards; full-track playback (Spotify Web Playback
+      SDK / Apple MusicKit, premium-gated) is the heavier follow-up and unblocks
+      (F5) timestamped comments.
 - [ ] **(F4) Reposts** — let a user reshare someone else's rating/review/drop
       into their own feed (with an optional note), emitting a `repost` feed
       event. Extends the compounding loop (PRODUCT_BLUEPRINT §1.3) — the cheapest

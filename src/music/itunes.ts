@@ -199,6 +199,7 @@ export function parseAlbumTracks(json: ITunesResponse): AlbumTrack[] {
       trackNumber: e.trackNumber ?? i + 1,
       durationMs: e.trackTimeMillis ?? 0,
       artist: e.artistName ?? 'Unknown artist',
+      previewUrl: e.previewUrl,
     }))
     .sort((a, b) => a.trackNumber - b.trackNumber);
 }

@@ -9,6 +9,7 @@ import { BreadRating } from '@/components/bread-rating';
 import { CommentCard } from '@/components/comment-card';
 import { EmptyState } from '@/components/empty-state';
 import { PageContainer } from '@/components/page-container';
+import { PreviewButton } from '@/components/preview-button';
 import { QueueButton } from '@/components/queue-button';
 import { ScoreBreakdown } from '@/components/score-breakdown';
 import { Segmented } from '@/components/segmented';
@@ -41,6 +42,7 @@ export default function ItemProfileScreen() {
     artUrl?: string;
     year?: string;
     genre?: string;
+    previewUrl?: string;
   }>();
 
   const id = String(params.id);
@@ -50,6 +52,7 @@ export default function ItemProfileScreen() {
   const artUrl = params.artUrl || undefined;
   const year = params.year || '';
   const genre = params.genre || '';
+  const previewUrl = params.previewUrl || undefined;
 
   const existing = ratingFor(id);
   const itemLike = useLikeSummary('item', id);
@@ -108,6 +111,7 @@ export default function ItemProfileScreen() {
         title: track.title,
         artist: track.artist || artist,
         artUrl: artUrl ?? '',
+        previewUrl: track.previewUrl ?? '',
       },
     });
   }
@@ -171,9 +175,12 @@ export default function ItemProfileScreen() {
             <ThemedText type="subtitle" style={styles.center}>
               {title}
             </ThemedText>
-            <ThemedText themeColor="textSecondary" style={styles.center}>
-              {artist}
-            </ThemedText>
+            <View style={styles.artistRow}>
+              <ThemedText themeColor="textSecondary" style={styles.center}>
+                {artist}
+              </ThemedText>
+              {previewUrl ? <PreviewButton url={previewUrl} size={26} /> : null}
+            </View>
 
             {existing ? (
               <>
@@ -249,6 +256,7 @@ export default function ItemProfileScreen() {
                       <ThemedText type="small" numberOfLines={1} style={styles.trackTitle}>
                         {track.title}
                       </ThemedText>
+                      <PreviewButton url={track.previewUrl} size={20} />
                       {rated ? (
                         <View style={[styles.trackScore, { backgroundColor: theme.accent }]}>
                           <ThemedText
@@ -386,6 +394,7 @@ const styles = StyleSheet.create({
   content: { padding: Spacing.three },
   inner: { gap: Spacing.three },
   header: { alignItems: 'center', gap: Spacing.two },
+  artistRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   center: { textAlign: 'center' },
   scorePill: {
     borderRadius: 999,

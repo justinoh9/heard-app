@@ -6,6 +6,7 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider, useRouter, useSegments }
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 
+import { PreviewContext, usePreviewState } from '@/audio/preview';
 import { JelliLoader } from '@/components/jelli-loader';
 import { ThemedView } from '@/components/themed-view';
 import { ToastProvider } from '@/components/toast';
@@ -48,7 +49,8 @@ export default function RootLayout() {
 
   return (
     <AppThemeBridge>
-      <AuthProvider>
+      <PreviewBridge>
+        <AuthProvider>
         <StreaksBridge>
           {/* Social sits above ratings + feed: both publish activity events. */}
           <SocialBridge>
@@ -72,7 +74,8 @@ export default function RootLayout() {
             </RatingsBridge>
           </SocialBridge>
         </StreaksBridge>
-      </AuthProvider>
+        </AuthProvider>
+      </PreviewBridge>
     </AppThemeBridge>
   );
 }
@@ -108,6 +111,11 @@ function NavThemeProvider({ children }: { children: React.ReactNode }) {
       {children}
     </ThemeProvider>
   );
+}
+
+function PreviewBridge({ children }: { children: React.ReactNode }) {
+  const preview = usePreviewState();
+  return <PreviewContext.Provider value={preview}>{children}</PreviewContext.Provider>;
 }
 
 function StreaksBridge({ children }: { children: React.ReactNode }) {
