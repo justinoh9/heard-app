@@ -31,6 +31,8 @@ export interface SearchResult {
   coverUrl?: string;
   /** "Album" | "EP" | "Single" | ... — album-kind only, lets the UI label or filter. */
   primaryType?: string;
+  /** Primary genre when the provider has one (iTunes primaryGenreName). */
+  genre?: string;
   /** Parent album title — song-kind only. */
   albumTitle?: string;
   /** 0-100 normalized popularity, when the provider has one. Spotify sets this on tracks. */

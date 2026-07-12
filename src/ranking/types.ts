@@ -14,6 +14,8 @@ export interface Item {
   artUrl?: string;
   /** Release year (e.g. "2016"), when known — powers the Wrapped decades. */
   year?: string;
+  /** Primary genre (iTunes primaryGenreName), when known — powers taste genres. */
+  genre?: string;
 }
 
 /** An item the user has rated, as stored. */

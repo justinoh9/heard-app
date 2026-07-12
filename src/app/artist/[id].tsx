@@ -86,14 +86,14 @@ export default function ArtistProfileScreen() {
   function openAlbum(album: SearchResult) {
     router.push({
       pathname: '/item/[id]',
-      params: { id: album.id, type: 'album', title: album.title, artist: album.artist, artUrl: album.coverUrl ?? '' },
+      params: { id: album.id, type: 'album', title: album.title, artist: album.artist, artUrl: album.coverUrl ?? '', genre: album.genre ?? '' },
     });
   }
 
   function openSong(song: SearchResult) {
     router.push({
       pathname: '/log',
-      params: { id: song.id, type: 'song', title: song.title, artist: song.artist, year: song.year ?? '', artUrl: song.coverUrl ?? '' },
+      params: { id: song.id, type: 'song', title: song.title, artist: song.artist, year: song.year ?? '', artUrl: song.coverUrl ?? '', genre: song.genre ?? '' },
     });
   }
 

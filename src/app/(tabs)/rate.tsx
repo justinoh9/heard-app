@@ -51,6 +51,7 @@ export default function RateSearchScreen() {
         artist: item.artist,
         artUrl: item.coverUrl ?? '',
         year: item.year ?? '',
+        genre: item.genre ?? '',
       },
     });
   }

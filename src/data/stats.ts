@@ -30,6 +30,9 @@ export interface WrappedStats {
   topArtists: ArtistStat[];
   /** Rated releases per decade ("2010s"), newest first, unknown years dropped. */
   topDecades: BucketStat[];
+  /** Most-rated genres (by count, ties by name), best first, top 5. Empty
+      until items carry a genre — see the genre pipeline in ratings-rows. */
+  topGenres: BucketStat[];
   /** The #1 ranked item. */
   highest: RankedItem | null;
   concertCount: number;
@@ -84,6 +87,19 @@ export function computeStats(ranked: RankedItem[], concerts: Concert[]): Wrapped
     .sort((a, b) => b[0] - a[0])
     .map(([decade, count]) => ({ label: `${decade}s`, count }));
 
+  // Genres (from item.genre — iTunes primaryGenreName). The generic "Music"
+  // bucket Apple sometimes returns carries no taste signal, so it's dropped.
+  const byGenre = new Map<string, number>();
+  for (const r of sorted) {
+    const g = r.item.genre?.trim();
+    if (!g || g.toLowerCase() === 'music') continue;
+    byGenre.set(g, (byGenre.get(g) ?? 0) + 1);
+  }
+  const topGenres: BucketStat[] = [...byGenre.entries()]
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+    .slice(0, 5);
+
   const venues = new Map<string, number>();
   for (const c of concerts) {
     if (c.venue) venues.set(c.venue, (venues.get(c.venue) ?? 0) + 1);
@@ -97,6 +113,7 @@ export function computeStats(ranked: RankedItem[], concerts: Concert[]): Wrapped
     histogram,
     topArtists,
     topDecades,
+    topGenres,
     highest: sorted[0] ?? null,
     concertCount: concerts.length,
     topVenue,

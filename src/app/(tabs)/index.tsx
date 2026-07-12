@@ -17,6 +17,8 @@ import { formatDropRemaining } from '@/feed/rows';
 import { useFeed, type DailyDrop } from '@/feed/store';
 import { relativeTime } from '@/feed/time';
 import { useTheme } from '@/hooks/use-theme';
+import { badgeLabel } from '@/notifications/merge';
+import { useNotifications } from '@/notifications/store';
 import { toDisplayEvent } from '@/social/feed-rows';
 import { useSocial } from '@/social/store';
 
@@ -25,6 +27,7 @@ export default function FeedScreen() {
   const router = useRouter();
   const { myDrop } = useFeed();
   const { feed, followingIds, refresh, feedHasMore, feedLoadingMore, loadMoreFeed } = useSocial();
+  const { unread } = useNotifications();
   const { requireAuth } = useRequireAuth();
 
   // Real activity (you + people you follow), rendered above the mock filler.
@@ -63,6 +66,24 @@ export default function FeedScreen() {
     <ThemedView style={styles.screen}>
       <JarRefresh onRefresh={refresh} contentContainerStyle={styles.content}>
         <PageContainer style={styles.inner}>
+          <View style={styles.bellRow}>
+            <Pressable
+              testID="open-notifications"
+              onPress={() => requireAuth(() => router.push('/notifications'))}
+              accessibilityLabel="Notifications"
+              hitSlop={8}
+              style={styles.bell}>
+              <Ionicons name="notifications-outline" size={22} color={theme.text} />
+              {unread > 0 && (
+                <View style={[styles.badge, { backgroundColor: theme.accent }]}>
+                  <ThemedText type="small" style={{ color: theme.onAccent, fontSize: 10, lineHeight: 14 }}>
+                    {badgeLabel(unread)}
+                  </ThemedText>
+                </View>
+              )}
+            </Pressable>
+          </View>
+
           <YourDrop
             drop={myDrop}
             theme={theme}
@@ -334,6 +355,19 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { padding: Spacing.three },
   inner: { gap: Spacing.three },
+  bellRow: { flexDirection: 'row', justifyContent: 'flex-end', marginBottom: -Spacing.two },
+  bell: { padding: Spacing.one },
+  badge: {
+    position: 'absolute',
+    top: -2,
+    right: -4,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    paddingHorizontal: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   sectionLabel: { marginTop: Spacing.two },
   // Surface owns padding/gap/border; these only tune per-card layout.
   rowCard: { flexDirection: 'row', alignItems: 'center' },

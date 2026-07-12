@@ -5,12 +5,13 @@ import { computeTasteProfile, ratingStyle } from './profile';
 import type { BucketStat } from '../data/stats';
 import type { Item, RankedItem } from '../ranking/types';
 
-const album = (id: string, title: string, artist: string, year?: string): Item => ({
+const album = (id: string, title: string, artist: string, year?: string, genre?: string): Item => ({
   id,
   type: 'album',
   title,
   artist,
   year,
+  genre,
 });
 const rated = (item: Item, score: number): RankedItem => ({ item, score, tiebreak: 0 });
 
@@ -60,6 +61,19 @@ test('computeTasteProfile: aggregates artists, decade, mean', () => {
   assert.equal(profile.style.key, 'generous');
 });
 
+test('computeTasteProfile: aggregates genres, dropping the generic "Music"', () => {
+  const list: RankedItem[] = [
+    rated(album('a', 'Blonde', 'Frank Ocean', '2016', 'R&B/Soul'), 9),
+    rated(album('b', 'channel ORANGE', 'Frank Ocean', '2012', 'R&B/Soul'), 8),
+    rated(album('c', 'IGOR', 'Tyler', '2019', 'Hip-Hop/Rap'), 8),
+    rated(album('d', 'Untitled', 'Nobody', '2020', 'Music'), 7), // generic → dropped
+  ];
+  const profile = computeTasteProfile(list);
+  assert.equal(profile.topGenres[0].label, 'R&B/Soul');
+  assert.equal(profile.topGenres[0].count, 2);
+  assert.ok(!profile.topGenres.some((g) => g.label === 'Music'));
+});
+
 test('computeTasteProfile: empty list is a safe "new" profile', () => {
   const profile = computeTasteProfile([]);
   assert.equal(profile.ratedCount, 0);
@@ -67,4 +81,5 @@ test('computeTasteProfile: empty list is a safe "new" profile', () => {
   assert.equal(profile.style.key, 'new');
   assert.equal(profile.topDecade, null);
   assert.deepEqual(profile.topArtists, []);
+  assert.deepEqual(profile.topGenres, []);
 });

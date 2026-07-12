@@ -39,6 +39,7 @@ export default function ItemProfileScreen() {
     artist: string;
     artUrl?: string;
     year?: string;
+    genre?: string;
   }>();
 
   const id = String(params.id);
@@ -47,6 +48,7 @@ export default function ItemProfileScreen() {
   const artist = String(params.artist);
   const artUrl = params.artUrl || undefined;
   const year = params.year || '';
+  const genre = params.genre || '';
 
   const existing = ratingFor(id);
   const itemLike = useLikeSummary('item', id);
@@ -113,7 +115,7 @@ export default function ItemProfileScreen() {
     requireAuth(() =>
       router.push({
         pathname: '/log',
-        params: { id, type, title, artist, artUrl: artUrl ?? '', year },
+        params: { id, type, title, artist, artUrl: artUrl ?? '', year, genre },
       }),
     );
   }

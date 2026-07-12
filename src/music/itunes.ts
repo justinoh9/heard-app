@@ -50,6 +50,7 @@ export interface ITunesEntity {
   artworkUrl60?: string;
   releaseDate?: string; // ISO 8601
   previewUrl?: string;
+  primaryGenreName?: string; // e.g. "Hip-Hop/Rap", "Alternative"
 }
 
 interface ITunesResponse {
@@ -85,6 +86,7 @@ export function albumToResult(e: ITunesEntity): SearchResult {
     year: year(e.releaseDate),
     coverUrl: upscaleArtwork(e.artworkUrl100),
     primaryType: e.collectionType ?? 'Album',
+    genre: e.primaryGenreName || undefined,
     provider: 'itunes',
   };
 }
@@ -100,6 +102,7 @@ export function trackToResult(e: ITunesEntity): SearchResult {
     coverUrl: upscaleArtwork(e.artworkUrl100),
     albumTitle: e.collectionName,
     previewUrl: e.previewUrl,
+    genre: e.primaryGenreName || undefined,
     provider: 'itunes',
   };
 }

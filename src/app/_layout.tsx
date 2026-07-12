@@ -19,6 +19,7 @@ import { ConcertsContext, useConcertsState } from '@/concerts/store';
 import { RatingsContext, useRatingsState } from '@/data/store';
 import { FeedContext, useFeedState } from '@/feed/store';
 import { useTheme, ThemePreferenceContext, useThemePreferenceState } from '@/hooks/use-theme';
+import { NotificationsContext, useNotificationsState } from '@/notifications/store';
 import { PlaylistsContext, usePlaylistsState } from '@/playlists/store';
 import { SocialContext, useSocialState } from '@/social/store';
 import { StreaksContext, useStreaksState } from '@/streaks/store';
@@ -54,11 +55,14 @@ export default function RootLayout() {
               <FeedBridge>
                 <ConcertsBridge>
                   <PlaylistsBridge>
-                    <NavThemeProvider>
-                      <ToastProvider>
-                        <RootNavigator />
-                      </ToastProvider>
-                    </NavThemeProvider>
+                    {/* Below ratings: notifications scope to the viewer's rated items. */}
+                    <NotificationsBridge>
+                      <NavThemeProvider>
+                        <ToastProvider>
+                          <RootNavigator />
+                        </ToastProvider>
+                      </NavThemeProvider>
+                    </NotificationsBridge>
                   </PlaylistsBridge>
                 </ConcertsBridge>
               </FeedBridge>
@@ -133,6 +137,11 @@ function PlaylistsBridge({ children }: { children: React.ReactNode }) {
   return <PlaylistsContext.Provider value={playlists}>{children}</PlaylistsContext.Provider>;
 }
 
+function NotificationsBridge({ children }: { children: React.ReactNode }) {
+  const notifications = useNotificationsState();
+  return <NotificationsContext.Provider value={notifications}>{children}</NotificationsContext.Provider>;
+}
+
 function RootNavigator() {
   const { status } = useAuth();
   const segments = useSegments();
@@ -188,6 +197,7 @@ function RootNavigator() {
       <Stack.Screen name="playlist/new" options={{ presentation: 'modal' }} />
       <Stack.Screen name="artist/[id]" />
       <Stack.Screen name="streak" />
+      <Stack.Screen name="notifications" />
       <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
     </Stack>
   );

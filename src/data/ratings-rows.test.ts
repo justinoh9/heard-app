@@ -34,10 +34,14 @@ describe('ratings rows', () => {
       artist: 'Frank Ocean',
       art_url: 'https://img/b.jpg',
       release_year: 2016,
+      genres: null,
     });
     assert.equal(toItemRow({ ...ranked.item, artUrl: undefined }).art_url, null);
     assert.equal(toItemRow({ ...ranked.item, year: undefined }).release_year, null);
     assert.equal(toItemRow({ ...ranked.item, year: 'soonish' }).release_year, null);
+    // A known genre becomes a single-element text[]; absent → null.
+    assert.deepEqual(toItemRow({ ...ranked.item, genre: 'Hip-Hop/Rap' }).genres, ['Hip-Hop/Rap']);
+    assert.equal(toItemRow(ranked.item).genres, null);
   });
 
   it('toRatingRow carries user, item, score, and tiebreak', () => {
@@ -60,6 +64,7 @@ describe('ratings rows', () => {
         artist: 'Frank Ocean',
         art_url: null,
         release_year: 2016,
+        genres: ['R&B/Soul'],
       },
     };
     const out = fromRatingRow(row);
@@ -71,10 +76,15 @@ describe('ratings rows', () => {
         artist: 'Frank Ocean',
         artUrl: undefined,
         year: '2016',
+        genre: 'R&B/Soul',
       },
       score: 9.6,
       tiebreak: 2,
     });
+    assert.equal(
+      fromRatingRow({ ...row, items: { ...row.items, genres: null } }).item.genre,
+      undefined,
+    );
     assert.equal(
       fromRatingRow({ ...row, items: { ...row.items, release_year: null } }).item.year,
       undefined,

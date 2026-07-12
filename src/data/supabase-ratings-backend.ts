@@ -30,7 +30,7 @@ export class SupabaseRatingsBackend implements RatingsBackend {
     const [ratingsRes, comparisonsRes] = await Promise.all([
       supabase
         .from('ratings')
-        .select('score, tiebreak, items (id, type, title, artist, art_url, release_year)')
+        .select('score, tiebreak, items (id, type, title, artist, art_url, release_year, genres)')
         .eq('user_id', userId),
       supabase
         .from('comparisons')

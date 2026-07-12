@@ -41,6 +41,7 @@ function toItem(result: SearchResult): Item {
     artist: result.artist,
     artUrl: result.coverUrl,
     year: result.year,
+    genre: result.genre,
   };
 }
 

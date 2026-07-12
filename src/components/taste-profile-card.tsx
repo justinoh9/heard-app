@@ -24,7 +24,7 @@ export function TasteProfileCard({
   name?: string;
 }) {
   const theme = useTheme();
-  const { style, meanScore, topDecade, topArtists, ratedCount } = profile;
+  const { style, meanScore, topDecade, topArtists, topGenres, ratedCount } = profile;
 
   // Nothing rated: a gentle prompt rather than an empty card.
   if (ratedCount === 0) {
@@ -39,8 +39,6 @@ export function TasteProfileCard({
       </Surface>
     );
   }
-
-  const who = self ? 'You use' : `${name ?? 'They'} use`;
 
   return (
     <Surface style={styles.card}>
@@ -69,10 +67,27 @@ export function TasteProfileCard({
         )}
       </View>
 
+      {topGenres.length > 0 && (
+        <View style={styles.artistWrap}>
+          <ThemedText type="small" themeColor="textSecondary">
+            Top genres
+          </ThemedText>
+          <View style={styles.chips}>
+            {topGenres.map((g) => (
+              <View key={g.label} style={[styles.artistChip, { backgroundColor: theme.accentSoft }]}>
+                <ThemedText type="small" style={{ color: theme.accent }}>
+                  {g.label}
+                </ThemedText>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
+
       {topArtists.length > 0 && (
         <View style={styles.artistWrap}>
           <ThemedText type="small" themeColor="textSecondary">
-            {who} on repeat
+            On repeat
           </ThemedText>
           <View style={styles.chips}>
             {topArtists.map((a) => (

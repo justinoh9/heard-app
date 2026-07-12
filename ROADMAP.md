@@ -76,6 +76,14 @@ follow) is entirely real.
       the item page (`log.tsx` → `postComment`). *Follow-up (unbuilt):* a
       distinct `reviews` object type with its own detail screen, if reviews
       need to diverge from comments later.
+- [x] **Genre pipeline** — iTunes `primaryGenreName` is now captured through
+      search → `SearchResult.genre` → `Item.genre` → `items.genres` (the column
+      existed since 0003; `ratings-rows` writes/reads it). Surfaced as a "Top
+      genres" row on the taste profile (`computeStats` → `computeTasteProfile`).
+      Populates for newly-rated items going forward (the `items` cache is
+      insert-only, so pre-existing ratings stay genre-less until re-cached).
+      *Follow-up:* a genre similarity term in `compatibility` once genres are
+      broadly populated (adding it now would dilute existing matches).
 - [x] **Feed v2** — pull-to-refresh shipped (jam-jar-lid pull, `JarRefresh`);
       the mock "From the community" filler now shows only on the cold-start
       empty feed (never stacked under real events); the comments "friends"
@@ -123,14 +131,15 @@ follow) is entirely real.
       descriptor (Generous / Critical / Balanced / Polarizing / Getting started,
       derived from mean + histogram), mean score, favorite decade, and
       most-logged artists — all real, reusing `computeStats`. Also retired the
-      fake `PROFILE.tags` ("indie · hip-hop") line. *Deliberate follow-up:* top
-      **genres** — the current catalog (iTunes) doesn't carry a persisted genre,
-      so that section waits on a genre pipeline (capture iTunes
-      `primaryGenreName` through search → `items.genres`) or Spotify artist
-      genres (OAuth-gated).
-- [ ] **Notifications** — new follower, comment on your review, concert tag,
-      taste-twin rated something you haven't heard. In-app first, push later.
-      Without this, every social action is a message into the void.
+      fake `PROFILE.tags` ("indie · hip-hop") line. Top **genres** now render too
+      (see the Genre pipeline item below).
+- [x] **Notifications (in-app)** — shipped (`src/notifications/`,
+      `src/app/notifications.tsx`, bell + unread badge on the Feed). **Derived**
+      at read time from existing tables (no migration, no write hooks): new
+      followers (`follows`), comments on music you've rated (`comments`), and
+      concert tags (`concert_tags`). Pure `merge.ts` (unit-tested) orders + counts
+      unread against a device-local last-seen (`seen.ts`). *Follow-ups:* the
+      taste-twin source (needs cross-user compatibility) and push (APNs/FCM).
 - [ ] **Re-rank nudge v2** — the quick-match card exists; add the post-log
       1-in-N prompt so comparison data compounds passively.
 - [ ] **(F1) Frictionless sign-in — Google/Apple OAuth + a leaner login page** —

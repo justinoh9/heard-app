@@ -37,6 +37,8 @@ export interface TasteProfile {
   topDecade: string | null;
   /** Rated releases per decade, newest first (for a fuller breakdown). */
   decades: BucketStat[];
+  /** Most-rated genres, best first (empty until items carry a genre). */
+  topGenres: BucketStat[];
 }
 
 const STYLES: Record<RatingStyleKey, RatingStyle> = {
@@ -80,5 +82,6 @@ export function computeTasteProfile(ranked: RankedItem[]): TasteProfile {
     topArtists: stats.topArtists,
     topDecade: stats.topDecades[0]?.label ?? null,
     decades: stats.topDecades,
+    topGenres: stats.topGenres,
   };
 }

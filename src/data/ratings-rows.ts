@@ -14,6 +14,8 @@ export interface ItemRow {
   artist: string;
   art_url: string | null;
   release_year: number | null;
+  /** Single-genre array (the schema column is text[]); null when unknown. */
+  genres: string[] | null;
 }
 
 /** public.ratings upsert shape. */
@@ -35,6 +37,7 @@ export interface RatingSelectRow {
     artist: string;
     art_url: string | null;
     release_year: number | null;
+    genres: string[] | null;
   };
 }
 
@@ -56,6 +59,7 @@ export function toItemRow(item: Item): ItemRow {
     artist: item.artist,
     art_url: item.artUrl ?? null,
     release_year: Number.isFinite(year) ? year : null,
+    genres: item.genre ? [item.genre] : null,
   };
 }
 
@@ -77,6 +81,7 @@ export function fromRatingRow(row: RatingSelectRow): RankedItem {
       artist: row.items.artist,
       artUrl: row.items.art_url ?? undefined,
       year: row.items.release_year != null ? String(row.items.release_year) : undefined,
+      genre: row.items.genres?.[0] ?? undefined,
     },
     score: row.score,
     tiebreak: row.tiebreak,

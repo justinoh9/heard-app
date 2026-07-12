@@ -44,6 +44,7 @@ export default function LogModal() {
     artist: string;
     year?: string;
     artUrl?: string;
+    genre?: string;
   }>();
   const { engine, ranked, ratingFor, commitPlacement } = useRatings();
 
@@ -54,6 +55,7 @@ export default function LogModal() {
     artist: String(params.artist),
     artUrl: params.artUrl || undefined,
     year: params.year || undefined,
+    genre: params.genre || undefined,
   };
   const existing = ratingFor(album.id);
   // Capture at open time so the header doesn't flip to "Update" after committing.

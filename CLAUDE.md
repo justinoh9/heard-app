@@ -88,9 +88,19 @@ retention, differentiators).
   artists/decades/mean and adds a `ratingStyle` descriptor (Generous / Critical
   / Balanced / Polarizing / Getting started, from mean + histogram). Rendered by
   the reusable `components/taste-profile-card.tsx` on the Profile tab and
-  `/user/[id]` (it also retired the fake `PROFILE.tags` line). No genres yet —
-  iTunes carries no persisted genre; that section waits on a genre pipeline or
-  Spotify artist genres (see ROADMAP).
+  `/user/[id]` (it also retired the fake `PROFILE.tags` line). **Genres** flow
+  through the pipeline: iTunes `primaryGenreName` → `SearchResult.genre` →
+  `Item.genre` (threaded through the rate route params) → `items.genres`
+  (`ratings-rows`) → `computeStats.topGenres` → the card. Populates for
+  newly-rated items only (the `items` cache is insert-only).
+- `src/notifications/` — in-app notifications (ROADMAP Phase 2), **derived** at
+  read time from existing tables (no migration, no write hooks):
+  `SupabaseNotificationsBackend` queries `follows` (new followers), `comments`
+  on your rated items, and `concert_tags` (tags), resolving actor names via
+  `profiles`; a `Local` no-op backend + `provider.ts` complete the seam. Pure
+  `merge.ts` (unit-tested) orders + counts unread against a device-local
+  last-seen (`seen.ts`); `store.tsx` (`useNotifications`, mounted below ratings)
+  feeds the Feed-header bell/badge and `src/app/notifications.tsx`.
 - `src/auth/` — `useAuth()`/`AuthBackend` seam; `SupabaseAuthBackend` (real
   accounts, session persisted by the shared client, `onAuthStateChange`
   tracked) or `LocalAuthBackend` (AsyncStorage + expo-crypto) chosen by env in
