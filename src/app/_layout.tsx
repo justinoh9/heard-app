@@ -21,6 +21,7 @@ import { FeedContext, useFeedState } from '@/feed/store';
 import { useTheme, ThemePreferenceContext, useThemePreferenceState } from '@/hooks/use-theme';
 import { NotificationsContext, useNotificationsState } from '@/notifications/store';
 import { PlaylistsContext, usePlaylistsState } from '@/playlists/store';
+import { QueueContext, useQueueState } from '@/queue/store';
 import { SocialContext, useSocialState } from '@/social/store';
 import { StreaksContext, useStreaksState } from '@/streaks/store';
 
@@ -55,14 +56,16 @@ export default function RootLayout() {
               <FeedBridge>
                 <ConcertsBridge>
                   <PlaylistsBridge>
-                    {/* Below ratings: notifications scope to the viewer's rated items. */}
-                    <NotificationsBridge>
-                      <NavThemeProvider>
-                        <ToastProvider>
-                          <RootNavigator />
-                        </ToastProvider>
-                      </NavThemeProvider>
-                    </NotificationsBridge>
+                    <QueueBridge>
+                      {/* Below ratings: notifications scope to the viewer's rated items. */}
+                      <NotificationsBridge>
+                        <NavThemeProvider>
+                          <ToastProvider>
+                            <RootNavigator />
+                          </ToastProvider>
+                        </NavThemeProvider>
+                      </NotificationsBridge>
+                    </QueueBridge>
                   </PlaylistsBridge>
                 </ConcertsBridge>
               </FeedBridge>
@@ -137,6 +140,11 @@ function PlaylistsBridge({ children }: { children: React.ReactNode }) {
   return <PlaylistsContext.Provider value={playlists}>{children}</PlaylistsContext.Provider>;
 }
 
+function QueueBridge({ children }: { children: React.ReactNode }) {
+  const queue = useQueueState();
+  return <QueueContext.Provider value={queue}>{children}</QueueContext.Provider>;
+}
+
 function NotificationsBridge({ children }: { children: React.ReactNode }) {
   const notifications = useNotificationsState();
   return <NotificationsContext.Provider value={notifications}>{children}</NotificationsContext.Provider>;
@@ -198,6 +206,7 @@ function RootNavigator() {
       <Stack.Screen name="artist/[id]" />
       <Stack.Screen name="streak" />
       <Stack.Screen name="diary" />
+      <Stack.Screen name="queue" />
       <Stack.Screen name="notifications" />
       <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
     </Stack>

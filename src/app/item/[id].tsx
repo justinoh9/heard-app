@@ -9,6 +9,7 @@ import { BreadRating } from '@/components/bread-rating';
 import { CommentCard } from '@/components/comment-card';
 import { EmptyState } from '@/components/empty-state';
 import { PageContainer } from '@/components/page-container';
+import { QueueButton } from '@/components/queue-button';
 import { ScoreBreakdown } from '@/components/score-breakdown';
 import { Segmented } from '@/components/segmented';
 import { Surface } from '@/components/surface';
@@ -214,6 +215,11 @@ export default function ItemProfileScreen() {
                 </ThemedText>
               </Pressable>
             </View>
+
+            <QueueButton
+              target={{ itemId: id, type, title, artist, artUrl }}
+              variant="button"
+            />
           </Surface>
 
           {type === 'album' && (

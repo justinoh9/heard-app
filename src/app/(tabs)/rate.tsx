@@ -7,6 +7,7 @@ import { AlbumCover } from '@/components/album-cover';
 import { EmptyState } from '@/components/empty-state';
 import { JelliLoader } from '@/components/jelli-loader';
 import { PageContainer } from '@/components/page-container';
+import { QueueButton } from '@/components/queue-button';
 import { RecentPlaysTray } from '@/components/recent-plays-tray';
 import { Surface } from '@/components/surface';
 import { ThemedText } from '@/components/themed-text';
@@ -260,6 +261,17 @@ function ResultRow({
         <ScorePill score={score} />
       ) : (
         <Ionicons name="add-circle-outline" size={24} color={theme.textSecondary} />
+      )}
+      {(item.kind === 'song' || item.kind === 'album') && (
+        <QueueButton
+          target={{
+            itemId: item.id,
+            type: item.kind,
+            title: item.title,
+            artist: item.artist,
+            artUrl: item.coverUrl,
+          }}
+        />
       )}
     </Pressable>
   );

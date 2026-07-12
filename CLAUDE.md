@@ -170,6 +170,17 @@ retention, differentiators).
   done. Ratings persist through `commitPlacement` (no per-item feed spam). The
   seed is deliberately catalog-based, not Spotify top-tracks (Spotify OAuth is
   allowlist-gated) — see ROADMAP.
+- `src/queue/` — the **want-to-listen queue** (ROADMAP Phase 2 / G1; blueprint
+  §2.A): a one-tap bookmark feeding a personal listen-later list, behind a
+  `QueueBackend` seam (`0012_queue.sql` — `queue_items`, one row per
+  (user,item), denormalized item fields, public-read / owner-write; Supabase +
+  AsyncStorage impls, `provider.ts`). Distinct from `ratings` (already ranked)
+  and `diary` (dated listens) — this is pre-listen *intent*, so it emits **no
+  feed event**. Pure `rows.ts` (unit-tested); optimistic `useQueue()` store
+  (`store.tsx`, mounted below playlists) exposes `isQueued`/`toggle`. The
+  reusable `components/queue-button.tsx` (icon + labelled-pill variants, auth-
+  gated) sits on the item page and search rows; `src/app/queue.tsx` is the list,
+  with a "Want to listen" card + count on the Profile.
 - `src/diary/` — the listen diary (ROADMAP Phase 2; blueprint §1.1): a dated,
   re-loggable entry per active listen, behind a `DiaryBackend` seam
   (`0011_diary.sql` — `diary_entries`, `unique(user,item,logged_at)`, public-read

@@ -21,6 +21,7 @@ import { useRatings } from '@/data/store';
 import { useTheme } from '@/hooks/use-theme';
 import { playlistCoverUrls, songCountLabel } from '@/playlists/helpers';
 import { usePlaylists } from '@/playlists/store';
+import { useQueue } from '@/queue/store';
 import { rankedOfType, typeCounts, type RankedListType } from '@/ranking/lists';
 import type { RankedItem } from '@/ranking/types';
 import { resolveFavorites, TOP_FAVORITES } from '@/social/favorites';
@@ -42,6 +43,7 @@ export default function ProfileScreen() {
   const { ranked, removeRating } = useRatings();
   const { user } = useAuth();
   const { playlists } = usePlaylists();
+  const { items: queueItems } = useQueue();
   const { current: streak } = useStreaks();
   const { myFavorites, saveFavorites } = useSocial();
   const { concerts } = useConcerts();
@@ -161,6 +163,19 @@ export default function ProfileScreen() {
               <ThemedText type="smallBold">Your diary</ThemedText>
               <ThemedText type="small" themeColor="textSecondary">
                 Every listen, dated — log favorites again to build the timeline
+              </ThemedText>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
+          </Surface>
+
+          <Surface testID="open-queue" onPress={() => router.push('/queue')} style={styles.wrappedCard}>
+            <Ionicons name="bookmark" size={18} color={theme.accent} />
+            <View style={{ flex: 1 }}>
+              <ThemedText type="smallBold">Want to listen</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                {queueItems.length > 0
+                  ? `${queueItems.length} bookmarked — your play-next list`
+                  : 'Bookmark songs and albums to listen to later'}
               </ThemedText>
             </View>
             <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />

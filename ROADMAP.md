@@ -149,8 +149,13 @@ follow) is entirely real.
       concert tags (`concert_tags`). Pure `merge.ts` (unit-tested) orders + counts
       unread against a device-local last-seen (`seen.ts`). *Follow-ups:* the
       taste-twin source (needs cross-user compatibility) and push (APNs/FCM).
-- [ ] **Re-rank nudge v2** — the quick-match card exists; add the post-log
-      1-in-N prompt so comparison data compounds passively.
+- [x] **Re-rank nudge v2** — the standing quick-match card on Ranks now has a
+      *post-log* sibling: the log flow's done screen offers one quick match
+      ~1-in-3 (`shouldNudgeAfterLog`), comparing the just-rated item against a
+      never-compared neighbour (`pickNudgeForItem`, both pure + tested in
+      `ranking/nudge.ts`; `components/post-log-nudge.tsx`). Every answer banks a
+      comparison event (feeding the future Elo engine) and can settle a
+      same-score tie on the spot.
 - [ ] **(F1) Frictionless sign-in — Google/Apple OAuth + a leaner login page** —
       add `signInWithOAuth({ provider: 'google' })` (and Apple, required for iOS
       review) beside the existing Spotify button, and streamline the auth screen
@@ -168,13 +173,15 @@ follow) is entirely real.
       into their own feed (with an optional note), emitting a `repost` feed
       event. Extends the compounding loop (PRODUCT_BLUEPRINT §1.3) — the cheapest
       way to give quiet users something to contribute and to spread good reviews.
-- [ ] **(G1) "Want to listen" queue** — the biggest missing *Beli/Letterboxd*
-      mechanic. A one-tap bookmark on every song/album card (search rows, feed
-      cards, item pages) feeding a personal listen-later list, plus the
-      re-engagement hook it unlocks ("3 things on your list were just rated by
-      friends"). Own table + backend seam like ratings; a "want to listen"
-      count becomes a profile stat. Half the reason people open these apps is
-      "what do I play next?" — this answers it.
+- [x] **(G1) "Want to listen" queue** — shipped (`src/queue/`, `0012_queue.sql`,
+      `src/app/queue.tsx`). A one-tap bookmark (`components/queue-button.tsx`) on
+      item pages + search rows feeds a personal listen-later list behind a
+      `QueueBackend` seam (Supabase/AsyncStorage, `provider.ts`), pure
+      `rows.ts` (unit-tested), optimistic `useQueue()` store. No feed event — a
+      private intent list, distinct from `ratings` (ranked) and `diary` (dated).
+      A "Want to listen" card + count sits on the Profile. *Follow-ups:* the
+      bookmark on feed cards, and the re-engagement hook ("3 things on your list
+      were just rated by friends").
 - [ ] **(G4) Profile identity basics** — avatars (today we render initials),
       short bios, and unique `@handles`. A Letterboxd profile is a personal
       artifact; goal #5 ("a profile screenshot should sell the app") needs faces
