@@ -117,9 +117,17 @@ follow) is entirely real.
       and Wrapped, while the ranked list keeps one canonical score.
 - [ ] **Per-type ranked lists** — songs, albums, and concerts as separate
       tabs on the profile (engine is already type-agnostic).
-- [ ] **Taste profile page** — top genres (Spotify artist genres, cached on
-      `items`), decades, mean score, most-logged artist. Powers compatibility
-      and gives the profile its "here's who you are" payoff.
+- [x] **Taste profile** — shipped as a reusable "who you are" card
+      (`src/taste/profile.ts` pure + tested, `components/taste-profile-card.tsx`)
+      on both your own Profile tab and `/user/[id]`. Shows a rating-style
+      descriptor (Generous / Critical / Balanced / Polarizing / Getting started,
+      derived from mean + histogram), mean score, favorite decade, and
+      most-logged artists — all real, reusing `computeStats`. Also retired the
+      fake `PROFILE.tags` ("indie · hip-hop") line. *Deliberate follow-up:* top
+      **genres** — the current catalog (iTunes) doesn't carry a persisted genre,
+      so that section waits on a genre pipeline (capture iTunes
+      `primaryGenreName` through search → `items.genres`) or Spotify artist
+      genres (OAuth-gated).
 - [ ] **Notifications** — new follower, comment on your review, concert tag,
       taste-twin rated something you haven't heard. In-app first, push later.
       Without this, every social action is a message into the void.

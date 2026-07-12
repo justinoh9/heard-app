@@ -83,6 +83,14 @@ retention, differentiators).
   rendered by `src/app/wrapped.tsx`, pushed from the Profile tab's "Your
   Wrapped" card). `Item.year` powers the decades; the log flow threads it
   from search params and `items.release_year` persists it.
+- `src/taste/` — the taste profile (ROADMAP Phase 2): `profile.ts`
+  (`computeTasteProfile`, pure + unit-tested) reuses `computeStats` for
+  artists/decades/mean and adds a `ratingStyle` descriptor (Generous / Critical
+  / Balanced / Polarizing / Getting started, from mean + histogram). Rendered by
+  the reusable `components/taste-profile-card.tsx` on the Profile tab and
+  `/user/[id]` (it also retired the fake `PROFILE.tags` line). No genres yet —
+  iTunes carries no persisted genre; that section waits on a genre pipeline or
+  Spotify artist genres (see ROADMAP).
 - `src/auth/` — `useAuth()`/`AuthBackend` seam; `SupabaseAuthBackend` (real
   accounts, session persisted by the shared client, `onAuthStateChange`
   tracked) or `LocalAuthBackend` (AsyncStorage + expo-crypto) chosen by env in

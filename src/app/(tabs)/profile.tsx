@@ -9,6 +9,7 @@ import { GuestGate } from '@/components/guest-gate';
 import { PageContainer } from '@/components/page-container';
 import { PlaylistCover } from '@/components/playlist-cover';
 import { Surface } from '@/components/surface';
+import { TasteProfileCard } from '@/components/taste-profile-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useConcerts } from '@/concerts/store';
@@ -23,6 +24,7 @@ import type { RankedItem } from '@/ranking/types';
 import { resolveFavorites, TOP_FAVORITES } from '@/social/favorites';
 import { useSocial } from '@/social/store';
 import { useStreaks } from '@/streaks/store';
+import { computeTasteProfile } from '@/taste/profile';
 
 const BADGE_TINTS = ['#993556', '#854F0B', '#185FA5'];
 
@@ -67,6 +69,7 @@ export default function ProfileScreen() {
 
   const displayName = user?.displayName ?? PROFILE.username;
   const initials = user ? initialsFrom(user.displayName) : PROFILE.initials;
+  const taste = computeTasteProfile(ranked);
 
   function reRate(r: RankedItem) {
     router.push({
@@ -107,7 +110,9 @@ export default function ProfileScreen() {
                 {displayName}
               </ThemedText>
               <ThemedText type="small" themeColor="textSecondary">
-                {PROFILE.tags} · {ranked.length} rated
+                {ranked.length === 0
+                  ? 'No ratings yet'
+                  : `${taste.style.label} · ${ranked.length} rated`}
               </ThemedText>
             </View>
             <Pressable
@@ -143,6 +148,8 @@ export default function ProfileScreen() {
             </View>
             <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
           </Surface>
+
+          {ranked.length > 0 && <TasteProfileCard profile={taste} self />}
 
           {ranked.length > 0 && (
             <>

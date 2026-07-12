@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AlbumCover } from '@/components/album-cover';
 import { PageContainer } from '@/components/page-container';
 import { Surface } from '@/components/surface';
+import { TasteProfileCard } from '@/components/taste-profile-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -17,6 +18,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { sortRanked } from '@/ranking/engine';
 import type { RankedItem } from '@/ranking/types';
 import { compatibility, type Compatibility } from '@/social/compatibility';
+import { computeTasteProfile } from '@/taste/profile';
 import { resolveFavorites } from '@/social/favorites';
 import { initialsOf } from '@/social/feed-rows';
 import { socialBackend } from '@/social/provider';
@@ -150,6 +152,10 @@ export default function UserProfileScreen() {
                   </>
                 )}
               </Surface>
+
+              {theirs && theirs.length > 0 && (
+                <TasteProfileCard profile={computeTasteProfile(theirs)} self={false} name={displayName} />
+              )}
 
               {theirTop4?.chosen && (
                 <>
