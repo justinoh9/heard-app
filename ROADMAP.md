@@ -127,8 +127,13 @@ follow) is entirely real.
       from a "Your diary" card on the Profile. *Follow-ups:* surface the diary on
       `/user/[id]` (RLS already public-read), and derive streaks from it
       (currently device-local).
-- [ ] **Per-type ranked lists** — songs, albums, and concerts as separate
-      tabs on the profile (engine is already type-agnostic).
+- [x] **Per-type ranked lists** — the Profile's ranked list now has
+      Albums / Songs tabs (with per-type counts) and `/user/[id]` splits into
+      "Their top albums" / "Their top songs". Pure `src/ranking/lists.ts`
+      (`rankedOfType` / `typeCounts`, unit-tested) filters the one engine-ranked
+      list into type views; concerts keep their own SHOWS section. *Follow-up:*
+      true per-type tie-break groups in the engine (today it's a display filter
+      over the global order, which reads correctly within each type).
 - [x] **Taste profile** — shipped as a reusable "who you are" card
       (`src/taste/profile.ts` pure + tested, `components/taste-profile-card.tsx`)
       on both your own Profile tab and `/user/[id]`. Shows a rating-style

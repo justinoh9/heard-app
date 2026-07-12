@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/empty-state';
 import { GuestGate } from '@/components/guest-gate';
 import { PageContainer } from '@/components/page-container';
 import { PlaylistCover } from '@/components/playlist-cover';
+import { Segmented } from '@/components/segmented';
 import { Surface } from '@/components/surface';
 import { TasteProfileCard } from '@/components/taste-profile-card';
 import { ThemedText } from '@/components/themed-text';
@@ -20,6 +21,7 @@ import { useRatings } from '@/data/store';
 import { useTheme } from '@/hooks/use-theme';
 import { playlistCoverUrls, songCountLabel } from '@/playlists/helpers';
 import { usePlaylists } from '@/playlists/store';
+import { rankedOfType, typeCounts, type RankedListType } from '@/ranking/lists';
 import type { RankedItem } from '@/ranking/types';
 import { resolveFavorites, TOP_FAVORITES } from '@/social/favorites';
 import { useSocial } from '@/social/store';
@@ -46,6 +48,10 @@ export default function ProfileScreen() {
   const [editingTop4, setEditingTop4] = useState(false);
   const [picking, setPicking] = useState(false);
   const [editingList, setEditingList] = useState(false);
+  const [listType, setListType] = useState<RankedListType>('album');
+
+  const counts = typeCounts(ranked);
+  const typedList = rankedOfType(ranked, listType);
 
   // The showcase: chosen Top 4, falling back to the top of the ranked list.
   const { items: top4, chosen } = resolveFavorites(myFavorites, ranked);
@@ -299,7 +305,7 @@ export default function ProfileScreen() {
 
           <View style={styles.top4Header}>
             <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
-              ALL RANKED
+              RANKED
             </ThemedText>
             {ranked.length > 0 && (
               <Pressable
@@ -312,6 +318,19 @@ export default function ProfileScreen() {
               </Pressable>
             )}
           </View>
+
+          {ranked.length > 0 && (
+            <Segmented
+              options={[
+                { key: 'album', label: `Albums ${counts.album}` },
+                { key: 'song', label: `Songs ${counts.song}` },
+              ]}
+              value={listType}
+              onChange={(v) => setListType(v as RankedListType)}
+              testIDPrefix="ranked-type"
+            />
+          )}
+
           {ranked.length === 0 && (
             <EmptyState
               icon="disc-outline"
@@ -321,7 +340,12 @@ export default function ProfileScreen() {
               onPressCta={() => router.push('/(tabs)/rate')}
             />
           )}
-          {ranked.map((r, i) => (
+          {ranked.length > 0 && typedList.length === 0 && (
+            <ThemedText type="small" themeColor="textSecondary">
+              No {listType === 'album' ? 'albums' : 'songs'} rated yet.
+            </ThemedText>
+          )}
+          {typedList.map((r, i) => (
             <Pressable
               key={r.item.id}
               onPress={() => (editingList ? removeRating(r.item.id) : reRate(r))}

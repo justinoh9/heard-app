@@ -16,6 +16,7 @@ import { useRatings } from '@/data/store';
 import { relativeTime } from '@/feed/time';
 import { useTheme } from '@/hooks/use-theme';
 import { sortRanked } from '@/ranking/engine';
+import { rankedOfType } from '@/ranking/lists';
 import type { RankedItem } from '@/ranking/types';
 import { compatibility, type Compatibility } from '@/social/compatibility';
 import { computeTasteProfile } from '@/taste/profile';
@@ -181,34 +182,16 @@ export default function UserProfileScreen() {
                 </ThemedText>
               )}
 
-              {theirs && theirs.length > 0 && (
-                <>
-                  <ThemedText type="subtitle" style={styles.sectionHeader}>
-                    Their top albums
-                  </ThemedText>
-                  {theirs.slice(0, TOP_COUNT).map((r, i) => (
-                    <View key={r.item.id} style={styles.rankRow}>
-                      <ThemedText type="smallBold" themeColor="textSecondary" style={styles.rankNum}>
-                        {i + 1}
-                      </ThemedText>
-                      <AlbumCover uri={r.item.artUrl} size={44} radius={6} />
-                      <View style={{ flex: 1 }}>
-                        <ThemedText type="smallBold" numberOfLines={1}>
-                          {r.item.title}
-                        </ThemedText>
-                        <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-                          {r.item.artist}
-                        </ThemedText>
-                      </View>
-                      <View style={[styles.scorePill, { backgroundColor: theme.accent }]}>
-                        <ThemedText type="smallBold" style={{ color: theme.onAccent }}>
-                          {r.score.toFixed(1)}
-                        </ThemedText>
-                      </View>
-                    </View>
-                  ))}
-                </>
-              )}
+              <RankedSection
+                title="Their top albums"
+                items={theirs ? rankedOfType(theirs, 'album').slice(0, TOP_COUNT) : []}
+                theme={theme}
+              />
+              <RankedSection
+                title="Their top songs"
+                items={theirs ? rankedOfType(theirs, 'song').slice(0, TOP_COUNT) : []}
+                theme={theme}
+              />
 
               {activity.length > 0 && (
                 <>
@@ -241,6 +224,47 @@ export default function UserProfileScreen() {
         </PageContainer>
       </ScrollView>
     </ThemedView>
+  );
+}
+
+/** A titled list of ranked items (albums or songs). Renders nothing when empty. */
+function RankedSection({
+  title,
+  items,
+  theme,
+}: {
+  title: string;
+  items: RankedItem[];
+  theme: ReturnType<typeof useTheme>;
+}) {
+  if (items.length === 0) return null;
+  return (
+    <>
+      <ThemedText type="subtitle" style={styles.sectionHeader}>
+        {title}
+      </ThemedText>
+      {items.map((r, i) => (
+        <View key={r.item.id} style={styles.rankRow}>
+          <ThemedText type="smallBold" themeColor="textSecondary" style={styles.rankNum}>
+            {i + 1}
+          </ThemedText>
+          <AlbumCover uri={r.item.artUrl} size={44} radius={6} />
+          <View style={{ flex: 1 }}>
+            <ThemedText type="smallBold" numberOfLines={1}>
+              {r.item.title}
+            </ThemedText>
+            <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+              {r.item.artist}
+            </ThemedText>
+          </View>
+          <View style={[styles.scorePill, { backgroundColor: theme.accent }]}>
+            <ThemedText type="smallBold" style={{ color: theme.onAccent }}>
+              {r.score.toFixed(1)}
+            </ThemedText>
+          </View>
+        </View>
+      ))}
+    </>
   );
 }
 

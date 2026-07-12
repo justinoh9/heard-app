@@ -73,7 +73,12 @@ retention, differentiators).
     cross-score answers are banked only). Rendered by
     `src/components/quick-match-card.tsx` at the top of the Ranks tab, applied
     through `commitPlacement`.
-  - `engine.test.ts`, `nudge.test.ts` — unit tests for tie-break + nudge logic.
+  - `lists.ts` — pure per-type views of the ranked list (`rankedOfType` /
+    `typeCounts` / `defaultListType`), driving the Profile's Albums/Songs tabs
+    and `/user/[id]`'s "top albums / top songs" split. A display filter over the
+    single engine-ranked order; concerts rank separately.
+  - `engine.test.ts`, `nudge.test.ts`, `lists.test.ts` — unit tests for
+    tie-break + nudge + per-type logic.
 - `src/data/` — `catalog.ts` (mock songs/feed/profile), `store.ts`
   (`useRatings()` hook: hydrates from the backend on sign-in, optimistic
   commits), `ratings-backend.ts` (`RatingsBackend` interface +
