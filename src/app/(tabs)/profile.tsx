@@ -149,6 +149,17 @@ export default function ProfileScreen() {
             <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
           </Surface>
 
+          <Surface testID="open-diary" onPress={() => router.push('/diary')} style={styles.wrappedCard}>
+            <Ionicons name="book" size={18} color={theme.accentAlt} />
+            <View style={{ flex: 1 }}>
+              <ThemedText type="smallBold">Your diary</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                Every listen, dated — log favorites again to build the timeline
+              </ThemedText>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
+          </Surface>
+
           {ranked.length > 0 && <TasteProfileCard profile={taste} self />}
 
           {ranked.length > 0 && (

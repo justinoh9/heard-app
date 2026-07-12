@@ -118,11 +118,15 @@ follow) is entirely real.
       user-OAuth is still gated behind its dev-mode allowlist, so a
       Spotify-first flow would break most signups. Spotify-as-seed is the
       follow-up once the app clears Spotify's quota-extension review.
-- [ ] **Listen diary (re-logging)** — ratings are currently one-per-item;
-      Letterboxd's habit loop depends on dated, repeatable log entries. Add
-      `logged_at` diary entries (schema already sketched in blueprint §3.2) so
-      re-listening an album on a new date is a new diary row feeding streaks
-      and Wrapped, while the ranked list keeps one canonical score.
+- [x] **Listen diary (re-logging)** — shipped (`src/diary/`, `0011_diary.sql`,
+      `src/app/diary.tsx`). A separate `diary_entries` table (dated,
+      re-loggable, `unique(user,item,logged_at)`) records every log action while
+      `ratings` stays the one-per-item canonical ranked list. `commitPlacement`
+      writes a diary entry alongside the feed event + streak hook; the timeline
+      screen groups by day (pure `rows.ts` `groupByDay`, unit-tested), reached
+      from a "Your diary" card on the Profile. *Follow-ups:* surface the diary on
+      `/user/[id]` (RLS already public-read), and derive streaks from it
+      (currently device-local).
 - [ ] **Per-type ranked lists** — songs, albums, and concerts as separate
       tabs on the profile (engine is already type-agnostic).
 - [x] **Taste profile** — shipped as a reusable "who you are" card

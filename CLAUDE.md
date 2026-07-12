@@ -165,6 +165,15 @@ retention, differentiators).
   done. Ratings persist through `commitPlacement` (no per-item feed spam). The
   seed is deliberately catalog-based, not Spotify top-tracks (Spotify OAuth is
   allowlist-gated) — see ROADMAP.
+- `src/diary/` — the listen diary (ROADMAP Phase 2; blueprint §1.1): a dated,
+  re-loggable entry per active listen, behind a `DiaryBackend` seam
+  (`0011_diary.sql` — `diary_entries`, `unique(user,item,logged_at)`, public-read
+  / owner-write; Supabase + AsyncStorage impls, `provider.ts`). Kept **separate
+  from `ratings`** on purpose: `ratings` stays the one-per-item canonical ranked
+  list, while `commitPlacement` (`src/data/store.ts`) also writes a diary entry
+  on every log (additive, alongside the feed event + streak hook). Pure `rows.ts`
+  (`groupByDay`, unit-tested) drives the day-grouped timeline in
+  `src/app/diary.tsx`, reached from a "Your diary" card on the Profile.
 - `src/streaks/` — pure day-boundary logic (`logic.ts`) + an `AsyncStorage`-backed
   `useStreaks()` store. `commitPlacement` (`src/data/store.ts`) and `postDrop`
   (`src/feed/store.tsx`) both call `recordActivity()` directly.

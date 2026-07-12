@@ -18,6 +18,8 @@ import type { ComparisonEvent, Item, RankedItem } from '@/ranking/types';
 import { useSocial } from '@/social/store';
 import { useStreaks } from '@/streaks/store';
 
+import { diaryBackend } from '@/diary/provider';
+
 import { INITIAL_RANKED } from './catalog';
 import { ratingsBackend } from './ratings-provider';
 
@@ -120,6 +122,24 @@ export function useRatingsState(): RatingsApi {
             // Optional review, so the feed card shows the quote (blueprint §4.3).
             review: rated.review,
           });
+          // Every active log is a dated diary entry (blueprint §1.1). Additive
+          // to the canonical ranked list; re-logging on a new day is a new row.
+          if (userId && rated.item.type !== 'artist') {
+            diaryBackend
+              .log({
+                userId,
+                item: {
+                  id: rated.item.id,
+                  type: rated.item.type,
+                  title: rated.item.title,
+                  artist: rated.item.artist,
+                  artUrl: rated.item.artUrl,
+                },
+                score: rated.score,
+                note: rated.review,
+              })
+              .catch((e: unknown) => console.warn('[diary] log failed:', e));
+          }
         }
         if (userId) {
           backend.commit(userId, list, events).catch((e: unknown) => {
