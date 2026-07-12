@@ -83,6 +83,24 @@ export function toDisplayEvent(e: SocialEvent): FeedEvent {
     // title = artist name, artist = "venue · city" (see SocialEventPayload).
     return { ...base, kind: 'concert', title: p.title ?? '', score: p.score };
   }
+  if (e.type === 'repost') {
+    // Render like the original event (same body + author), with a "reposted by"
+    // line and the reposter's note layered on. `user`/`userId` are the ORIGINAL
+    // author so the avatar + attribution point at the source, not the resharer.
+    const originalKind = (p.originalType ?? 'rated') as FeedEvent['kind'];
+    return {
+      ...base,
+      kind: originalKind,
+      user: p.originalDisplayName ?? e.displayName,
+      initials: initialsOf(p.originalDisplayName ?? e.displayName),
+      userId: p.originalUserId ?? e.userId,
+      title: p.title ?? '',
+      score: p.score,
+      review: p.review,
+      repostedBy: e.displayName,
+      repostNote: p.note,
+    };
+  }
   if (e.type === 'made_list') {
     // title = list name; informational card, no item link (like streaks).
     return {

@@ -53,6 +53,11 @@ export interface FeedEvent {
   createdAt?: string;
   /** The actor's user id — set on real events; links the avatar to /user/[id]. */
   userId?: string;
+  /** Set on reposts — the name of the user who reshared this into the feed.
+   *  `user`/`userId` stay the ORIGINAL author so the card body + avatar match. */
+  repostedBy?: string;
+  /** Set on reposts — the reposter's optional comment, shown above the card. */
+  repostNote?: string;
 }
 
 export const FEED: FeedEvent[] = [

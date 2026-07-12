@@ -131,7 +131,11 @@ retention, differentiators).
   `provider.ts` like ratings). `feed-rows.ts` is the pure, unit-tested mapping.
   **Every log path emits a feed event** (blueprint §1.3): `commitPlacement`
   publishes `rated`, `postDrop` publishes `drop`, `createPlaylist` publishes
-  `made_list`. The feed pages backward via `feedFor(userIds, limit, before)`
+  `made_list`, and the feed's **Repost** action publishes `repost`
+  (`0013_reposts.sql` widened the type check; `src/app/repost.tsx` composes the
+  optional note; the payload denormalizes the original content + attribution, so
+  `toDisplayEvent` renders a repost as the original card with a "reposted by"
+  line). The feed pages backward via `feedFor(userIds, limit, before)`
   (cursor = the oldest event held); the store exposes `loadMoreFeed` +
   `feedHasMore`. `src/app/people.tsx` is the directory with follow toggles; the
   Feed tab renders real events, and the mock "From the community" filler shows

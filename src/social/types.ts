@@ -16,7 +16,7 @@ export interface Profile {
   favorites?: string[];
 }
 
-export type SocialEventType = 'rated' | 'drop' | 'streak' | 'concert' | 'made_list';
+export type SocialEventType = 'rated' | 'drop' | 'streak' | 'concert' | 'made_list' | 'repost';
 
 /**
  * Type-specific event details. One loose bag (mirrors the jsonb column) so new
@@ -38,8 +38,16 @@ export interface SocialEventPayload {
   review?: string;
   /** 'streak' events. */
   days?: number;
+  /** 'repost' events — the reposter's optional comment. */
+  note?: string;
+  /** 'repost' events — what was reshared, for attribution + rendering. */
+  originalType?: SocialEventType;
+  originalUserId?: string;
+  originalDisplayName?: string;
 }
 // 'made_list' events reuse `title` for the list name (no item link).
+// 'repost' events reuse title/artist/artUrl/score/review/itemId for the
+// original content, and carry the fields above for attribution + the note.
 
 /** One activity-feed entry, as stored. */
 export interface SocialEvent {

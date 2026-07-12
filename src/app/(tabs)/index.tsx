@@ -28,7 +28,7 @@ export default function FeedScreen() {
   const { myDrop } = useFeed();
   const { feed, followingIds, refresh, feedHasMore, feedLoadingMore, loadMoreFeed } = useSocial();
   const { unread } = useNotifications();
-  const { requireAuth } = useRequireAuth();
+  const { user, requireAuth } = useRequireAuth();
 
   // Real activity (you + people you follow), rendered above the mock filler.
   const realEvents = feed.map(toDisplayEvent);
@@ -47,6 +47,37 @@ export default function FeedScreen() {
         artUrl: event.coverUrl ?? '',
       },
     });
+  }
+
+  // Only real events (they carry createdAt), that aren't the viewer's own, and
+  // that have a card body worth resharing. Reposts of reposts are excluded so
+  // attribution never nests.
+  function canRepost(e: FeedEvent): boolean {
+    return (
+      !!e.createdAt &&
+      e.userId !== user?.id &&
+      (e.kind === 'rated' || e.kind === 'drop' || e.kind === 'concert')
+    );
+  }
+
+  function repost(event: FeedEvent) {
+    requireAuth(() =>
+      router.push({
+        pathname: '/repost',
+        params: {
+          originalUserId: event.userId ?? '',
+          originalDisplayName: event.user,
+          originalType: event.kind,
+          title: event.title,
+          artist: event.artist ?? '',
+          artUrl: event.coverUrl ?? '',
+          score: event.score != null ? String(event.score) : '',
+          review: event.review ?? '',
+          itemId: event.itemId ?? '',
+          itemType: event.itemType ?? '',
+        },
+      }),
+    );
   }
 
   function openDropItem(d: DailyDrop) {
@@ -119,6 +150,7 @@ export default function FeedScreen() {
                   params: { id: event.userId, name: event.user },
                 })
               }
+              onRepost={canRepost(event) ? () => repost(event) : undefined}
             />
           ))}
 
@@ -256,12 +288,15 @@ function FeedRow({
   theme,
   onPress,
   onOpenUser,
+  onRepost,
 }: {
   event: FeedEvent;
   theme: ReturnType<typeof useTheme>;
   onPress: () => void;
   /** Set on real events — tapping the avatar opens the actor's profile. */
   onOpenUser?: () => void;
+  /** Set on repostable events — reshare into your own feed. */
+  onRepost?: () => void;
 }) {
   const headerVerb =
     event.kind === 'rated'
@@ -283,6 +318,22 @@ function FeedRow({
     <Surface
       testID={event.itemId ? `feed-item-${event.id}` : undefined}
       onPress={event.itemId ? onPress : undefined}>
+      {event.repostedBy && (
+        <View style={styles.repostLine}>
+          <Ionicons name="repeat" size={14} color={theme.textSecondary} />
+          <ThemedText type="small" themeColor="textSecondary">
+            <ThemedText type="smallBold" themeColor="textSecondary">
+              {event.repostedBy}
+            </ThemedText>{' '}
+            reposted
+          </ThemedText>
+        </View>
+      )}
+      {event.repostNote ? (
+        <ThemedText type="small" style={styles.review}>
+          “{event.repostNote}”
+        </ThemedText>
+      ) : null}
       <View style={styles.cardHeader}>
         <Pressable
           onPress={event.userId ? onOpenUser : undefined}
@@ -346,6 +397,19 @@ function FeedRow({
             {event.comments}
           </ThemedText>
         </View>
+        {onRepost && (
+          <Pressable
+            testID={`repost-${event.id}`}
+            onPress={onRepost}
+            accessibilityLabel={`Repost ${event.user}'s ${event.kind}`}
+            hitSlop={8}
+            style={({ pressed }) => [styles.action, { opacity: pressed ? 0.6 : 1 }]}>
+            <Ionicons name="repeat" size={16} color={theme.textSecondary} />
+            <ThemedText type="small" themeColor="textSecondary">
+              Repost
+            </ThemedText>
+          </Pressable>
+        )}
       </View>
     </Surface>
   );
@@ -375,6 +439,7 @@ const styles = StyleSheet.create({
   dropHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   dropBody: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   promptIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  repostLine: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one, marginBottom: Spacing.one },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   avatar: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   ratedBody: { flexDirection: 'row', gap: Spacing.three, alignItems: 'center' },

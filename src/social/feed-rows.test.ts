@@ -92,6 +92,37 @@ describe('toDisplayEvent', () => {
     assert.equal(card.itemId, undefined);
     assert.equal(card.coverUrl, undefined);
   });
+
+  it('renders a repost as the original event, attributing both users', () => {
+    const card = toDisplayEvent({
+      id: 'r1',
+      userId: 'u2',
+      displayName: 'Maya Ito',
+      type: 'repost',
+      payload: {
+        originalType: 'rated',
+        originalUserId: 'u1',
+        originalDisplayName: 'Eddie Guan',
+        itemId: 'sp-1',
+        itemType: 'album',
+        title: 'Blonde',
+        artist: 'Frank Ocean',
+        artUrl: 'https://img/b.jpg',
+        score: 9.5,
+        note: 'a masterpiece',
+      },
+      createdAt: '2026-07-03T12:00:00.000Z',
+    });
+    // Body is the original rating, authored by the original user…
+    assert.equal(card.kind, 'rated');
+    assert.equal(card.user, 'Eddie Guan');
+    assert.equal(card.userId, 'u1');
+    assert.equal(card.score, 9.5);
+    assert.equal(card.itemId, 'sp-1');
+    // …with the resharer + note layered on for the card's repost header.
+    assert.equal(card.repostedBy, 'Maya Ito');
+    assert.equal(card.repostNote, 'a masterpiece');
+  });
 });
 
 describe('sortEvents', () => {

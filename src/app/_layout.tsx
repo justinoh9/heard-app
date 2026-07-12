@@ -208,6 +208,7 @@ function RootNavigator() {
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="log" options={{ presentation: 'modal' }} />
       <Stack.Screen name="drop" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="repost" options={{ presentation: 'modal' }} />
       <Stack.Screen name="concert/new" options={{ presentation: 'modal' }} />
       <Stack.Screen name="playlist/[id]" />
       <Stack.Screen name="playlist/new" options={{ presentation: 'modal' }} />

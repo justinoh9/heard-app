@@ -177,10 +177,15 @@ follow) is entirely real.
       preview affordance on feed cards; full-track playback (Spotify Web Playback
       SDK / Apple MusicKit, premium-gated) is the heavier follow-up and unblocks
       (F5) timestamped comments.
-- [ ] **(F4) Reposts** — let a user reshare someone else's rating/review/drop
-      into their own feed (with an optional note), emitting a `repost` feed
-      event. Extends the compounding loop (PRODUCT_BLUEPRINT §1.3) — the cheapest
-      way to give quiet users something to contribute and to spread good reviews.
+- [x] **(F4) Reposts** — shipped. A **Repost** action on feed cards
+      (rated/drop/concert, not your own, real events only) opens a composer
+      (`src/app/repost.tsx`) for an optional note and emits a `repost` feed
+      event whose payload denormalizes the original content + attribution. The
+      card renders it as the original event with a "{user} reposted" line + the
+      note (`toDisplayEvent` in `feed-rows.ts`, unit-tested). Only the type
+      check widened (`0013_reposts.sql` — same pattern as concert/made_list).
+      Extends the compounding loop (§1.3). *Follow-up:* a repost count / "undo
+      repost", and dedupe so the same event can't be reposted twice.
 - [x] **(G1) "Want to listen" queue** — shipped (`src/queue/`, `0012_queue.sql`,
       `src/app/queue.tsx`). A one-tap bookmark (`components/queue-button.tsx`) on
       item pages + search rows feeds a personal listen-later list behind a
