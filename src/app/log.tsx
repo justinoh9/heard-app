@@ -7,6 +7,7 @@ import { useAuthGate } from '@/auth/use-require-auth';
 import { AlbumCover } from '@/components/album-cover';
 import { BreadRating } from '@/components/bread-rating';
 import { ModalDialogFrame } from '@/components/modal-dialog-frame';
+import { PostLogNudge } from '@/components/post-log-nudge';
 import { ScoreInput } from '@/components/score-input';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
@@ -17,6 +18,7 @@ import { useRatings } from '@/data/store';
 import { useHaptics } from '@/hooks/use-haptics';
 import { useTheme } from '@/hooks/use-theme';
 import { sortRanked, type Placement } from '@/ranking/engine';
+import { shouldNudgeAfterLog } from '@/ranking/nudge';
 import type { Comparison, ComparisonEvent, Item, ItemType, RankedItem } from '@/ranking/types';
 
 /** Fades content in on mount and whenever `stepKey` changes, masking the instant step cut. */
@@ -67,6 +69,9 @@ export default function LogModal() {
   const [result, setResult] = useState<{ rank: number; total: number } | null>(null);
   const [pendingChoice, setPendingChoice] = useState<'new' | 'existing' | null>(null);
   const [reviewText, setReviewText] = useState('');
+  // Decide once per open whether the done screen offers a post-log quick match
+  // (blueprint §2.B) — a stable ~1-in-3 so it stays a light touch.
+  const [nudgeAfterLog] = useState(() => shouldNudgeAfterLog());
   const placement = useRef<Placement | null>(null);
   // The settled placement, captured when comparisons finish but not persisted
   // until the review step — so the optional review rides the same 'rated' feed
@@ -313,6 +318,7 @@ export default function LogModal() {
           <ThemedText themeColor="textSecondary" style={styles.center}>
             Rated {score.toFixed(1)} · #{result.rank} of {result.total}
           </ThemedText>
+          {nudgeAfterLog && <PostLogNudge itemId={album.id} />}
           <Pressable
             testID="done"
             onPress={() => {

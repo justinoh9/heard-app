@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { applyNudge, pickNudgePair } from './nudge';
+import { applyNudge, pickNudgeForItem, pickNudgePair, shouldNudgeAfterLog } from './nudge';
 import { sortRanked } from './engine';
 import type { ComparisonEvent, Item, RankedItem } from './types';
 
@@ -51,6 +51,39 @@ describe('pickNudgePair', () => {
     const shuffled = [LIST[2], LIST[1], LIST[0]];
     const pair = pickNudgePair(shuffled, [], () => 0);
     assert.equal(pair?.above.item.id, 'a');
+  });
+});
+
+describe('pickNudgeForItem', () => {
+  it('asks about the same-score neighbour of the just-logged item', () => {
+    // Logged 'b': its neighbours are 'a' (same score, above) and 'c' (below).
+    const pair = pickNudgeForItem(LIST, [], 'b');
+    assert.equal(pair?.above.item.id, 'a');
+    assert.equal(pair?.below.item.id, 'b');
+    assert.equal(pair?.sameScore, true);
+  });
+
+  it('falls back to a cross-score neighbour when the same-score one is banked', () => {
+    const pair = pickNudgeForItem(LIST, [event('a', 'b')], 'b');
+    assert.equal(pair?.above.item.id, 'b'); // b vs c
+    assert.equal(pair?.below.item.id, 'c');
+    assert.equal(pair?.sameScore, false);
+  });
+
+  it('returns null when both neighbours were already compared', () => {
+    const pair = pickNudgeForItem(LIST, [event('a', 'b'), event('b', 'c')], 'b');
+    assert.equal(pair, null);
+  });
+
+  it('returns null when the item is not in the list', () => {
+    assert.equal(pickNudgeForItem(LIST, [], 'zzz'), null);
+  });
+});
+
+describe('shouldNudgeAfterLog', () => {
+  it('fires below the rate threshold and not above it', () => {
+    assert.equal(shouldNudgeAfterLog(() => 0), true);
+    assert.equal(shouldNudgeAfterLog(() => 0.99), false);
   });
 });
 

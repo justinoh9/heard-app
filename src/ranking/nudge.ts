@@ -59,6 +59,45 @@ export function pickNudgePair(
   return pool[Math.min(pool.length - 1, Math.floor(rand() * pool.length))];
 }
 
+/** ~1 in 3 logs surface a post-log quick match — enough to compound comparison
+ *  data passively without turning every rating into a chore (blueprint §2.B). */
+export const POST_LOG_NUDGE_RATE = 1 / 3;
+
+/** The coin-flip half of the post-log nudge, split out so it's testable and
+ *  the render decision stays stable across re-renders (called once). */
+export function shouldNudgeAfterLog(rand: () => number = Math.random): boolean {
+  return rand() < POST_LOG_NUDGE_RATE;
+}
+
+/**
+ * The adjacent, never-compared neighbour of `itemId` to ask about right after
+ * logging it, so a fresh rating immediately banks a comparison (blueprint
+ * §2.B). Prefers the same-score neighbour (whose answer can actually reorder)
+ * over a cross-score one (bank-only). Null when `itemId` isn't ranked or both
+ * of its neighbours were already compared.
+ */
+export function pickNudgeForItem(
+  ranked: RankedItem[],
+  log: ComparisonEvent[],
+  itemId: string,
+): NudgePair | null {
+  const sorted = sortRanked(ranked);
+  const idx = sorted.findIndex((r) => r.item.id === itemId);
+  if (idx === -1) return null;
+  const asked = new Set(log.map((e) => pairKey(e.winnerId, e.loserId)));
+
+  const neighbours: NudgePair[] = [];
+  const consider = (above: RankedItem, below: RankedItem) => {
+    if (asked.has(pairKey(above.item.id, below.item.id))) return;
+    neighbours.push({ above, below, sameScore: above.score === below.score });
+  };
+  if (idx - 1 >= 0) consider(sorted[idx - 1], sorted[idx]);
+  if (idx + 1 < sorted.length) consider(sorted[idx], sorted[idx + 1]);
+
+  if (neighbours.length === 0) return null;
+  return neighbours.find((n) => n.sameScore) ?? neighbours[0];
+}
+
 /**
  * Apply an answer: always produces the comparison event to bank; swaps the
  * pair's tiebreaks when the user prefers the lower-ranked item of a
