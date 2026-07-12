@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { useRequireAuth } from '@/auth/use-require-auth';
+import { AdSlot } from '@/components/ad-slot';
 import { AlbumCover } from '@/components/album-cover';
 import { BreadRating } from '@/components/bread-rating';
 import { JarRefresh } from '@/components/jar-refresh';
@@ -128,6 +129,9 @@ export default function FeedScreen() {
           {mockRest.map((event) => (
             <FeedRow key={event.id} event={event} theme={theme} onPress={() => openItem(event)} />
           ))}
+
+          {/* Invisible until the AdSense env vars are configured (web only). */}
+          <AdSlot slot={process.env.EXPO_PUBLIC_ADSENSE_SLOT_FEED} />
 
           <Pressable
             testID="find-friends-footer"

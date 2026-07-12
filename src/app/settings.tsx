@@ -90,6 +90,18 @@ export default function SettingsScreen() {
           </Section>
 
           <Section label="ABOUT">
+            <Row
+              icon="sparkles-outline"
+              label="About Jelli"
+              onPress={() => router.push('/about')}
+              theme={theme}
+            />
+            <Row
+              icon="shield-checkmark-outline"
+              label="Privacy policy"
+              onPress={() => router.push('/privacy')}
+              theme={theme}
+            />
             <Row icon="information-circle-outline" label="Version" value="1.0.0" theme={theme} />
           </Section>
         </PageContainer>

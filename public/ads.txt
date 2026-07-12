@@ -1,0 +1,4 @@
+# Jelli ads.txt — served at https://myjelli.site/ads.txt
+# After AdSense approval, replace this comment with the line Google gives you,
+# which looks like (with your real publisher id):
+# google.com, pub-0000000000000000, DIRECT, f08c47fec0942fa0

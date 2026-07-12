@@ -178,3 +178,22 @@ Supabase-only by design).
   Auth to be the active backend (it is whenever the env is configured).
 - Rows written before the auth migration under LocalAuthBackend ids are
   orphaned (unowned but readable); clean up via SQL Editor if they bother you.
+
+## Web marketing + ads
+The web deploy (myjelli.site, Vercel static expo export — `vercel.json` uses
+`cleanUrls` so the per-route SSG HTML is actually served to crawlers instead
+of the SPA fallback) carries an ad-monetization seam:
+- `src/app/about.tsx` + `src/app/privacy.tsx` — public, crawlable content
+  pages (ad networks reject bare app shells). Linked from Settings → ABOUT
+  and listed in `public/sitemap.xml` / `robots.txt`. Keep the privacy page's
+  Advertising section in sync with any ad wiring changes.
+- `src/app/+html.tsx` — site-wide SEO/OG/Twitter meta (share image
+  `public/og.png`, 1200×630 in the vinyl palette) and the AdSense loader,
+  injected only when `EXPO_PUBLIC_ADSENSE_CLIENT` is set.
+- `src/components/ad-slot.tsx` — a display-ad unit that renders nothing
+  unless web + client id + a per-placement slot id are all set (one placement
+  ships: `EXPO_PUBLIC_ADSENSE_SLOT_FEED`, bottom of the Feed tab). Keep ads
+  out of the Rate flow and Ranks — core interactions stay clean.
+- `public/ads.txt` is a commented placeholder until AdSense approval; fill in
+  the real `google.com, pub-…` line then. Native ads would be AdMob — a
+  separate integration, deliberately not wired.
