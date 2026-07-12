@@ -18,7 +18,8 @@ function comment(id: string, displayName: string, createdAt: string): Comment {
   };
 }
 
-// maya/devon are friends (in LEADERBOARD_USERS); "stranger" is not.
+// The viewer follows maya + devon; "stranger" is not followed.
+const FRIENDS = new Set(['maya', 'devon']);
 const COMMENTS: Comment[] = [
   comment('a', 'maya', '2026-06-01T10:00:00Z'),
   comment('b', 'stranger', '2026-06-03T10:00:00Z'),
@@ -30,9 +31,14 @@ test('everyone scope keeps all comments', () => {
   assert.equal(out.length, 3);
 });
 
-test('friends scope keeps only friend-authored comments', () => {
-  const out = filterSortComments(COMMENTS, { scope: 'friends', sort: 'newest' });
+test('friends scope keeps only comments from followed users', () => {
+  const out = filterSortComments(COMMENTS, { scope: 'friends', sort: 'newest', friends: FRIENDS });
   assert.deepEqual(out.map((c) => c.displayName).sort(), ['devon', 'maya']);
+});
+
+test('friends scope with no follow set is empty', () => {
+  const out = filterSortComments(COMMENTS, { scope: 'friends', sort: 'newest' });
+  assert.equal(out.length, 0);
 });
 
 test('newest sorts descending by time, oldest ascending', () => {
@@ -43,14 +49,8 @@ test('newest sorts descending by time, oldest ascending', () => {
 });
 
 test('isFriendComment matches case/whitespace-insensitively', () => {
-  assert.equal(isFriendComment(comment('x', '  MAYA ', '2026-06-01T10:00:00Z')), true);
-  assert.equal(isFriendComment(comment('y', 'nobody', '2026-06-01T10:00:00Z')), false);
-});
-
-test('a custom friend set overrides the default roster', () => {
-  const friends = new Set(['stranger']);
-  const out = filterSortComments(COMMENTS, { scope: 'friends', sort: 'newest', friends });
-  assert.deepEqual(out.map((c) => c.displayName), ['stranger']);
+  assert.equal(isFriendComment(comment('x', '  MAYA ', '2026-06-01T10:00:00Z'), FRIENDS), true);
+  assert.equal(isFriendComment(comment('y', 'nobody', '2026-06-01T10:00:00Z'), FRIENDS), false);
 });
 
 test('does not mutate the input array', () => {

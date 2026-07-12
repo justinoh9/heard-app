@@ -1,14 +1,23 @@
 /**
- * In-memory playlist store. Screens talk only to `usePlaylists()`, mirroring the
- * ratings and daily-drop seams — Supabase persistence drops in here later
- * (SPEC §7) without touching the UI.
+ * Lists store. Screens talk only to `usePlaylists()`; persistence lives behind
+ * the `ListsBackend` seam (provider.ts): Supabase (0010_lists.sql) when
+ * configured, an on-device AsyncStorage fallback otherwise. Writes are
+ * optimistic — the UI settles instantly and the commit syncs behind it, same
+ * posture as ratings/drops.
+ *
+ * Ids are generated client-side so `createPlaylist` can return synchronously
+ * and callers can navigate to /playlist/[id] before the write resolves.
  */
 
-import { createContext, useContext, useMemo, useState } from 'react';
+import * as Crypto from 'expo-crypto';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+
+import { useAuth } from '@/auth/store';
+import { useSocial } from '@/social/store';
 
 import { removeSongById, upsertSong } from './helpers';
-import { SEED_PLAYLISTS } from './seed';
-import type { Playlist, PlaylistSong } from './types';
+import { listsBackend } from './provider';
+import type { ListsBackend, Playlist, PlaylistSong } from './types';
 
 export interface PlaylistsApi {
   playlists: Playlist[];
@@ -22,34 +31,75 @@ export interface PlaylistsApi {
 
 export const PlaylistsContext = createContext<PlaylistsApi | null>(null);
 
+/** Fire a backend write, logging (not throwing) on failure — writes are optimistic. */
+function sync(op: keyof ListsBackend, promise: Promise<unknown>) {
+  promise.catch((e: unknown) => console.warn(`[lists] ${op} failed:`, e));
+}
+
 export function usePlaylistsState(): PlaylistsApi {
-  const [playlists, setPlaylists] = useState<Playlist[]>(SEED_PLAYLISTS);
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
+  const social = useSocial();
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+
+  // Hydrate the viewer's lists on sign-in; clear on sign-out.
+  useEffect(() => {
+    if (!userId) {
+      setPlaylists([]);
+      return;
+    }
+    let cancelled = false;
+    listsBackend
+      .listFor(userId)
+      .then((lists) => {
+        if (!cancelled) setPlaylists(lists);
+      })
+      .catch((e: unknown) => console.warn('[lists] load failed:', e));
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   return useMemo<PlaylistsApi>(
     () => ({
       playlists,
       getPlaylist: (id) => playlists.find((p) => p.id === id),
       createPlaylist: (name) => {
-        const playlist: Playlist = {
-          id: `pl-${Date.now()}`,
+        const list: Playlist = {
+          id: Crypto.randomUUID(),
+          userId: userId ?? undefined,
           name: name.trim() || 'New playlist',
           songs: [],
           createdAt: new Date().toISOString(),
         };
-        setPlaylists((prev) => [playlist, ...prev]);
-        return playlist;
+        setPlaylists((prev) => [list, ...prev]);
+        if (userId) {
+          sync('create', listsBackend.create(list));
+          // Lists ride the feed (blueprint §1.3) — Letterboxd's virality engine.
+          social.publish('made_list', { title: list.name });
+        }
+        return list;
       },
-      deletePlaylist: (id) => setPlaylists((prev) => prev.filter((p) => p.id !== id)),
-      addSong: (playlistId, song) =>
+      deletePlaylist: (id) => {
+        setPlaylists((prev) => prev.filter((p) => p.id !== id));
+        if (userId) sync('remove', listsBackend.remove(id));
+      },
+      addSong: (playlistId, song) => {
+        // Position = append index, captured before the optimistic state update.
+        const position = playlists.find((p) => p.id === playlistId)?.songs.length ?? 0;
         setPlaylists((prev) =>
           prev.map((p) => (p.id === playlistId ? { ...p, songs: upsertSong(p.songs, song) } : p)),
-        ),
-      removeSong: (playlistId, songId) =>
+        );
+        if (userId) sync('addSong', listsBackend.addSong(playlistId, song, position));
+      },
+      removeSong: (playlistId, songId) => {
         setPlaylists((prev) =>
           prev.map((p) => (p.id === playlistId ? { ...p, songs: removeSongById(p.songs, songId) } : p)),
-        ),
+        );
+        if (userId) sync('removeSong', listsBackend.removeSong(playlistId, songId));
+      },
     }),
-    [playlists],
+    [playlists, userId, social],
   );
 }
 

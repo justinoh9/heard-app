@@ -100,14 +100,17 @@ export class SupabaseSocialBackend implements SocialBackend {
     return fromFeedRow(data as FeedEventRow);
   }
 
-  async feedFor(userIds: string[], limit = 50): Promise<SocialEvent[]> {
+  async feedFor(userIds: string[], limit = 50, before?: string): Promise<SocialEvent[]> {
     if (userIds.length === 0) return [];
-    const { data, error } = await getSupabase()
+    let query = getSupabase()
       .from('feed_events')
       .select('id, user_id, display_name, type, payload, created_at')
       .in('user_id', userIds)
       .order('created_at', { ascending: false })
       .limit(limit);
+    // Cursor: fetch only events older than the last one already held.
+    if (before) query = query.lt('created_at', before);
+    const { data, error } = await query;
     if (error) throw new SocialError(error.message);
     return (data as FeedEventRow[]).map(fromFeedRow);
   }

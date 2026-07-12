@@ -23,6 +23,12 @@ export interface SocialApi {
   /** Recent events by the viewer + followees, newest first. */
   feed: SocialEvent[];
   feedLoading: boolean;
+  /** True while an older page is still available to fetch. */
+  feedHasMore: boolean;
+  /** True while a loadMoreFeed() page is in flight. */
+  feedLoadingMore: boolean;
+  /** Fetch the next older page of feed events and append it. */
+  loadMoreFeed: () => void;
   /** The viewer's chosen Top 4 item ids (empty until picked). */
   myFavorites: string[];
   toggleFollow: (userId: string) => void;
@@ -35,6 +41,9 @@ export interface SocialApi {
 
 export const SocialContext = createContext<SocialApi | null>(null);
 
+/** Feed page size — refresh loads one page; loadMoreFeed appends the next. */
+const FEED_PAGE_SIZE = 25;
+
 export function useSocialState(): SocialApi {
   const { user } = useAuth();
   const userId = user?.id ?? null;
@@ -43,6 +52,8 @@ export function useSocialState(): SocialApi {
   const [followingIds, setFollowingIds] = useState<Set<string>>(new Set());
   const [feed, setFeed] = useState<SocialEvent[]>([]);
   const [feedLoading, setFeedLoading] = useState(true);
+  const [feedHasMore, setFeedHasMore] = useState(false);
+  const [feedLoadingMore, setFeedLoadingMore] = useState(false);
   const [myFavorites, setMyFavorites] = useState<string[]>([]);
 
   const refresh = useCallback(() => {
@@ -57,7 +68,10 @@ export function useSocialState(): SocialApi {
         setFollowingIds(new Set(ids));
         setPeople(profiles.filter((p) => p.userId !== userId));
         setMyFavorites(userId ? profiles.find((p) => p.userId === userId)?.favorites ?? [] : []);
-        setFeed(userId ? await socialBackend.feedFor([userId, ...ids]) : []);
+        const page = userId ? await socialBackend.feedFor([userId, ...ids], FEED_PAGE_SIZE) : [];
+        setFeed(page);
+        // A full page implies there may be older events to page into.
+        setFeedHasMore(page.length === FEED_PAGE_SIZE);
       })
       .catch((e: unknown) => console.warn('[social] refresh failed:', e))
       .finally(() => setFeedLoading(false));
@@ -82,8 +96,23 @@ export function useSocialState(): SocialApi {
       followingIds,
       feed,
       feedLoading,
+      feedHasMore,
+      feedLoadingMore,
       myFavorites,
       refresh,
+      loadMoreFeed: () => {
+        if (!userId || feedLoadingMore || !feedHasMore || feed.length === 0) return;
+        const before = feed[feed.length - 1].createdAt;
+        setFeedLoadingMore(true);
+        socialBackend
+          .feedFor([userId, ...followingIds], FEED_PAGE_SIZE, before)
+          .then((older) => {
+            setFeed((prev) => [...prev, ...older]);
+            setFeedHasMore(older.length === FEED_PAGE_SIZE);
+          })
+          .catch((e: unknown) => console.warn('[social] loadMoreFeed failed:', e))
+          .finally(() => setFeedLoadingMore(false));
+      },
       saveFavorites: (itemIds) => {
         if (!userId) return;
         const capped = itemIds.slice(0, 4);
@@ -125,7 +154,18 @@ export function useSocialState(): SocialApi {
           .catch((e: unknown) => console.warn('[social] publish failed:', e));
       },
     }),
-    [people, followingIds, feed, feedLoading, myFavorites, refresh, userId, displayName],
+    [
+      people,
+      followingIds,
+      feed,
+      feedLoading,
+      feedHasMore,
+      feedLoadingMore,
+      myFavorites,
+      refresh,
+      userId,
+      displayName,
+    ],
   );
 }
 

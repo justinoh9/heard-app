@@ -83,11 +83,14 @@ export class LocalSocialBackend implements SocialBackend {
     return stored;
   }
 
-  async feedFor(userIds: string[], limit = 50): Promise<SocialEvent[]> {
+  async feedFor(userIds: string[], limit = 50, before?: string): Promise<SocialEvent[]> {
     if (userIds.length === 0) return [];
     const wanted = new Set(userIds);
     const log = await readJson<SocialEvent[]>(FEED_KEY, []);
-    return sortEvents(log.filter((e) => wanted.has(e.userId))).slice(0, limit);
+    const sorted = sortEvents(
+      log.filter((e) => wanted.has(e.userId) && (!before || e.createdAt < before)),
+    );
+    return sorted.slice(0, limit);
   }
 
   async leaderboard(): Promise<LeaderboardEntry[]> {

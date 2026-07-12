@@ -16,7 +16,7 @@ export interface Profile {
   favorites?: string[];
 }
 
-export type SocialEventType = 'rated' | 'drop' | 'streak' | 'concert';
+export type SocialEventType = 'rated' | 'drop' | 'streak' | 'concert' | 'made_list';
 
 /**
  * Type-specific event details. One loose bag (mirrors the jsonb column) so new
@@ -39,6 +39,7 @@ export interface SocialEventPayload {
   /** 'streak' events. */
   days?: number;
 }
+// 'made_list' events reuse `title` for the list name (no item link).
 
 /** One activity-feed entry, as stored. */
 export interface SocialEvent {
@@ -93,8 +94,12 @@ export interface SocialBackend {
   setFavorites(userId: string, itemIds: string[]): Promise<void>;
   /** Append one event to the activity log. Returns it with id + timestamp. */
   publishEvent(event: NewSocialEvent): Promise<SocialEvent>;
-  /** Recent events by these users (self + followees), newest first. */
-  feedFor(userIds: string[], limit?: number): Promise<SocialEvent[]>;
+  /**
+   * Recent events by these users (self + followees), newest first. Pass
+   * `before` (an ISO timestamp — the oldest event you already hold) to page
+   * backwards; omit it for the first page.
+   */
+  feedFor(userIds: string[], limit?: number, before?: string): Promise<SocialEvent[]>;
   /** Per-user aggregate counts across every profile (Ranks leaderboard). */
   leaderboard(): Promise<LeaderboardEntry[]>;
   /** Every user's rating of one item (item-page score breakdown). */

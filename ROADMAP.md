@@ -14,10 +14,14 @@
 
 Built and cloud-backed (Supabase): auth (Supabase Auth + RLS hardened via
 `0007`), ratings + comparison banking, follow graph + activity feed, profiles +
-Top 4 favorites, concerts + friend tags, comments, likes. Built but
-device-local or in-memory: streaks (by design), playlists, daily drop. Still
-mock: leaderboard users, item-page friend/global score breakdowns, feed filler
-cards, the comments "friends" filter roster.
+Top 4 favorites, concerts + friend tags, comments, likes, the real leaderboard
+(per-user aggregates), real item-page score breakdowns, the Daily Drop
+(`0009_drops.sql`), and playlists-as-Lists (`0010_lists.sql`). Reviews ride one
+`rated` feed event and persist as likeable comments; the feed pages backward
+and the comments "friends" filter uses the real follow graph. Device-local by
+design: streaks. The mock "From the community" cards now appear only as
+cold-start filler on an empty feed. **Phase 1 is complete** — Phase 2
+(retention & identity) is next.
 
 ---
 
@@ -57,30 +61,40 @@ they're cheap now and expensive after launch.
 Replace every mock surface with live data so the loop (log → feed → react →
 follow) is entirely real.
 
-- [ ] **Real leaderboard** — replace `LEADERBOARD_USERS` with aggregates over
-      `ratings` / `concerts` / `feed_events` (a Postgres view or RPC), scoped
-      Global vs. Following. Add a weekly-reset friend leaderboard for recency.
-- [ ] **Real score breakdowns** — replace `social/scores.ts` (deterministic
-      fake friend scores) with actual friend + global averages from `ratings`.
-      An item page showing "your friends rated this 8.2" with *fabricated*
-      numbers is the single most trust-damaging mock left (R9).
-- [ ] **Reviews as first-class objects** — today a review is just a comment,
-      and the `rated` feed event fires *before* the review text exists, so
-      reviews never ride the feed (R10). Attach review text to the rating,
-      emit one `rated`+review event, and let reviews collect likes/comments.
-      This is Letterboxd's core content engine.
-- [ ] **Feed v2** — retire the mock filler cards (or clearly demote them for
-      empty-feed cold start only); add pull-to-refresh + cursor pagination
-      (`feedFor` is a flat 50-row fetch); wire the comments "friends" filter to
-      the real follow graph instead of the hardcoded name roster.
-- [ ] **Persist the Daily Drop** — `useFeedState` is in-memory: the drop
-      vanishes on reload, and "daily" isn't enforced (R11). Add a `drops` table
-      (one per user per day, 24h visibility) so the audio-BeReal mechanic is
-      real. The static "2h left" mock label becomes a real countdown.
-- [ ] **Persist playlists → Lists** — playlists are seeded in-memory (R12).
-      Ship the `lists`/`list_items` tables from PRODUCT_BLUEPRINT §3.2 behind a
-      `ListsBackend`, emit a `made_list` feed event, and make lists shareable.
-      Lists are Letterboxd's virality engine — worth doing properly.
+- [x] **Real leaderboard** — `LEADERBOARD_USERS` retired; the Ranks tab now
+      loads real per-user aggregates behind `socialBackend.leaderboard()`
+      (`src/leaderboard/`), scoped Global vs. Following, with the viewer's live
+      client counts merged over the server row. *Follow-up (unbuilt):* a
+      weekly-reset friend leaderboard for recency.
+- [x] **Real score breakdowns** — `social/scores.ts` deleted; the item page's
+      you/friends/global figures are real means over real `ratings` rows
+      (`src/social/item-scores.ts` + `use-item-scores.ts`, unit-tested, honest
+      empty states). Closes R9.
+- [x] **Reviews ride the feed + persist** — the log flow captures the review at
+      a dedicated step and defers the commit so one `rated`+review event fires
+      (closes R10); the text is also written as a durable, likeable comment on
+      the item page (`log.tsx` → `postComment`). *Follow-up (unbuilt):* a
+      distinct `reviews` object type with its own detail screen, if reviews
+      need to diverge from comments later.
+- [x] **Feed v2** — pull-to-refresh shipped (jam-jar-lid pull, `JarRefresh`);
+      the mock "From the community" filler now shows only on the cold-start
+      empty feed (never stacked under real events); the comments "friends"
+      filter reads the real follow graph, not the `LEADERBOARD_USERS` roster
+      (`src/comments/filter.ts` takes the followed-user name set); and the feed
+      pages backward via `feedFor(userIds, limit, before)` + `loadMoreFeed` /
+      `feedHasMore` (a "Load more" button). *Follow-up (unbuilt):* feed-event
+      reactions (likes/comments start at 0) and a weekly-reset friend board.
+- [x] **Persist the Daily Drop** — was in-memory (R11). Now behind a
+      `DropsBackend` seam (`0009_drops.sql` — one active row per user, upserted
+      on re-post — with Supabase + AsyncStorage impls). 24h expiry lives in the
+      pure, unit-tested `src/feed/rows.ts`; the static "2h left" is a real
+      countdown (`formatDropRemaining`).
+- [x] **Persist playlists → Lists** — was seeded in-memory (R12). Shipped the
+      `lists`/`list_items` tables (`0010_lists.sql`) behind a `ListsBackend`
+      seam (`src/playlists/`, client module keeps the "playlists" name);
+      creating a list emits a `made_list` feed event. *Follow-up (unbuilt):* a
+      shareable public `/list/[id]` route (lists are readable but not yet
+      openable on another user's device).
 
 ## Phase 2 — Retention & identity (the "Beli" half)
 
@@ -120,6 +134,19 @@ follow) is entirely real.
       into their own feed (with an optional note), emitting a `repost` feed
       event. Extends the compounding loop (PRODUCT_BLUEPRINT §1.3) — the cheapest
       way to give quiet users something to contribute and to spread good reviews.
+- [ ] **(G1) "Want to listen" queue** — the biggest missing *Beli/Letterboxd*
+      mechanic. A one-tap bookmark on every song/album card (search rows, feed
+      cards, item pages) feeding a personal listen-later list, plus the
+      re-engagement hook it unlocks ("3 things on your list were just rated by
+      friends"). Own table + backend seam like ratings; a "want to listen"
+      count becomes a profile stat. Half the reason people open these apps is
+      "what do I play next?" — this answers it.
+- [ ] **(G4) Profile identity basics** — avatars (today we render initials),
+      short bios, and unique `@handles`. A Letterboxd profile is a personal
+      artifact; goal #5 ("a profile screenshot should sell the app") needs faces
+      and a handle to link to. Handles also give share cards / deep links a
+      stable URL. Avatar upload → Supabase Storage; handle uniqueness enforced
+      in `profiles`.
 
 ## Phase 3 — Differentiators (what neither Beli nor Letterboxd has)
 
@@ -140,6 +167,17 @@ follow) is entirely real.
       track and shown on a scrub bar during playback. A real differentiator
       neither Beli nor Letterboxd has; depends on (F2) playback plus a
       `position_ms` column on comments.
+- [ ] **(G2) Browse & discovery surfaces** — non-social browse both apps have:
+      trending this week, top-rated by genre/decade, new releases, "popular
+      among people you follow." Jelli has search + feed but no *browse*. Doubly
+      valuable here: these are the content-rich, crawlable, ad-friendly pages
+      that make the AdSense strategy actually earn (see the ads seam). Build on
+      Postgres views over `ratings`/`feed_events`.
+- [ ] **(G3) Recommendations** — even the cheap version: "your taste twin rated
+      this 9.2 and you haven't heard it." Compatibility scores already exist
+      (`src/social/compatibility.ts`), so v1 is a query over followed users'
+      high ratings minus what you've logged — not an ML project. Powers a
+      "For you" row and a strong notification type.
 
 ## Phase 4 — Launch readiness & scale
 
@@ -163,6 +201,19 @@ follow) is entirely real.
       inviter↔invitee (seeding the follow graph immediately), and
       invites-remaining becomes a status nudge. Beli's core growth + scarcity
       loop; pairs with the share cards above as an acquisition surface.
+- [ ] **(G5) Ship the native apps** — the roadmap plans features but not
+      distribution. To be "fully fledged like Beli/Letterboxd" means being *in
+      the stores*: EAS build pipeline, TestFlight + Play internal testing,
+      store listings + screenshots, and app-review compliance — Apple sign-in
+      (already noted in F1) and in-app account deletion (RLS exists via `0008`;
+      needs a Settings action). Plus deep links so a shared
+      `myjelli.site/item/…` opens the app instead of the browser.
+- [ ] **(G6) Paid tier (Pro)** — Letterboxd monetizes with Pro/Patron
+      (ad-free + advanced stats); income is a stated goal. Decide the shape
+      early: free-with-ads / Pro-ad-free is proven, and the env-gated ad seam
+      (`src/components/ad-slot.tsx`) already makes "ad-free for Pro users" a
+      per-user toggle later. Pro perks that fit Jelli: full Wrapped history,
+      advanced taste stats, unlimited lists, profile themes.
 
 ## Polish & quick wins
 

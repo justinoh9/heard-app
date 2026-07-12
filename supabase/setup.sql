@@ -1,4 +1,4 @@
--- Heard — full database setup (generated from supabase/migrations/0001–0008).
+-- Heard — full database setup (generated from supabase/migrations/0001–0010).
 -- Paste this whole file into the Supabase SQL Editor of a FRESH project and Run.
 -- Order matters: tables reference each other. Do not re-run on a DB that already has these tables.
 --
@@ -454,3 +454,106 @@ create policy "delete own feed event" on public.feed_events for delete
 -- ---- items: drop the update path entirely (insert-only shared cache) ----
 drop policy if exists "authed can refresh an item" on public.items;
 drop policy if exists "anyone can refresh a cached item" on public.items;
+
+
+-- =====================================================================
+-- 0009_drops.sql — Daily Drop persistence (appended)
+-- =====================================================================
+-- Daily Drop persistence (ROADMAP Phase 1, R11). The "audio-BeReal" card at the
+-- top of the feed — what a user is listening to right now — was in-memory and
+-- vanished on reload. This table makes it durable with a real 24h lifetime.
+--
+-- One active drop per user (unique user_id, upserted on re-post — the "replace
+-- drop" action), denormalized item metadata like feed_events.payload so no join
+-- is needed to render the card. Visibility (24h) is enforced client-side off
+-- created_at; the row is overwritten, not accumulated, so the table stays one
+-- row per user. Written for the hardened RLS posture (Supabase Auth live).
+-- Run AFTER 0008 (or setup.sql).
+
+create table public.drops (
+  user_id     text primary key,              -- one active drop per user (auth uid)
+  item_id     text not null,
+  item_type   text not null check (item_type in ('song', 'album')),
+  item_title  text not null,
+  item_artist text not null,
+  item_art_url text,
+  caption     text check (caption is null or char_length(caption) <= 280),
+  created_at  timestamptz not null default now()
+);
+
+alter table public.drops enable row level security;
+
+-- Reads public (the feed shows friends' drops); writes/deletes owner-scoped.
+create policy "drops are publicly readable"
+  on public.drops for select using (true);
+create policy "post own drop" on public.drops for insert
+  with check (auth.uid()::text = user_id);
+create policy "replace own drop" on public.drops for update
+  using (auth.uid()::text = user_id);
+create policy "clear own drop" on public.drops for delete
+  using (auth.uid()::text = user_id);
+
+
+-- =====================================================================
+-- 0010_lists.sql — Lists persistence (appended)
+-- =====================================================================
+-- Lists persistence (ROADMAP Phase 1, R12; PRODUCT_BLUEPRINT §3.2). Playlists
+-- were seeded in-memory and vanished on reload. These tables make them durable
+-- and shareable (Letterboxd's virality engine). The client module stays named
+-- "playlists" (src/playlists) and maps onto these `lists`/`list_items` tables.
+--
+-- Reads are public so a list can be shared; writes are owner-scoped. Ordering
+-- is carried by list_items.position so a curated order survives a round-trip.
+-- Written for the hardened RLS posture (Supabase Auth live). Run AFTER 0009.
+
+create table public.lists (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    text not null,                 -- the owner (auth uid)
+  name       text not null check (char_length(trim(name)) > 0 and char_length(name) <= 120),
+  created_at timestamptz not null default now()
+);
+
+create index lists_user_idx on public.lists (user_id, created_at desc);
+
+create table public.list_items (
+  list_id    uuid not null references public.lists (id) on delete cascade,
+  song_id    text not null,                 -- catalog/search id (song or album)
+  title      text not null,
+  artist     text not null,
+  art_url    text,
+  kind       text not null check (kind in ('song', 'album')),
+  position   int not null default 0,        -- curated order within the list
+  created_at timestamptz not null default now(),
+  primary key (list_id, song_id)
+);
+
+create index list_items_list_idx on public.list_items (list_id, position);
+
+-- Feed events grow a 'made_list' type (a list creation rides the feed).
+alter table public.feed_events drop constraint feed_events_type_check;
+alter table public.feed_events
+  add constraint feed_events_type_check
+  check (type in ('rated', 'drop', 'streak', 'concert', 'made_list'));
+
+alter table public.lists enable row level security;
+alter table public.list_items enable row level security;
+
+-- lists: public read, owner-scoped write/update/delete.
+create policy "lists are publicly readable"
+  on public.lists for select using (true);
+create policy "create own list" on public.lists for insert
+  with check (auth.uid()::text = user_id);
+create policy "update own list" on public.lists for update
+  using (auth.uid()::text = user_id);
+create policy "delete own list" on public.lists for delete
+  using (auth.uid()::text = user_id);
+
+-- list_items: public read; writes only by the parent list's owner.
+create policy "list items are publicly readable"
+  on public.list_items for select using (true);
+create policy "add items to own list" on public.list_items for insert
+  with check (auth.uid()::text = (select user_id from public.lists where id = list_id));
+create policy "update items in own list" on public.list_items for update
+  using (auth.uid()::text = (select user_id from public.lists where id = list_id));
+create policy "remove items from own list" on public.list_items for delete
+  using (auth.uid()::text = (select user_id from public.lists where id = list_id));

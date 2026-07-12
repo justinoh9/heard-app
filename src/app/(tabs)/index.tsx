@@ -13,6 +13,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { FEED, type FeedEvent } from '@/data/catalog';
+import { formatDropRemaining } from '@/feed/rows';
 import { useFeed, type DailyDrop } from '@/feed/store';
 import { relativeTime } from '@/feed/time';
 import { useTheme } from '@/hooks/use-theme';
@@ -23,7 +24,7 @@ export default function FeedScreen() {
   const theme = useTheme();
   const router = useRouter();
   const { myDrop } = useFeed();
-  const { feed, followingIds, refresh } = useSocial();
+  const { feed, followingIds, refresh, feedHasMore, feedLoadingMore, loadMoreFeed } = useSocial();
   const { requireAuth } = useRequireAuth();
 
   // Real activity (you + people you follow), rendered above the mock filler.
@@ -100,35 +101,53 @@ export default function FeedScreen() {
             />
           ))}
 
-          {/* Mock filler so the feed never looks dead — clearly separated. */}
-          <ThemedText type="small" themeColor="textSecondary" style={styles.sectionLabel}>
-            From the community
-          </ThemedText>
-
-          {mockDrop && (
-            <Surface testID="feed-drop" onPress={() => openItem(mockDrop)} style={styles.tightCard}>
-              <View style={styles.dropHeader}>
-                <Ionicons name="radio" size={16} color={theme.accentAlt} />
-                <ThemedText type="small" style={{ color: theme.accentAlt }}>
-                  {mockDrop.user}&apos;s drop · 2h left
-                </ThemedText>
-              </View>
-              <View style={styles.dropBody}>
-                <AlbumCover uri={mockDrop.coverUrl} size={48} radius={8} />
-                <View style={{ flex: 1 }}>
-                  <ThemedText type="smallBold">{mockDrop.user} is listening to</ThemedText>
-                  <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-                    {mockDrop.title}
-                    {mockDrop.artist ? ` — ${mockDrop.artist}` : ''}
-                  </ThemedText>
-                </View>
-              </View>
-            </Surface>
+          {feedHasMore && (
+            <Pressable
+              testID="feed-load-more"
+              onPress={loadMoreFeed}
+              disabled={feedLoadingMore}
+              style={({ pressed }) => [styles.footerLink, { opacity: pressed || feedLoadingMore ? 0.6 : 1 }]}>
+              <ThemedText type="small" themeColor="textSecondary">
+                {feedLoadingMore ? 'Loading…' : 'Load more'}
+              </ThemedText>
+            </Pressable>
           )}
 
-          {mockRest.map((event) => (
-            <FeedRow key={event.id} event={event} theme={theme} onPress={() => openItem(event)} />
-          ))}
+          {/* Cold-start filler ONLY — once the viewer follows people and real
+              events exist, the sample cards drop away so no fabricated activity
+              ever sits alongside real activity (ROADMAP goal #4). */}
+          {realEvents.length === 0 && (
+            <>
+              <ThemedText type="small" themeColor="textSecondary" style={styles.sectionLabel}>
+                See what Jelli looks like
+              </ThemedText>
+
+              {mockDrop && (
+                <Surface testID="feed-drop" onPress={() => openItem(mockDrop)} style={styles.tightCard}>
+                  <View style={styles.dropHeader}>
+                    <Ionicons name="radio" size={16} color={theme.accentAlt} />
+                    <ThemedText type="small" style={{ color: theme.accentAlt }}>
+                      {mockDrop.user}&apos;s drop · sample
+                    </ThemedText>
+                  </View>
+                  <View style={styles.dropBody}>
+                    <AlbumCover uri={mockDrop.coverUrl} size={48} radius={8} />
+                    <View style={{ flex: 1 }}>
+                      <ThemedText type="smallBold">{mockDrop.user} is listening to</ThemedText>
+                      <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+                        {mockDrop.title}
+                        {mockDrop.artist ? ` — ${mockDrop.artist}` : ''}
+                      </ThemedText>
+                    </View>
+                  </View>
+                </Surface>
+              )}
+
+              {mockRest.map((event) => (
+                <FeedRow key={event.id} event={event} theme={theme} onPress={() => openItem(event)} />
+              ))}
+            </>
+          )}
 
           {/* Invisible until the AdSense env vars are configured (web only). */}
           <AdSlot slot={process.env.EXPO_PUBLIC_ADSENSE_SLOT_FEED} />
@@ -181,7 +200,7 @@ function YourDrop({
       <View style={styles.dropHeader}>
         <Ionicons name="radio" size={16} color={theme.accentAlt} />
         <ThemedText type="small" style={{ color: theme.accentAlt, flex: 1 }}>
-          Your daily drop · {relativeTime(drop.createdAt)}
+          Your daily drop · {formatDropRemaining(drop)}
         </ThemedText>
         <Pressable testID="replace-drop" onPress={onCompose} hitSlop={8} accessibilityLabel="Replace drop">
           <Ionicons name="repeat" size={18} color={theme.textSecondary} />
@@ -230,10 +249,15 @@ function FeedRow({
         ? 'is listening to'
         : event.kind === 'concert'
           ? 'saw'
-          : event.title;
+          : event.kind === 'made_list'
+            ? 'made a list'
+            : event.title;
+  // The list name / streak text sits inline in the header, so those cards have
+  // no separate art+score body.
+  const inlineOnly = event.kind === 'streak' || event.kind === 'made_list';
   // Show the art+score body whenever there's something to show — AlbumCover
   // falls back to a disc icon, so a missing artUrl shouldn't hide the score.
-  const showBody = event.kind !== 'streak' && (!!event.coverUrl || event.score != null);
+  const showBody = !inlineOnly && (!!event.coverUrl || event.score != null);
   return (
     <Surface
       testID={event.itemId ? `feed-item-${event.id}` : undefined}
@@ -254,6 +278,9 @@ function FeedRow({
           {event.kind === 'concert' ? ' live' : ''}
         </ThemedText>
         {event.kind === 'streak' && <Ionicons name="flame" size={16} color={theme.warning} />}
+        {event.kind === 'made_list' && (
+          <Ionicons name="list" size={16} color={theme.accentAlt} />
+        )}
         {event.createdAt && (
           <ThemedText type="small" themeColor="textSecondary">
             {relativeTime(event.createdAt)}

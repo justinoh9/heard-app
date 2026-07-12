@@ -83,6 +83,18 @@ export function toDisplayEvent(e: SocialEvent): FeedEvent {
     // title = artist name, artist = "venue · city" (see SocialEventPayload).
     return { ...base, kind: 'concert', title: p.title ?? '', score: p.score };
   }
+  if (e.type === 'made_list') {
+    // title = list name; informational card, no item link (like streaks).
+    return {
+      ...base,
+      kind: 'made_list',
+      coverUrl: undefined,
+      itemId: undefined,
+      itemType: undefined,
+      artist: undefined,
+      title: p.title ?? 'a list',
+    };
+  }
   return {
     ...base,
     kind: 'streak',

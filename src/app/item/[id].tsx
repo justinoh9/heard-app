@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { useRequireAuth } from '@/auth/use-require-auth';
@@ -23,6 +23,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useLikeSummaries, useLikeSummary } from '@/likes';
 import { musicCatalog, MusicCatalogError, type AlbumTrack } from '@/music';
 import type { ItemType } from '@/ranking/types';
+import { useSocial } from '@/social/store';
 
 export default function ItemProfileScreen() {
   const theme = useTheme();
@@ -30,6 +31,7 @@ export default function ItemProfileScreen() {
   const haptics = useHaptics();
   const { user, requireAuth } = useRequireAuth();
   const { ratingFor } = useRatings();
+  const { people, followingIds } = useSocial();
   const params = useLocalSearchParams<{
     id: string;
     type?: string;
@@ -57,7 +59,17 @@ export default function ItemProfileScreen() {
   const [posting, setPosting] = useState(false);
   const [scope, setScope] = useState<CommentScope>('everyone');
   const [sort, setSort] = useState<CommentSort>('newest');
-  const visibleComments = filterSortComments(comments, { scope, sort });
+  // "Friends" = the real follow graph: lowercased display names of followed users.
+  const friendNames = useMemo(
+    () =>
+      new Set(
+        people
+          .filter((p) => followingIds.has(p.userId))
+          .map((p) => p.displayName.trim().toLowerCase()),
+      ),
+    [people, followingIds],
+  );
+  const visibleComments = filterSortComments(comments, { scope, sort, friends: friendNames });
 
   // Album tracklist (songs). Only albums have one; songs skip the fetch.
   const [tracks, setTracks] = useState<AlbumTrack[]>([]);

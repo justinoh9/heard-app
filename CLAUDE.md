@@ -40,7 +40,20 @@ retention, differentiators).
   import (the separate Spotify user-OAuth for "recently played").
 - Streak state (`src/streaks/`) persists per-user to `AsyncStorage` on the
   device (deliberately not in Supabase — it's a per-device habit nudge).
-  Playlists and the Daily Drop are still in-memory (ROADMAP Phase 1).
+- The **Daily Drop** persists behind a `DropsBackend` seam (`src/feed/`):
+  `SupabaseDropsBackend` (`0009_drops.sql` — one active row per user, upserted
+  on re-post) or an AsyncStorage `LocalDropsBackend`, chosen in
+  `src/feed/provider.ts`. Pure `rows.ts` (unit-tested) owns the 24h expiry;
+  the feed card shows a real countdown (`formatDropRemaining`). The store
+  (`src/feed/store.tsx`) hydrates the viewer's active drop on sign-in and
+  writes optimistically.
+- **Playlists persist as Lists** behind a `ListsBackend` seam
+  (`src/playlists/`): `SupabaseListsBackend` (`0010_lists.sql` —
+  `lists`/`list_items`, the client module stays named "playlists") or an
+  AsyncStorage `LocalListsBackend` (which seeds the demo lists for a new local
+  user), chosen in `src/playlists/provider.ts`. Ids are client-generated so
+  `createPlaylist` returns synchronously for navigation; creating a list
+  publishes a `made_list` feed event.
 
 ## Layout
 - `src/app/` — routes. Tabs: `index.tsx` (Feed), `rate.tsx` (Rate),
@@ -94,9 +107,14 @@ retention, differentiators).
   `store.tsx`; `SocialBackend` seam with Supabase/AsyncStorage impls, chosen in
   `provider.ts` like ratings). `feed-rows.ts` is the pure, unit-tested mapping.
   **Every log path emits a feed event** (blueprint §1.3): `commitPlacement`
-  publishes `rated`, `postDrop` publishes `drop`. `src/app/people.tsx` is the
-  directory with follow toggles; the Feed tab renders real events above the
-  mock "From the community" filler. `compatibility.ts` is the pure taste-match
+  publishes `rated`, `postDrop` publishes `drop`, `createPlaylist` publishes
+  `made_list`. The feed pages backward via `feedFor(userIds, limit, before)`
+  (cursor = the oldest event held); the store exposes `loadMoreFeed` +
+  `feedHasMore`. `src/app/people.tsx` is the directory with follow toggles; the
+  Feed tab renders real events, and the mock "From the community" filler shows
+  **only on the cold-start empty feed** (never stacked under real activity —
+  ROADMAP goal #4). The comments "friends" filter (`src/comments/filter.ts`)
+  now takes the real followed-user name set, not a mock roster. `compatibility.ts` is the pure taste-match
   algorithm (blueprint §2.C) shown on `src/app/user/[id].tsx` — another user's
   profile (% match + shared favorites + their ranked list via
   `ratingsBackend.load`), reached from People rows and feed avatars.

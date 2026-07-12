@@ -2,37 +2,36 @@
  * Client-side filter + sort for an item's comments. Pure and framework-free so
  * it's unit-testable like the ranking/social helpers.
  *
- * "Friends" is mock for now (SPEC §7): there's no real social graph, so a
- * comment counts as a friend's when its author display name matches someone in
- * the leaderboard friend roster. Imports are relative to keep this runnable
- * under the `tsx` node test runner.
+ * "Friends" is now the real follow graph: the caller (the item page) passes the
+ * set of lowercased display names of people the viewer follows, resolved from
+ * `useSocial()`. Guests / not-following pass an empty set, so the Friends tab
+ * simply comes back empty. Imports stay relative to run under the `tsx` node
+ * test runner.
  */
 
-import { LEADERBOARD_USERS } from '../leaderboard/data';
 import type { Comment } from './types';
 
 export type CommentScope = 'everyone' | 'friends';
 export type CommentSort = 'newest' | 'oldest';
 
-/** Lowercased display names of the user's friends (mock roster). */
-export const FRIEND_NAMES: ReadonlySet<string> = new Set(
-  LEADERBOARD_USERS.filter((u) => u.isFriend).map((u) => u.username.trim().toLowerCase()),
-);
-
-export function isFriendComment(c: Comment, friends: ReadonlySet<string> = FRIEND_NAMES): boolean {
+/** True when the comment's author is in the viewer's friend set (by name). */
+export function isFriendComment(c: Comment, friends: ReadonlySet<string>): boolean {
   return friends.has(c.displayName.trim().toLowerCase());
 }
 
 export interface CommentViewOptions {
   scope: CommentScope;
   sort: CommentSort;
-  /** Override the friend roster (tests / a future real social graph). */
+  /**
+   * Lowercased display names of the people the viewer follows. Required for the
+   * 'friends' scope; ignored for 'everyone'. Defaults to empty (no friends).
+   */
   friends?: ReadonlySet<string>;
 }
 
 /** Apply scope filter then sort by timestamp. Never mutates the input array. */
 export function filterSortComments(comments: Comment[], opts: CommentViewOptions): Comment[] {
-  const friends = opts.friends ?? FRIEND_NAMES;
+  const friends = opts.friends ?? EMPTY;
   const base =
     opts.scope === 'friends' ? comments.filter((c) => isFriendComment(c, friends)) : comments;
   return [...base].sort((a, b) => {
@@ -41,3 +40,5 @@ export function filterSortComments(comments: Comment[], opts: CommentViewOptions
     return opts.sort === 'newest' ? tb - ta : ta - tb;
   });
 }
+
+const EMPTY: ReadonlySet<string> = new Set();
