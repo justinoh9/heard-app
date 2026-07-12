@@ -156,14 +156,17 @@ follow) is entirely real.
       `ranking/nudge.ts`; `components/post-log-nudge.tsx`). Every answer banks a
       comparison event (feeding the future Elo engine) and can settle a
       same-score tie on the spot.
-- [ ] **(F1) Frictionless sign-in — Google/Apple OAuth + a leaner login page** —
-      add `signInWithOAuth({ provider: 'google' })` (and Apple, required for iOS
-      review) beside the existing Spotify button, and streamline the auth screen
-      so the common path is one tap. Supabase Auth already supports these
-      providers, so it's mostly provider config + button wiring — and unlike
-      Spotify login (stuck behind Spotify's dev-mode allowlist), Google/Apple are
-      the real *public* sign-in path. Lowering sign-up friction is the cheapest
-      D1 lever short of onboarding itself.
+- [x] **(F1) Frictionless sign-in — Google/Apple OAuth** — both the sign-in and
+      sign-up screens now lead with **Continue with Google** + **Continue with
+      Apple** above the email form (`OAuthButton` in `src/auth/ui.tsx`, wired to
+      `signInWithOAuth`, which passes the provider straight to Supabase Auth).
+      The seam already supported all three providers; this rendered the Apple
+      button (required for iOS review) beside the existing Google one.
+      *Config on the user:* enable the Google + Apple providers in the Supabase
+      dashboard (Auth → Providers) and register the OAuth apps — until then the
+      buttons surface a "provider not enabled" error. *Follow-up:* native Apple
+      sign-in via `expo-apple-authentication` when the iOS app ships (web uses
+      the Supabase redirect flow today).
 - [ ] **(F2) In-app playback (preview-first)** — tap a song to hear it. The
       iTunes catalog already returns 30s `previewUrl`s, so a lightweight
       `expo-audio` player on item pages, search rows, and the feed is a

@@ -67,6 +67,7 @@ export default function SignUpScreen() {
             {signInWithOAuth && (
               <>
                 <OAuthButton provider="google" onPress={() => oauth('google')} busy={oauthBusy} />
+                <OAuthButton provider="apple" onPress={() => oauth('apple')} busy={oauthBusy} />
                 <OrDivider />
               </>
             )}
