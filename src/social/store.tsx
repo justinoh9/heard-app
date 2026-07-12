@@ -14,7 +14,13 @@ import { useAuth } from '@/auth/store';
 
 import { sortEvents } from './feed-rows';
 import { socialBackend } from './provider';
-import type { Profile, SocialEvent, SocialEventPayload, SocialEventType } from './types';
+import type {
+  Profile,
+  ProfilePatch,
+  SocialEvent,
+  SocialEventPayload,
+  SocialEventType,
+} from './types';
 
 export interface SocialApi {
   /** Everyone else in the directory (the viewer is filtered out). */
@@ -31,9 +37,13 @@ export interface SocialApi {
   loadMoreFeed: () => void;
   /** The viewer's chosen Top 4 item ids (empty until picked). */
   myFavorites: string[];
+  /** The viewer's own directory row (handle/bio/avatar), null until loaded. */
+  myProfile: Profile | null;
   toggleFollow: (userId: string) => void;
   /** Replace the viewer's Top 4 (optimistic; at most 4 ids). */
   saveFavorites: (itemIds: string[]) => void;
+  /** Update the viewer's identity fields; rejects with HandleTakenError. */
+  updateProfile: (patch: ProfilePatch) => Promise<void>;
   /** Append an event to the log (stamped with the signed-in user). */
   publish: (type: SocialEventType, payload: SocialEventPayload) => void;
   refresh: () => void;
@@ -55,6 +65,7 @@ export function useSocialState(): SocialApi {
   const [feedHasMore, setFeedHasMore] = useState(false);
   const [feedLoadingMore, setFeedLoadingMore] = useState(false);
   const [myFavorites, setMyFavorites] = useState<string[]>([]);
+  const [myProfile, setMyProfile] = useState<Profile | null>(null);
 
   const refresh = useCallback(() => {
     setFeedLoading(true);
@@ -67,7 +78,9 @@ export function useSocialState(): SocialApi {
       .then(async ([profiles, ids]) => {
         setFollowingIds(new Set(ids));
         setPeople(profiles.filter((p) => p.userId !== userId));
-        setMyFavorites(userId ? profiles.find((p) => p.userId === userId)?.favorites ?? [] : []);
+        const own = userId ? profiles.find((p) => p.userId === userId) ?? null : null;
+        setMyProfile(own);
+        setMyFavorites(own?.favorites ?? []);
         const page = userId ? await socialBackend.feedFor([userId, ...ids], FEED_PAGE_SIZE) : [];
         setFeed(page);
         // A full page implies there may be older events to page into.
@@ -99,6 +112,7 @@ export function useSocialState(): SocialApi {
       feedHasMore,
       feedLoadingMore,
       myFavorites,
+      myProfile,
       refresh,
       loadMoreFeed: () => {
         if (!userId || feedLoadingMore || !feedHasMore || feed.length === 0) return;
@@ -122,6 +136,29 @@ export function useSocialState(): SocialApi {
           console.warn('[social] saving favorites failed:', e);
           setMyFavorites(previous);
         });
+      },
+      updateProfile: async (patch) => {
+        if (!userId) return;
+        const previous = myProfile;
+        // Optimistic: reflect the edit immediately, roll back if the write fails
+        // (e.g. handle taken). Empty strings clear the field (stored as null).
+        const clean = (v?: string | null) => (v == null || v === '' ? undefined : v);
+        setMyProfile((p) =>
+          p
+            ? {
+                ...p,
+                handle: patch.handle !== undefined ? clean(patch.handle) : p.handle,
+                bio: patch.bio !== undefined ? clean(patch.bio) : p.bio,
+                avatarUrl: patch.avatarUrl !== undefined ? clean(patch.avatarUrl) : p.avatarUrl,
+              }
+            : p,
+        );
+        try {
+          await socialBackend.updateProfile(userId, patch);
+        } catch (e) {
+          setMyProfile(previous);
+          throw e;
+        }
       },
       toggleFollow: (targetId) => {
         if (!userId || targetId === userId) return;
@@ -162,6 +199,7 @@ export function useSocialState(): SocialApi {
       feedHasMore,
       feedLoadingMore,
       myFavorites,
+      myProfile,
       refresh,
       userId,
       displayName,

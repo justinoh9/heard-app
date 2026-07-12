@@ -8,11 +8,13 @@ import { tallyLeaderboard } from '@/leaderboard/rank';
 
 import { fromFeedRow, type FeedEventRow } from './feed-rows';
 import {
+  HandleTakenError,
   SocialError,
   type ItemRating,
   type LeaderboardEntry,
   type NewSocialEvent,
   type Profile,
+  type ProfilePatch,
   type SocialBackend,
   type SocialEvent,
 } from './types';
@@ -21,6 +23,22 @@ interface ProfileRow {
   user_id: string;
   display_name: string;
   favorites?: string[] | null;
+  handle?: string | null;
+  bio?: string | null;
+  avatar_url?: string | null;
+}
+
+const PROFILE_COLUMNS = 'user_id, display_name, favorites, handle, bio, avatar_url';
+
+function fromProfileRow(r: ProfileRow): Profile {
+  return {
+    userId: r.user_id,
+    displayName: r.display_name,
+    favorites: r.favorites ?? undefined,
+    handle: r.handle ?? undefined,
+    bio: r.bio ?? undefined,
+    avatarUrl: r.avatar_url ?? undefined,
+  };
 }
 
 export class SupabaseSocialBackend implements SocialBackend {
@@ -37,14 +55,24 @@ export class SupabaseSocialBackend implements SocialBackend {
   async listProfiles(): Promise<Profile[]> {
     const { data, error } = await getSupabase()
       .from('profiles')
-      .select('user_id, display_name, favorites')
+      .select(PROFILE_COLUMNS)
       .order('display_name');
     if (error) throw new SocialError(error.message);
-    return (data as ProfileRow[]).map((r) => ({
-      userId: r.user_id,
-      displayName: r.display_name,
-      favorites: r.favorites ?? undefined,
-    }));
+    return (data as ProfileRow[]).map(fromProfileRow);
+  }
+
+  async updateProfile(userId: string, patch: ProfilePatch): Promise<void> {
+    const row: Record<string, string | null> = {};
+    if (patch.handle !== undefined) row.handle = patch.handle;
+    if (patch.bio !== undefined) row.bio = patch.bio;
+    if (patch.avatarUrl !== undefined) row.avatar_url = patch.avatarUrl;
+    if (Object.keys(row).length === 0) return;
+    const { error } = await getSupabase().from('profiles').update(row).eq('user_id', userId);
+    if (error) {
+      // 23505 = unique_violation on profiles_handle_lower_idx.
+      if (error.code === '23505') throw new HandleTakenError('That handle is already taken.');
+      throw new SocialError(error.message);
+    }
   }
 
   async setFavorites(userId: string, itemIds: string[]): Promise<void> {

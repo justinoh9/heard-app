@@ -195,12 +195,18 @@ follow) is entirely real.
       A "Want to listen" card + count sits on the Profile. *Follow-ups:* the
       bookmark on feed cards, and the re-engagement hook ("3 things on your list
       were just rated by friends").
-- [ ] **(G4) Profile identity basics** — avatars (today we render initials),
-      short bios, and unique `@handles`. A Letterboxd profile is a personal
-      artifact; goal #5 ("a profile screenshot should sell the app") needs faces
-      and a handle to link to. Handles also give share cards / deep links a
-      stable URL. Avatar upload → Supabase Storage; handle uniqueness enforced
-      in `profiles`.
+- [~] **(G4) Profile identity basics** — **handles + bios shipped**; avatar
+      upload is the remaining slice. `0014_profile_identity.sql` adds
+      `handle`/`bio`/`avatar_url` to `profiles` with a case-insensitive unique
+      index on `handle`; the `SocialBackend` gains `updateProfile` (both impls,
+      `HandleTakenError` on collision) and `Profile` carries the fields. The
+      Profile tab has an **Edit profile** action (`src/app/edit-profile.tsx` —
+      handle normalized to `[a-z0-9_]`, bio, optimistic save via the store's
+      `myProfile`/`updateProfile`), and `@handle` + bio now render on both the
+      Profile tab and `/user/[id]`. *Remaining (avatars):* image upload →
+      Supabase Storage (needs a bucket + `expo-image-picker`); the `avatar_url`
+      column already ships so avatars land without another migration, and the UI
+      keeps its initials fallback until then.
 
 ## Phase 3 — Differentiators (what neither Beli nor Letterboxd has)
 

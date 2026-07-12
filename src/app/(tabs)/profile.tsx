@@ -45,7 +45,7 @@ export default function ProfileScreen() {
   const { playlists } = usePlaylists();
   const { items: queueItems } = useQueue();
   const { current: streak } = useStreaks();
-  const { myFavorites, saveFavorites } = useSocial();
+  const { myFavorites, saveFavorites, myProfile } = useSocial();
   const { concerts } = useConcerts();
   const [editingTop4, setEditingTop4] = useState(false);
   const [picking, setPicking] = useState(false);
@@ -117,12 +117,27 @@ export default function ProfileScreen() {
               <ThemedText type="smallBold" style={{ fontSize: 18 }}>
                 {displayName}
               </ThemedText>
+              {myProfile?.handle ? (
+                <ThemedText type="small" style={{ color: theme.accent }}>
+                  @{myProfile.handle}
+                </ThemedText>
+              ) : null}
               <ThemedText type="small" themeColor="textSecondary">
                 {ranked.length === 0
                   ? 'No ratings yet'
                   : `${taste.style.label} · ${ranked.length} rated`}
               </ThemedText>
             </View>
+            <Pressable
+              testID="edit-profile"
+              onPress={() => router.push('/edit-profile')}
+              accessibilityLabel="Edit profile"
+              style={({ pressed }) => [
+                styles.settingsBtn,
+                { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.6 : 1 },
+              ]}>
+              <Ionicons name="create-outline" size={18} color={theme.textSecondary} />
+            </Pressable>
             <Pressable
               onPress={() => router.push('/settings')}
               accessibilityLabel="Settings"
@@ -133,6 +148,12 @@ export default function ProfileScreen() {
               <Ionicons name="settings-outline" size={18} color={theme.textSecondary} />
             </Pressable>
           </View>
+
+          {myProfile?.bio ? (
+            <ThemedText type="small" style={styles.bio}>
+              {myProfile.bio}
+            </ThemedText>
+          ) : null}
 
           <View style={styles.stats}>
             <Stat value={String(ranked.length)} label="rated" theme={theme} />
@@ -477,6 +498,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   avatar: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
   settingsBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  bio: { marginTop: -Spacing.one },
   stats: { flexDirection: 'row', gap: Spacing.two },
   stat: { flex: 1, alignItems: 'center', paddingVertical: Spacing.three, borderRadius: 10, gap: 2 },
   wrappedCard: { flexDirection: 'row', alignItems: 'center' },

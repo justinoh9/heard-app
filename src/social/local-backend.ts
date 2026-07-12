@@ -14,11 +14,13 @@ import * as Crypto from 'expo-crypto';
 import { demoEntries } from '@/leaderboard/rank';
 
 import { sortEvents } from './feed-rows';
+import { HandleTakenError } from './types';
 import type {
   ItemRating,
   LeaderboardEntry,
   NewSocialEvent,
   Profile,
+  ProfilePatch,
   SocialBackend,
   SocialEvent,
 } from './types';
@@ -50,6 +52,25 @@ export class LocalSocialBackend implements SocialBackend {
     const next = profiles.map((p) =>
       p.userId === userId ? { ...p, favorites: itemIds.slice(0, 4) } : p,
     );
+    await AsyncStorage.setItem(PROFILES_KEY, JSON.stringify(next));
+  }
+
+  async updateProfile(userId: string, patch: ProfilePatch): Promise<void> {
+    const profiles = await readJson<Profile[]>(PROFILES_KEY, []);
+    // Case-insensitive handle uniqueness, mirroring the DB index.
+    if (patch.handle) {
+      const taken = profiles.some(
+        (p) => p.userId !== userId && p.handle?.toLowerCase() === patch.handle!.toLowerCase(),
+      );
+      if (taken) throw new HandleTakenError('That handle is already taken.');
+    }
+    const apply = (p: Profile): Profile => ({
+      ...p,
+      handle: patch.handle !== undefined ? patch.handle ?? undefined : p.handle,
+      bio: patch.bio !== undefined ? patch.bio ?? undefined : p.bio,
+      avatarUrl: patch.avatarUrl !== undefined ? patch.avatarUrl ?? undefined : p.avatarUrl,
+    });
+    const next = profiles.map((p) => (p.userId === userId ? apply(p) : p));
     await AsyncStorage.setItem(PROFILES_KEY, JSON.stringify(next));
   }
 

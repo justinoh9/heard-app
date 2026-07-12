@@ -71,6 +71,7 @@ export default function UserProfileScreen() {
   }, [userId]);
 
   const following = followingIds.has(userId);
+  const theirProfile = people.find((p) => p.userId === userId);
   const compat: Compatibility | null = theirs ? compatibility(mine, theirs) : null;
   // Their chosen Top 4 (only when explicitly picked — the ranked list below
   // already covers the fallback).
@@ -96,6 +97,16 @@ export default function UserProfileScreen() {
             <View style={[styles.avatar, { backgroundColor: theme.backgroundElement }]}>
               <ThemedText type="title">{initialsOf(displayName)}</ThemedText>
             </View>
+            {theirProfile?.handle ? (
+              <ThemedText type="small" style={{ color: theme.accent }}>
+                @{theirProfile.handle}
+              </ThemedText>
+            ) : null}
+            {theirProfile?.bio ? (
+              <ThemedText type="small" themeColor="textSecondary" style={styles.bio}>
+                {theirProfile.bio}
+              </ThemedText>
+            ) : null}
             <Pressable
               testID="profile-follow"
               onPress={() => toggleFollow(userId)}
@@ -273,6 +284,7 @@ const styles = StyleSheet.create({
   container: { padding: Spacing.three, gap: Spacing.three },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   identity: { alignItems: 'center', gap: Spacing.three },
+  bio: { textAlign: 'center', maxWidth: 320 },
   avatar: { width: 84, height: 84, borderRadius: 42, alignItems: 'center', justifyContent: 'center' },
   followButton: {
     borderRadius: 999,

@@ -14,7 +14,22 @@ export interface Profile {
   displayName: string;
   /** Ordered Top 4 item ids (PRODUCT_BLUEPRINT §2.D). Empty until chosen. */
   favorites?: string[];
+  /** Unique @handle (case-insensitive), a short bio, and an avatar — the
+   *  profile-identity fields (ROADMAP G4). All optional. */
+  handle?: string;
+  bio?: string;
+  avatarUrl?: string;
 }
+
+/** The user-editable identity fields (handle/bio/avatar), all optional. */
+export interface ProfilePatch {
+  handle?: string | null;
+  bio?: string | null;
+  avatarUrl?: string | null;
+}
+
+/** Thrown when a chosen @handle is already taken (unique-index violation). */
+export class HandleTakenError extends Error {}
 
 export type SocialEventType = 'rated' | 'drop' | 'streak' | 'concert' | 'made_list' | 'repost';
 
@@ -100,6 +115,9 @@ export interface SocialBackend {
   setFollowing(followerId: string, followeeId: string, follow: boolean): Promise<void>;
   /** Replace the user's Top 4 (ordered item ids, at most 4). */
   setFavorites(userId: string, itemIds: string[]): Promise<void>;
+  /** Update the identity fields (handle/bio/avatar). Throws HandleTakenError
+   *  when the requested handle collides with another user's. */
+  updateProfile(userId: string, patch: ProfilePatch): Promise<void>;
   /** Append one event to the activity log. Returns it with id + timestamp. */
   publishEvent(event: NewSocialEvent): Promise<SocialEvent>;
   /**
