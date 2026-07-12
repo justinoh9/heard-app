@@ -6,11 +6,14 @@ import { AnimatedWordmark } from '@/components/animated-wordmark';
 import { TopNavBar } from '@/components/top-nav-bar';
 import { useResponsive } from '@/hooks/use-responsive';
 import { useDisplayFont, useTheme } from '@/hooks/use-theme';
+import { useOnboardingRedirect } from '@/onboarding/use-onboarding-redirect';
 
 export default function TabsLayout() {
   const colors = useTheme();
   const displayFont = useDisplayFont();
   const { isWide } = useResponsive();
+  // Send brand-new users through the onboarding wizard once (no-op otherwise).
+  useOnboardingRedirect();
 
   return (
     <View style={{ flex: 1, flexDirection: 'column' }}>

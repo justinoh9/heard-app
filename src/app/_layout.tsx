@@ -188,6 +188,7 @@ function RootNavigator() {
       <Stack.Screen name="playlist/new" options={{ presentation: 'modal' }} />
       <Stack.Screen name="artist/[id]" />
       <Stack.Screen name="streak" />
+      <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
     </Stack>
   );
 }

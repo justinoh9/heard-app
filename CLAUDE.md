@@ -138,6 +138,15 @@ retention, differentiators).
 - `src/likes/` — `LikesBackend` seam, same Supabase-backed-from-day-one
   treatment as comments. One generic `likes` table (discriminated by
   `target_type`) covers both item likes (song/album profile) and comment likes.
+- `src/onboarding/` — the new-user wizard (`src/app/onboarding.tsx`), the
+  biggest D1-retention lever (ROADMAP Phase 2). `useOnboardingRedirect` (called
+  from `(tabs)/_layout.tsx`) sends a signed-in user with an empty ranked list
+  and no `flag.ts` onboarded mark to `/onboarding`: welcome → rapid-rate curated
+  albums (`seed.ts` — live catalog search with an MBID fallback) → follow
+  taste-matched people (`suggestions.ts`, pure + tested, over `compatibility`) →
+  done. Ratings persist through `commitPlacement` (no per-item feed spam). The
+  seed is deliberately catalog-based, not Spotify top-tracks (Spotify OAuth is
+  allowlist-gated) — see ROADMAP.
 - `src/streaks/` — pure day-boundary logic (`logic.ts`) + an `AsyncStorage`-backed
   `useStreaks()` store. `commitPlacement` (`src/data/store.ts`) and `postDrop`
   (`src/feed/store.tsx`) both call `recordActivity()` directly.

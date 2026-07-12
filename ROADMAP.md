@@ -98,10 +98,18 @@ follow) is entirely real.
 
 ## Phase 2 — Retention & identity (the "Beli" half)
 
-- [ ] **Onboarding wizard** — after sign-up: connect Spotify → rapid-rate ~10
-      of your top tracks (seeds the engine + taste profile) → suggest 3–5
-      people to follow by artist overlap. Biggest single lever on D1 retention;
-      all the ingredients (`UserLibrary`, engine, compatibility) already exist.
+- [x] **Onboarding wizard** — shipped (`src/onboarding/`, `src/app/onboarding.tsx`).
+      A brand-new user (empty ranked list, not-yet-onboarded) is gated into
+      welcome → rapid-rate ~10 curated albums (3 buckets + "haven't heard it") →
+      follow taste-matched people (reuses `compatibility`, ranked by
+      `rankFollowSuggestions`) → done. Ratings persist via the normal
+      `commitPlacement` path; a device-local flag (`flag.ts`) stops it
+      reappearing; the gate is `useOnboardingRedirect` in the tabs layout.
+      *Deliberate scope cut:* the seed is the app's own catalog search (real
+      artwork, works for everyone), **not** Spotify top-tracks — Spotify
+      user-OAuth is still gated behind its dev-mode allowlist, so a
+      Spotify-first flow would break most signups. Spotify-as-seed is the
+      follow-up once the app clears Spotify's quota-extension review.
 - [ ] **Listen diary (re-logging)** — ratings are currently one-per-item;
       Letterboxd's habit loop depends on dated, repeatable log entries. Add
       `logged_at` diary entries (schema already sketched in blueprint §3.2) so
