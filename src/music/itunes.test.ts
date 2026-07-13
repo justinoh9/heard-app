@@ -240,10 +240,33 @@ test('getAlbumTracks resolves a non-numeric (seeded MBID) id via title+artist se
     title: 'Currents',
     artist: 'Tame Impala',
   });
-  assert.match(urls[0], /\/search\?term=Tame%20Impala%20Currents&media=music&entity=album&limit=1/);
+  assert.match(urls[0], /\/search\?term=Tame%20Impala%20Currents&media=music&entity=album&limit=5/);
   assert.match(urls[1], /\/lookup\?id=1&entity=song/);
   assert.equal(tracks.length, 1);
   assert.equal(tracks[0].id, '100');
+});
+
+test('getAlbumTracks prefers an exact album-title match over iTunes top result', async () => {
+  const cat = new ITunesCatalog(async (u) => {
+    const s = String(u);
+    if (s.includes('entity=album')) {
+      // Top result is a remix EP; the exact "Currents" album comes second.
+      return jsonResponse({
+        results: [
+          albumEntity({ collectionId: 9, collectionName: 'Currents B-Sides & Remixes - EP' }),
+          albumEntity({ collectionId: 1, collectionName: 'Currents' }),
+        ],
+      });
+    }
+    // Tracklist lookup: encode the resolved id into the track so the assertion
+    // can tell which album (1 vs 9) getAlbumTracks looked up.
+    const id = Number(new URL(s).searchParams.get('id'));
+    return jsonResponse({ results: [songEntity({ trackId: id * 1000, collectionId: id })] });
+  });
+  const tracks = await cat.getAlbumTracks('some-mbid-uuid', { title: 'Currents', artist: 'Tame Impala' });
+  assert.equal(tracks.length, 1);
+  // Resolved to collection 1 (exact "Currents"), not 9 (the remix EP top hit).
+  assert.equal(tracks[0].id, '1000');
 });
 
 test('getAlbumTracks with a non-numeric id and no title/artist returns [] without fetching', async () => {

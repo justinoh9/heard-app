@@ -307,7 +307,12 @@ export class ITunesCatalog implements MusicCatalog {
     return parseAlbumTracks(await this.get(path, opts.signal));
   }
 
-  /** Best-effort: an iTunes album's numeric id from a title + artist search. */
+  /**
+   * Best-effort: an iTunes album's numeric id from a title + artist search.
+   * Fetches a few candidates and prefers an exact title match (case-insensitive)
+   * so "Currents" resolves to the album, not a "Currents B-Sides" remix EP;
+   * falls back to iTunes' top result when nothing matches exactly.
+   */
   private async resolveAlbumId(
     title: string | undefined,
     artist: string | undefined,
@@ -315,8 +320,11 @@ export class ITunesCatalog implements MusicCatalog {
   ): Promise<string | null> {
     const q = [artist, title].filter(Boolean).join(' ').trim();
     if (!q) return null;
-    const path = `/search?term=${encodeURIComponent(q)}&media=music&entity=album&limit=1`;
+    const path = `/search?term=${encodeURIComponent(q)}&media=music&entity=album&limit=5`;
     const albums = parseAlbums(await this.get(path, signal));
-    return albums[0]?.id ?? null;
+    if (albums.length === 0) return null;
+    const wanted = title?.trim().toLowerCase();
+    const exact = wanted ? albums.find((a) => a.title.trim().toLowerCase() === wanted) : undefined;
+    return (exact ?? albums[0]).id;
   }
 }
