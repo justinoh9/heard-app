@@ -45,10 +45,16 @@ const wideBackdrop: ViewStyle = {
 };
 
 const wideCard: ViewStyle = {
-  // MUST explicitly zero this out — RN style arrays merge left-to-right per
-  // key, so `card`'s flex: 1 otherwise survives and the "dialog" silently
-  // stretches to fill the whole backdrop instead of sizing to content.
-  flex: 0,
+  // Size to content, not the whole backdrop. Set the three flex parts
+  // explicitly rather than `flex: 0`: react-native-web compiles `flex: 0` to
+  // `flexBasis: 0%`, which collapses the card to zero height inside the
+  // centered (column) backdrop — and with `overflow: hidden` that clips the
+  // content away, leaving a grey modal (worst during the push transform, when
+  // the navigator transforms the screen container). `flexBasis: 'auto'` sizes
+  // to content while flexGrow/Shrink: 0 keep it from stretching or collapsing.
+  flexGrow: 0,
+  flexShrink: 0,
+  flexBasis: 'auto',
   width: '100%',
   maxHeight: (Platform.OS === 'web' ? '85vh' : 700) as DimensionValue,
   ...(Platform.OS === 'web' ? { boxShadow: '0px 8px 40px rgba(0,0,0,0.25)' } : null),
