@@ -20,8 +20,8 @@ Top 4 favorites, concerts + friend tags, comments, likes, the real leaderboard
 `rated` feed event and persist as likeable comments; the feed pages backward
 and the comments "friends" filter uses the real follow graph. Device-local by
 design: streaks. The mock "From the community" cards now appear only as
-cold-start filler on an empty feed. **Phase 1 is complete** — Phase 2
-(retention & identity) is next.
+cold-start filler on an empty feed. **Phases 1 and 2 are complete** — Phase 3
+(differentiators) is next.
 
 ---
 
@@ -195,18 +195,22 @@ follow) is entirely real.
       A "Want to listen" card + count sits on the Profile. *Follow-ups:* the
       bookmark on feed cards, and the re-engagement hook ("3 things on your list
       were just rated by friends").
-- [~] **(G4) Profile identity basics** — **handles + bios shipped**; avatar
-      upload is the remaining slice. `0014_profile_identity.sql` adds
-      `handle`/`bio`/`avatar_url` to `profiles` with a case-insensitive unique
-      index on `handle`; the `SocialBackend` gains `updateProfile` (both impls,
-      `HandleTakenError` on collision) and `Profile` carries the fields. The
-      Profile tab has an **Edit profile** action (`src/app/edit-profile.tsx` —
-      handle normalized to `[a-z0-9_]`, bio, optimistic save via the store's
-      `myProfile`/`updateProfile`), and `@handle` + bio now render on both the
-      Profile tab and `/user/[id]`. *Remaining (avatars):* image upload →
-      Supabase Storage (needs a bucket + `expo-image-picker`); the `avatar_url`
-      column already ships so avatars land without another migration, and the UI
-      keeps its initials fallback until then.
+- [x] **(G4) Profile identity basics** — **handles, bios, and avatars shipped.**
+      `0014_profile_identity.sql` adds `handle`/`bio`/`avatar_url` to `profiles`
+      with a case-insensitive unique index on `handle`; the `SocialBackend` gains
+      `updateProfile` (both impls, `HandleTakenError` on collision) and `Profile`
+      carries the fields. The Profile tab has an **Edit profile** action
+      (`src/app/edit-profile.tsx` — handle normalized to `[a-z0-9_]`, bio,
+      optimistic save via the store's `myProfile`/`updateProfile`). **Avatars:**
+      `0015_avatars.sql` adds a public `avatars` Storage bucket with owner-scoped
+      RLS (`<uid>/avatar.<ext>`); the edit modal picks an image via
+      `expo-image-picker` and uploads through `src/social/avatar.ts` (base64 →
+      bytes, upsert + cache-buster). A shared `components/avatar.tsx` renders the
+      uploaded image or an initials monogram, used on the Profile tab and
+      `/user/[id]`; the UI keeps its initials fallback for anyone without a photo.
+      *Config on the user:* run `0015` on the Supabase project. *Follow-up:*
+      thread `avatarUrl` into feed cards / People rows (those data models
+      denormalize `displayName` but not the avatar yet).
 
 ## Phase 3 — Differentiators (what neither Beli nor Letterboxd has)
 

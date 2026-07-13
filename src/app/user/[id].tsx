@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'reac
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AlbumCover } from '@/components/album-cover';
+import { Avatar } from '@/components/avatar';
 import { PageContainer } from '@/components/page-container';
 import { Surface } from '@/components/surface';
 import { TasteProfileCard } from '@/components/taste-profile-card';
@@ -21,7 +22,6 @@ import type { RankedItem } from '@/ranking/types';
 import { compatibility, type Compatibility } from '@/social/compatibility';
 import { computeTasteProfile } from '@/taste/profile';
 import { resolveFavorites } from '@/social/favorites';
-import { initialsOf } from '@/social/feed-rows';
 import { socialBackend } from '@/social/provider';
 import { useSocial } from '@/social/store';
 import type { SocialEvent } from '@/social/types';
@@ -94,9 +94,7 @@ export default function UserProfileScreen() {
           </View>
 
           <View style={styles.identity}>
-            <View style={[styles.avatar, { backgroundColor: theme.backgroundElement }]}>
-              <ThemedText type="title">{initialsOf(displayName)}</ThemedText>
-            </View>
+            <Avatar name={displayName} uri={theirProfile?.avatarUrl} size={84} />
             {theirProfile?.handle ? (
               <ThemedText type="small" style={{ color: theme.accent }}>
                 @{theirProfile.handle}
@@ -285,7 +283,6 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   identity: { alignItems: 'center', gap: Spacing.three },
   bio: { textAlign: 'center', maxWidth: 320 },
-  avatar: { width: 84, height: 84, borderRadius: 42, alignItems: 'center', justifyContent: 'center' },
   followButton: {
     borderRadius: 999,
     paddingHorizontal: Spacing.five,

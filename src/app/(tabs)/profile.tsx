@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AlbumCover } from '@/components/album-cover';
+import { Avatar } from '@/components/avatar';
 import { EmptyState } from '@/components/empty-state';
 import { GuestGate } from '@/components/guest-gate';
 import { PageContainer } from '@/components/page-container';
@@ -30,12 +31,6 @@ import { useStreaks } from '@/streaks/store';
 import { computeTasteProfile } from '@/taste/profile';
 
 const BADGE_TINTS = ['#993556', '#854F0B', '#185FA5'];
-
-function initialsFrom(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '?';
-  return (parts[0][0] + (parts[1]?.[0] ?? '')).toUpperCase();
-}
 
 export default function ProfileScreen() {
   const theme = useTheme();
@@ -76,7 +71,6 @@ export default function ProfileScreen() {
   }
 
   const displayName = user?.displayName ?? PROFILE.username;
-  const initials = user ? initialsFrom(user.displayName) : PROFILE.initials;
   const taste = computeTasteProfile(ranked);
 
   function reRate(r: RankedItem) {
@@ -110,9 +104,7 @@ export default function ProfileScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <PageContainer style={styles.inner}>
           <View style={styles.header}>
-            <View style={[styles.avatar, { backgroundColor: theme.backgroundSelected }]}>
-              <ThemedText type="smallBold">{initials}</ThemedText>
-            </View>
+            <Avatar name={displayName} uri={myProfile?.avatarUrl} size={52} />
             <View style={{ flex: 1 }}>
               <ThemedText type="smallBold" style={{ fontSize: 18 }}>
                 {displayName}
@@ -496,7 +488,6 @@ const styles = StyleSheet.create({
   content: { padding: Spacing.three },
   inner: { gap: Spacing.three },
   header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
-  avatar: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
   settingsBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   bio: { marginTop: -Spacing.one },
   stats: { flexDirection: 'row', gap: Spacing.two },

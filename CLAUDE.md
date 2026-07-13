@@ -150,9 +150,12 @@ retention, differentiators).
   unique index on `handle`); `SocialBackend.updateProfile` (both impls,
   `HandleTakenError` on collision) writes them, the store exposes
   `myProfile`/`updateProfile`, and `src/app/edit-profile.tsx` edits handle + bio.
-  Handle + bio render on the Profile tab and `/user/[id]`. Avatar *upload*
-  (→ Supabase Storage) is the remaining slice; the column ships now and the UI
-  falls back to initials until then.
+  Handle + bio render on the Profile tab and `/user/[id]`. **Avatar upload**
+  ships too: `0015_avatars.sql` adds a public `avatars` Storage bucket
+  (owner-scoped RLS on `<uid>/avatar.<ext>`); the edit modal picks via
+  `expo-image-picker` and uploads through `src/social/avatar.ts` (base64→bytes,
+  upsert + cache-buster), and the shared `components/avatar.tsx` renders the
+  image or an initials monogram (initials fallback for anyone without a photo).
   `favorites.ts` resolves the **Top 4 showcase** (blueprint §2.D): chosen ids
   live on `Profile.favorites` (`0005_favorites.sql`; `saveFavorites` in the
   store), edited on the Profile tab (Edit → remove/add via picker sheet, with
