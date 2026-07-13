@@ -4,6 +4,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useRequireAuth } from '@/auth/use-require-auth';
+import { Avatar } from '@/components/avatar';
 import { EmptyState } from '@/components/empty-state';
 import { PageContainer } from '@/components/page-container';
 import { Surface } from '@/components/surface';
@@ -11,7 +12,6 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { initialsOf } from '@/social/feed-rows';
 import { useSocial } from '@/social/store';
 import type { Profile } from '@/social/types';
 
@@ -90,9 +90,7 @@ function PersonRow({
         onPress={onOpen}
         accessibilityLabel={`View ${person.displayName}'s profile`}
         style={({ pressed }) => [styles.personBody, { opacity: pressed ? 0.6 : 1 }]}>
-        <View style={[styles.avatar, { backgroundColor: theme.backgroundSelected }]}>
-          <ThemedText type="smallBold">{initialsOf(person.displayName)}</ThemedText>
-        </View>
+        <Avatar name={person.displayName} uri={person.avatarUrl} size={40} />
         <ThemedText type="smallBold" style={styles.name} numberOfLines={1}>
           {person.displayName}
         </ThemedText>
@@ -124,7 +122,6 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   list: { gap: Spacing.two },
   row: { flexDirection: 'row', alignItems: 'center' },
-  avatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   personBody: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   name: { flex: 1 },
   followButton: {

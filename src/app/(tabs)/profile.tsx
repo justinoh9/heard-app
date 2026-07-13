@@ -381,13 +381,13 @@ export default function ProfileScreen() {
                 editingList ? `Remove your rating of ${r.item.title}` : `Re-rate ${r.item.title}`
               }
               style={({ pressed }) => [
-                styles.rankRow,
+                styles.rankedRow,
                 { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.6 : 1 },
               ]}>
               <ThemedText type="smallBold" themeColor="textSecondary" style={styles.rankNum}>
                 {i + 1}
               </ThemedText>
-              <AlbumCover uri={r.item.artUrl} size={44} radius={6} />
+              <AlbumCover uri={r.item.artUrl} size={40} radius={6} />
               <View style={{ flex: 1 }}>
                 <ThemedText type="small" numberOfLines={1}>
                   {r.item.title}
@@ -542,6 +542,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   rankRow: { flexDirection: 'row', alignItems: 'center' },
+  // The RANKED list rows: padded so the cover doesn't fill the card edge-to-edge.
+  rankedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    padding: Spacing.two,
+    borderRadius: 10,
+  },
   rankNum: { width: 16, textAlign: 'center' },
   badges: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   badge: {

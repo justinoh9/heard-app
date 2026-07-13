@@ -91,9 +91,21 @@ export default function ArtistProfileScreen() {
   }
 
   function openSong(song: SearchResult) {
+    // Open the song's profile page (browsable), consistent with search and
+    // albums — its "Rate" button is the account-gated entry to the rate flow.
+    // (Previously pushed straight to '/log', which dead-ended guests at sign-in.)
     router.push({
-      pathname: '/log',
-      params: { id: song.id, type: 'song', title: song.title, artist: song.artist, year: song.year ?? '', artUrl: song.coverUrl ?? '', genre: song.genre ?? '' },
+      pathname: '/item/[id]',
+      params: {
+        id: song.id,
+        type: 'song',
+        title: song.title,
+        artist: song.artist,
+        year: song.year ?? '',
+        artUrl: song.coverUrl ?? '',
+        genre: song.genre ?? '',
+        previewUrl: song.previewUrl ?? '',
+      },
     });
   }
 
