@@ -224,6 +224,13 @@ retention, differentiators).
   `use-recommendations.ts` fetches once per follow-set and recomputes the picks
   locally against the live `ranked` list; the row renders at the top of the
   Browse tab for signed-in users (empty for guests / no-follows).
+- `src/share/` — **share cards** (ROADMAP Phase 3): `export.ts`'s `shareCard`
+  rasterizes a rendered card view to PNG with `react-native-view-shot` and hands
+  it off — the native share sheet (`expo-sharing`) on device, an `<a download>`
+  on web (the myjelli.site acquisition surface). The card itself is the branded,
+  fixed-size `components/share-card.tsx` (wordmark + your #1 + headline stats +
+  `myjelli.site`), rendered by the `src/app/share-card.tsx` modal (reached from
+  the Wrapped screen's share action). Not test-reachable (pulls native modules).
 - `src/diary/` — the listen diary (ROADMAP Phase 2; blueprint §1.1): a dated,
   re-loggable entry per active listen, behind a `DiaryBackend` seam
   (`0011_diary.sql` — `diary_entries`, `unique(user,item,logged_at)`, public-read

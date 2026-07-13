@@ -45,7 +45,12 @@ export default function WrappedScreen() {
               <Ionicons name="chevron-back" size={24} color={theme.text} />
             </Pressable>
             <ThemedText type="subtitle">Your Wrapped</ThemedText>
-            <View style={{ width: 24 }} />
+            <Pressable
+              onPress={() => router.push('/share-card')}
+              accessibilityLabel="Share your Wrapped"
+              hitSlop={8}>
+              <Ionicons name="share-outline" size={22} color={theme.text} />
+            </Pressable>
           </View>
           <ThemedText type="small" themeColor="textSecondary" style={styles.center}>
             Live from your diary — no December required.

@@ -219,8 +219,14 @@ follow) is entirely real.
       wishlist ("want to go" = Beli's bookmark), and a real tag-confirmation
       flow (tags are auto-'pending' today; tagged users can neither confirm
       nor remove themselves — RLS allows only the owner to insert).
-- [ ] **Share cards** — image export for Wrapped, Top 4, and "my #1 of 2026".
-      Every share is an acquisition surface; this is how Letterboxd grew.
+- [~] **Share cards** — **shipped: a Wrapped/#1 share card.** A share action on
+      the Wrapped screen opens `src/app/share-card.tsx`, which renders a branded,
+      fixed-size `components/share-card.tsx` (wordmark, your #1, headline stats,
+      `myjelli.site`) and rasterizes it to a PNG via `src/share/export.ts`
+      (`react-native-view-shot` → native share sheet / web download). Every
+      exported image carries the wordmark, so each share is an acquisition
+      surface. *Remaining:* a dedicated Top-4 card variant and a per-artist /
+      per-decade card; a signed-in smoke test of the capture on device + web.
 - [ ] **Badges / achievements** — concert milestones, genre explorer, streak
       tiers, "first to rate". Cheap retention on top of existing counts.
 - [ ] **Elo engine** — `EloEngine implements RankingEngine`, replayed from the
