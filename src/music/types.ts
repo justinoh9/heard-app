@@ -67,6 +67,16 @@ export interface SearchOptions {
   signal?: AbortSignal;
 }
 
+/**
+ * Options for getAlbumTracks. Extends SearchOptions with an optional title +
+ * artist hint used to resolve a non-numeric (e.g. seeded MusicBrainz) album id
+ * to an iTunes collection before looking up its tracks.
+ */
+export interface AlbumTracksOptions extends SearchOptions {
+  title?: string;
+  artist?: string;
+}
+
 /** Thrown for expected, user-facing failures (network down, bad status). */
 export class MusicCatalogError extends Error {}
 
@@ -84,8 +94,13 @@ export interface MusicCatalog {
   getArtistAlbums(artistId: string, opts?: SearchOptions): Promise<SearchResult[]>;
   /** An artist's popular songs (best-effort, relevance-ranked), for the artist page. */
   getArtistTopTracks(artistName: string, opts?: SearchOptions): Promise<SearchResult[]>;
-  /** An album's tracklist, in album order, for the album's item page. */
-  getAlbumTracks(albumId: string, opts?: SearchOptions): Promise<AlbumTrack[]>;
+  /**
+   * An album's tracklist, in album order, for the album's item page. `title` /
+   * `artist` are an optional fallback hint: iTunes' lookup only accepts its own
+   * numeric collection id, so seeded items (which carry a MusicBrainz UUID) are
+   * resolved to an iTunes album by searching for the title + artist instead.
+   */
+  getAlbumTracks(albumId: string, opts?: AlbumTracksOptions): Promise<AlbumTrack[]>;
 }
 
 /**

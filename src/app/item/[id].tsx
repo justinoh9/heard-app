@@ -88,7 +88,7 @@ export default function ItemProfileScreen() {
     setTracksLoading(true);
     setTracksError(null);
     musicCatalog
-      .getAlbumTracks(id, { signal: controller.signal })
+      .getAlbumTracks(id, { signal: controller.signal, title, artist })
       .then((t) => {
         setTracks(t);
         setTracksLoading(false);

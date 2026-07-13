@@ -226,6 +226,33 @@ test('getArtistAlbums / getAlbumTracks use the lookup endpoint', async () => {
   assert.match(urls[1], /\/lookup\?id=1&entity=song/);
 });
 
+test('getAlbumTracks resolves a non-numeric (seeded MBID) id via title+artist search', async () => {
+  const urls: string[] = [];
+  const cat = new ITunesCatalog(async (u) => {
+    const s = String(u);
+    urls.push(s);
+    // First: an album search resolving the UUID to iTunes collection 1.
+    if (s.includes('entity=album')) return jsonResponse({ results: [albumEntity()] });
+    // Then: the tracklist lookup against that resolved id.
+    return jsonResponse({ results: [albumEntity(), songEntity()] });
+  });
+  const tracks = await cat.getAlbumTracks('08aa7a6c-3e43-4459-87b2-e47faf3a088a', {
+    title: 'Currents',
+    artist: 'Tame Impala',
+  });
+  assert.match(urls[0], /\/search\?term=Tame%20Impala%20Currents&media=music&entity=album&limit=1/);
+  assert.match(urls[1], /\/lookup\?id=1&entity=song/);
+  assert.equal(tracks.length, 1);
+  assert.equal(tracks[0].id, '100');
+});
+
+test('getAlbumTracks with a non-numeric id and no title/artist returns [] without fetching', async () => {
+  const cat = new ITunesCatalog(async () => {
+    throw new Error('should not fetch');
+  });
+  assert.deepEqual(await cat.getAlbumTracks('08aa7a6c-3e43-4459-87b2-e47faf3a088a'), []);
+});
+
 test('blank inputs short-circuit without any fetch', async () => {
   const cat = new ITunesCatalog(async () => {
     throw new Error('should not fetch');

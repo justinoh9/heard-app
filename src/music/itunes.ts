@@ -21,6 +21,7 @@
 import {
   MusicCatalogError,
   type AlbumTrack,
+  type AlbumTracksOptions,
   type MusicCatalog,
   type PopularityEnricher,
   type SearchOptions,
@@ -291,10 +292,31 @@ export class ITunesCatalog implements MusicCatalog {
     return parseTracks(await this.get(path, opts.signal));
   }
 
-  async getAlbumTracks(albumId: string, opts: SearchOptions = {}): Promise<AlbumTrack[]> {
+  async getAlbumTracks(albumId: string, opts: AlbumTracksOptions = {}): Promise<AlbumTrack[]> {
     const id = albumId.trim();
     if (!id) return [];
-    const path = `/lookup?id=${encodeURIComponent(id)}&entity=song&limit=${Math.min(opts.limit ?? 200, 200)}`;
+    // iTunes' lookup only accepts its own numeric collectionId. Items seeded
+    // from the mock catalog carry a MusicBrainz UUID instead (a non-numeric id),
+    // so a direct lookup 400s — resolve those to an iTunes album by searching
+    // for the title + artist first.
+    const collectionId = /^\d+$/.test(id)
+      ? id
+      : await this.resolveAlbumId(opts.title, opts.artist, opts.signal);
+    if (!collectionId) return [];
+    const path = `/lookup?id=${encodeURIComponent(collectionId)}&entity=song&limit=${Math.min(opts.limit ?? 200, 200)}`;
     return parseAlbumTracks(await this.get(path, opts.signal));
+  }
+
+  /** Best-effort: an iTunes album's numeric id from a title + artist search. */
+  private async resolveAlbumId(
+    title: string | undefined,
+    artist: string | undefined,
+    signal?: AbortSignal,
+  ): Promise<string | null> {
+    const q = [artist, title].filter(Boolean).join(' ').trim();
+    if (!q) return null;
+    const path = `/search?term=${encodeURIComponent(q)}&media=music&entity=album&limit=1`;
+    const albums = parseAlbums(await this.get(path, signal));
+    return albums[0]?.id ?? null;
   }
 }
