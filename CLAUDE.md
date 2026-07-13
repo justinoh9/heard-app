@@ -215,6 +215,15 @@ retention, differentiators).
   follow-up). No migration — it reads existing `ratings`/`items`. The Browse tab
   (`src/app/(tabs)/browse.tsx`, `/browse`, guest-browsable) renders Trending this
   week + Top rated with genre chips; it carries the Browse AdSlot placement.
+- `src/recommendations/` — the **"For you" recommender** (ROADMAP G3), behind a
+  thin `RecommendationsBackend` seam (Supabase one-query + AsyncStorage,
+  `provider.ts`) that only fetches followed friends' ranked lists. Pure,
+  unit-tested `recommend.ts` folds those with `social/compatibility` (per-friend
+  taste match) into ranked picks — friends' high ratings (≥8) on items the viewer
+  hasn't logged, each attributed to the most-compatible friend who loved it.
+  `use-recommendations.ts` fetches once per follow-set and recomputes the picks
+  locally against the live `ranked` list; the row renders at the top of the
+  Browse tab for signed-in users (empty for guests / no-follows).
 - `src/diary/` — the listen diary (ROADMAP Phase 2; blueprint §1.1): a dated,
   re-loggable entry per active listen, behind a `DiaryBackend` seam
   (`0011_diary.sql` — `diary_entries`, `unique(user,item,logged_at)`, public-read

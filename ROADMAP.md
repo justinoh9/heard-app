@@ -244,11 +244,17 @@ follow) is entirely real.
       sections; decade browsing; dedicated crawlable `/browse/genre/[genre]`
       routes; and the Phase-4 move from client-side tally to Postgres
       views/RPCs over `ratings`/`feed_events` once the tables grow.
-- [ ] **(G3) Recommendations** — even the cheap version: "your taste twin rated
-      this 9.2 and you haven't heard it." Compatibility scores already exist
-      (`src/social/compatibility.ts`), so v1 is a query over followed users'
-      high ratings minus what you've logged — not an ML project. Powers a
-      "For you" row and a strong notification type.
+- [~] **(G3) Recommendations** — **shipped: a "For you" row** at the top of the
+      Browse tab for signed-in users. `src/recommendations/` — pure, unit-tested
+      `recommend.ts` takes the followed friends' ranked lists (via a thin
+      `RecommendationsBackend` seam, Supabase one-query + AsyncStorage), scores
+      each friend's taste match with `social/compatibility`, and surfaces their
+      high ratings (≥8) on music the viewer hasn't logged — each pick attributed
+      to the most-compatible friend who loved it ("Maya rated 9.2 · 88% match").
+      `use-recommendations.ts` fetches once per follow-set and recomputes locally,
+      so rating something drops it from the list instantly. *Remaining:* the
+      recommendation-backed **notification type** ("your taste twin rated X"), and
+      a dedicated `/for-you` screen if the row wants to page.
 
 ## Phase 4 — Launch readiness & scale
 

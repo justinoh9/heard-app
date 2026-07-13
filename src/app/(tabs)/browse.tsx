@@ -14,6 +14,9 @@ import { useTheme } from '@/hooks/use-theme';
 import { browseGenres, forGenre, topRated, trending } from '@/browse/aggregate';
 import { browseBackend } from '@/browse/provider';
 import type { BrowseItem } from '@/browse/types';
+import type { Item } from '@/ranking/types';
+import { useRecommendations } from '@/recommendations/use-recommendations';
+import type { Recommendation } from '@/recommendations/recommend';
 
 /**
  * Browse & discovery (ROADMAP G2): the non-social surfaces both Beli and
@@ -29,6 +32,7 @@ export default function BrowseScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
   const [genre, setGenre] = useState<string | null>(null);
+  const recommendations = useRecommendations();
 
   const load = useCallback(() => {
     setError(false);
@@ -61,6 +65,22 @@ export default function BrowseScreen() {
         artUrl: item.artUrl ?? '',
         year: item.releaseYear ? String(item.releaseYear) : '',
         genre: item.genres?.[0] ?? '',
+      },
+    });
+  }
+
+  function openRec(rec: Recommendation) {
+    const item: Item = rec.item;
+    router.push({
+      pathname: '/item/[id]',
+      params: {
+        id: item.id,
+        type: item.type,
+        title: item.title,
+        artist: item.artist,
+        artUrl: item.artUrl ?? '',
+        year: item.year ?? '',
+        genre: item.genre ?? '',
       },
     });
   }
@@ -109,6 +129,17 @@ export default function BrowseScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={theme.accent} />
         }>
         <PageContainer>
+          {genre === null && recommendations.length > 0 && (
+            <View style={styles.section}>
+              <ThemedText type="subtitle" style={styles.sectionHeader}>
+                For you
+              </ThemedText>
+              {recommendations.map((rec, i) => (
+                <ForYouRow key={rec.item.id} rank={i + 1} rec={rec} onPress={() => openRec(rec)} />
+              ))}
+            </View>
+          )}
+
           {genres.length > 0 && (
             <ScrollView
               horizontal
@@ -233,6 +264,44 @@ function BrowseRow({
       <View style={[styles.scorePill, { backgroundColor: theme.accent }]}>
         <ThemedText type="smallBold" style={{ color: theme.onAccent }}>
           {item.avgScore.toFixed(1)}
+        </ThemedText>
+      </View>
+    </Pressable>
+  );
+}
+
+function ForYouRow({
+  rank,
+  rec,
+  onPress,
+}: {
+  rank: number;
+  rec: Recommendation;
+  onPress: () => void;
+}) {
+  const theme = useTheme();
+  // "Maya rated 9.2" — the taste-twin pitch; append the match when it's strong.
+  const match = rec.compatibility > 0 ? ` · ${rec.compatibility}% match` : '';
+  const subtitle = `${rec.friendName} rated ${rec.friendScore.toFixed(1)}${match}`;
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.row, { opacity: pressed ? 0.6 : 1 }]}>
+      <ThemedText type="smallBold" themeColor="textSecondary" style={styles.rank}>
+        {rank}
+      </ThemedText>
+      <AlbumCover uri={rec.item.artUrl} size={52} radius={rec.item.type === 'artist' ? 26 : 8} />
+      <View style={styles.rowText}>
+        <ThemedText type="smallBold" numberOfLines={1}>
+          {rec.item.title}
+        </ThemedText>
+        <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+          {subtitle}
+        </ThemedText>
+      </View>
+      <View style={[styles.scorePill, { backgroundColor: theme.accentSoft }]}>
+        <ThemedText type="smallBold" style={{ color: theme.accent }}>
+          {rec.friendScore.toFixed(1)}
         </ThemedText>
       </View>
     </Pressable>
