@@ -18,6 +18,7 @@ import { useDisplayFont, useTheme } from '@/hooks/use-theme';
 
 const LINKS = [
   { href: '/', label: 'Feed', match: '/' },
+  { href: '/browse', label: 'Browse', match: '/browse' },
   { href: '/rate', label: 'Rate', match: '/rate' },
   { href: '/leaderboard', label: 'Ranks', match: '/leaderboard' },
   { href: '/profile', label: 'Profile', match: '/profile' },

@@ -231,12 +231,19 @@ follow) is entirely real.
       track and shown on a scrub bar during playback. A real differentiator
       neither Beli nor Letterboxd has; depends on (F2) playback plus a
       `position_ms` column on comments.
-- [ ] **(G2) Browse & discovery surfaces** — non-social browse both apps have:
-      trending this week, top-rated by genre/decade, new releases, "popular
-      among people you follow." Jelli has search + feed but no *browse*. Doubly
-      valuable here: these are the content-rich, crawlable, ad-friendly pages
-      that make the AdSense strategy actually earn (see the ads seam). Build on
-      Postgres views over `ratings`/`feed_events`.
+- [~] **(G2) Browse & discovery surfaces** — **shipped: a Browse tab**
+      (`src/app/(tabs)/browse.tsx`, `/browse`) with **Trending this week**,
+      **Top rated**, and **genre chips** that filter the list — all over real
+      community `ratings`×`items`. Behind a `BrowseBackend` seam (`src/browse/`,
+      Supabase + AsyncStorage), the Supabase impl reads the joined ratings in one
+      query and folds them through pure, unit-tested `aggregate.ts`
+      (`trending`/`topRated`/`forGenre`/`browseGenres`) — the same "select then
+      tally" posture as the leaderboard. Guest-browsable, and carries a second
+      AdSlot placement (`EXPO_PUBLIC_ADSENSE_SLOT_BROWSE`) so the discovery pages
+      earn. *Remaining:* new-releases + "popular among people you follow"
+      sections; decade browsing; dedicated crawlable `/browse/genre/[genre]`
+      routes; and the Phase-4 move from client-side tally to Postgres
+      views/RPCs over `ratings`/`feed_events` once the tables grow.
 - [ ] **(G3) Recommendations** — even the cheap version: "your taste twin rated
       this 9.2 and you haven't heard it." Compatibility scores already exist
       (`src/social/compatibility.ts`), so v1 is a query over followed users'

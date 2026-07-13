@@ -49,6 +49,14 @@ export default function TabsLayout() {
           }}
         />
         <Tabs.Screen
+          name="browse"
+          options={{
+            title: 'Browse',
+            tabBarLabel: 'Browse',
+            tabBarIcon: ({ color, size }) => <Ionicons name="compass" size={size} color={color} />,
+          }}
+        />
+        <Tabs.Screen
           name="rate"
           options={{
             title: 'Rate an album',

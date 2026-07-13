@@ -205,6 +205,16 @@ retention, differentiators).
   reusable `components/queue-button.tsx` (icon + labelled-pill variants, auth-
   gated) sits on the item page and search rows; `src/app/queue.tsx` is the list,
   with a "Want to listen" card + count on the Profile.
+- `src/browse/` — **browse & discovery** (ROADMAP G2): the non-social surfaces
+  both Beli and Letterboxd have, behind a `BrowseBackend` seam (Supabase +
+  AsyncStorage, `provider.ts`). The Supabase impl reads every rating joined to
+  its item in one query and folds them client-side through pure, unit-tested
+  `aggregate.ts` (`aggregateBrowseItems` → per-item avg/count/recent, then
+  `trending` / `topRated` / `forGenre` / `browseGenres`) — the same "select then
+  tally" posture as the leaderboard (a Postgres view/RPC is the Phase-4 scale
+  follow-up). No migration — it reads existing `ratings`/`items`. The Browse tab
+  (`src/app/(tabs)/browse.tsx`, `/browse`, guest-browsable) renders Trending this
+  week + Top rated with genre chips; it carries the Browse AdSlot placement.
 - `src/diary/` — the listen diary (ROADMAP Phase 2; blueprint §1.1): a dated,
   re-loggable entry per active listen, behind a `DiaryBackend` seam
   (`0011_diary.sql` — `diary_entries`, `unique(user,item,logged_at)`, public-read
@@ -285,9 +295,11 @@ of the SPA fallback) carries an ad-monetization seam:
   `public/og.png`, 1200×630 in the vinyl palette) and the AdSense loader,
   injected only when `EXPO_PUBLIC_ADSENSE_CLIENT` is set.
 - `src/components/ad-slot.tsx` — a display-ad unit that renders nothing
-  unless web + client id + a per-placement slot id are all set (one placement
-  ships: `EXPO_PUBLIC_ADSENSE_SLOT_FEED`, bottom of the Feed tab). Keep ads
-  out of the Rate flow and Ranks — core interactions stay clean.
+  unless web + client id + a per-placement slot id are all set (two placements
+  ship: `EXPO_PUBLIC_ADSENSE_SLOT_FEED` at the bottom of the Feed tab and
+  `EXPO_PUBLIC_ADSENSE_SLOT_BROWSE` at the bottom of the Browse tab — the
+  content-rich discovery page). Keep ads out of the Rate flow and Ranks — core
+  interactions stay clean.
 - `public/ads.txt` is a commented placeholder until AdSense approval; fill in
   the real `google.com, pub-…` line then. Native ads would be AdMob — a
   separate integration, deliberately not wired.
