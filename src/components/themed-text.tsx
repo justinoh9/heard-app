@@ -124,10 +124,13 @@ export function ThemedText({ style, type = 'default', themeColor, children, ...r
     style,
   ];
 
-  // Ripple in every wiggle-mode ThemedText, whatever the children look like.
+  // Ripple only the editorial display type (titles/subtitles — the same big
+  // type as the wordmark). On compact functional labels (smallBold toggle
+  // pills, chips, nav links) the per-letter lift + tilt pokes outside the
+  // control's bounds ("the wobble goes out of the space"), so those stay plain.
   // Pointer hover is web-only and not in RN's Text types, so spread it cast; on
   // native these never fire, so the text just stays plain and at rest.
-  if (treatment.wiggle) {
+  if (treatment.wiggle && isDisplay) {
     const hoverProps =
       Platform.OS === 'web' ? { onPointerEnter: enter, onPointerLeave: leave } : {};
     return (
