@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { badgeInputsFromRanked, computeBadges, earnedCount } from '@/badges/compute';
 import { AlbumCover } from '@/components/album-cover';
 import { Avatar } from '@/components/avatar';
 import { EmptyState } from '@/components/empty-state';
@@ -39,7 +40,7 @@ export default function ProfileScreen() {
   const { user } = useAuth();
   const { playlists } = usePlaylists();
   const { items: queueItems } = useQueue();
-  const { current: streak } = useStreaks();
+  const { current: streak, longest: longestStreak } = useStreaks();
   const { myFavorites, saveFavorites, myProfile } = useSocial();
   const { concerts } = useConcerts();
   const [editingTop4, setEditingTop4] = useState(false);
@@ -72,6 +73,17 @@ export default function ProfileScreen() {
 
   const displayName = user?.displayName ?? PROFILE.username;
   const taste = computeTasteProfile(ranked);
+
+  const badges = computeBadges(
+    badgeInputsFromRanked(ranked, {
+      concertCount: concerts.length,
+      longestStreak,
+      listCount: playlists.length,
+      queueCount: queueItems.length,
+    }),
+  );
+  const badgesEarned = earnedCount(badges);
+  const badgesTotal = badges.length;
 
   function reRate(r: RankedItem) {
     router.push({
@@ -176,6 +188,19 @@ export default function ProfileScreen() {
               <ThemedText type="smallBold">Your diary</ThemedText>
               <ThemedText type="small" themeColor="textSecondary">
                 Every listen, dated — log favorites again to build the timeline
+              </ThemedText>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
+          </Surface>
+
+          <Surface testID="open-badges" onPress={() => router.push('/badges')} style={styles.wrappedCard}>
+            <Ionicons name="ribbon" size={18} color={theme.accentAlt} />
+            <View style={{ flex: 1 }}>
+              <ThemedText type="smallBold">Badges</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                {badgesEarned > 0
+                  ? `${badgesEarned} of ${badgesTotal} earned — keep logging`
+                  : 'Earn badges for how you listen'}
               </ThemedText>
             </View>
             <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />

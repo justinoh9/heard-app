@@ -239,6 +239,7 @@ function RootNavigator() {
       <Stack.Screen name="playlist/new" options={{ presentation: 'modal' }} />
       <Stack.Screen name="artist/[id]" />
       <Stack.Screen name="streak" />
+      <Stack.Screen name="badges" />
       <Stack.Screen name="diary" />
       <Stack.Screen name="queue" />
       <Stack.Screen name="notifications" />
