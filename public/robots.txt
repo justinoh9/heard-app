@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://myjelli.site/sitemap.xml
+Sitemap: https://www.myjelli.site/sitemap.xml

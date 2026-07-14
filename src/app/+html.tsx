@@ -8,7 +8,9 @@ import type { PropsWithChildren } from 'react';
  * AdSense loader, which only ships when EXPO_PUBLIC_ADSENSE_CLIENT is set —
  * the per-placement gate lives in components/ad-slot.tsx.
  */
-const SITE_URL = 'https://myjelli.site';
+// www is the canonical host — the apex 308-redirects to it on Vercel, so
+// og:url / canonical must point where the page actually lives.
+const SITE_URL = 'https://www.myjelli.site';
 const SOCIAL_TITLE = 'Jelli — rank the music you love';
 const DESCRIPTION =
   'Jelli is a social music app: rank songs and albums with head-to-head matchups, match tastes with friends, log concerts, and get a Wrapped-style recap anytime.';
