@@ -173,6 +173,13 @@ retention, differentiators).
 - `src/comments/` — `CommentsBackend` seam; `SupabaseCommentsBackend` is the
   only implementation (Supabase-backed from day one — see "Supabase" below).
   Users can delete their own comments (trash icon on the item page).
+  **Threads** (`0016_comment_threads.sql` — a nullable self-referencing
+  `parent_id`, `on delete cascade`): a reply is a comment with `parentId` set;
+  the pure, unit-tested `buildThreads` in `filter.ts` folds the flat list into
+  top-level comments (scope-filtered + sorted) each carrying their replies
+  oldest-first. One level deep — replying to a reply anchors to its root. The
+  item page renders replies indented under the parent with a "Reply" affordance
+  and a "Replying to X" composer banner.
 - `src/likes/` — `LikesBackend` seam, same Supabase-backed-from-day-one
   treatment as comments. One generic `likes` table (discriminated by
   `target_type`) covers both item likes (song/album profile) and comment likes.

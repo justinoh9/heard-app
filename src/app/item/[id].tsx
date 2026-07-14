@@ -17,7 +17,13 @@ import { Surface } from '@/components/surface';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { filterSortComments, useComments, type CommentScope, type CommentSort } from '@/comments';
+import {
+  buildThreads,
+  useComments,
+  type Comment,
+  type CommentScope,
+  type CommentSort,
+} from '@/comments';
 import { Spacing } from '@/constants/theme';
 import { useRatings } from '@/data/store';
 import { useHaptics } from '@/hooks/use-haptics';
@@ -65,6 +71,8 @@ export default function ItemProfileScreen() {
   const [posting, setPosting] = useState(false);
   const [scope, setScope] = useState<CommentScope>('everyone');
   const [sort, setSort] = useState<CommentSort>('newest');
+  // The comment being replied to (null = posting a new top-level comment).
+  const [replyTo, setReplyTo] = useState<Comment | null>(null);
   // "Friends" = the real follow graph: lowercased display names of followed users.
   const friendNames = useMemo(
     () =>
@@ -75,7 +83,7 @@ export default function ItemProfileScreen() {
       ),
     [people, followingIds],
   );
-  const visibleComments = filterSortComments(comments, { scope, sort, friends: friendNames });
+  const threads = buildThreads(comments, { scope, sort, friends: friendNames });
 
   // Album tracklist (songs). Only albums have one; songs skip the fetch.
   const [tracks, setTracks] = useState<AlbumTrack[]>([]);
@@ -148,11 +156,28 @@ export default function ItemProfileScreen() {
         userId: user.id,
         displayName: user.displayName,
         body: text,
+        // Replies to a reply still thread under the top-level comment (one
+        // level deep), so anchor to the parent's root, not the reply itself.
+        parentId: replyTo?.parentId ?? replyTo?.id,
       });
       setBody('');
+      setReplyTo(null);
     } finally {
       setPosting(false);
     }
+  }
+
+  function startReply(comment: Comment) {
+    requireAuth(() => setReplyTo(comment));
+  }
+
+  /** Delete callback for a comment, only when it belongs to the viewer. */
+  function deleteHandler(comment: Comment): (() => void) | undefined {
+    if (!user || comment.userId !== user.id) return undefined;
+    return () =>
+      removeComment(comment.id, user.id).catch((e: unknown) =>
+        console.warn('Failed to delete comment', e),
+      );
   }
 
   return (
@@ -286,11 +311,26 @@ export default function ItemProfileScreen() {
           </ThemedText>
 
           <View style={styles.commentBox}>
+            {replyTo && (
+              <View style={[styles.replyBanner, { backgroundColor: theme.backgroundElement }]}>
+                <Ionicons name="arrow-undo" size={14} color={theme.accent} />
+                <ThemedText type="small" themeColor="textSecondary" style={{ flex: 1 }} numberOfLines={1}>
+                  Replying to {replyTo.displayName}
+                </ThemedText>
+                <Pressable
+                  testID="cancel-reply"
+                  onPress={() => setReplyTo(null)}
+                  accessibilityLabel="Cancel reply"
+                  hitSlop={8}>
+                  <Ionicons name="close" size={16} color={theme.textSecondary} />
+                </Pressable>
+              </View>
+            )}
             <TextField
-              label="Add a comment"
+              label={replyTo ? 'Add a reply' : 'Add a comment'}
               value={body}
               onChangeText={setBody}
-              placeholder="Share your thoughts"
+              placeholder={replyTo ? `Reply to ${replyTo.displayName}` : 'Share your thoughts'}
               multiline
               maxLength={1000}
               style={styles.commentInput}
@@ -307,7 +347,7 @@ export default function ItemProfileScreen() {
                 },
               ]}>
               <ThemedText type="smallBold" style={{ color: theme.onAccent }}>
-                Post
+                {replyTo ? 'Reply' : 'Post'}
               </ThemedText>
             </Pressable>
           </View>
@@ -349,25 +389,34 @@ export default function ItemProfileScreen() {
             <EmptyState icon="chatbubble-outline" message="No comments yet." />
           )}
 
-          {!loading && !error && comments.length > 0 && visibleComments.length === 0 && (
+          {!loading && !error && comments.length > 0 && threads.length === 0 && (
             <EmptyState icon="people-outline" message="No comments from friends yet." />
           )}
 
-          {visibleComments.map((c) => (
-            <CommentCard
-              key={c.id}
-              comment={c}
-              likeSummary={commentLikes.summaries.get(c.id)}
-              onToggleLike={() => commentLikes.toggle(c.id)}
-              onDelete={
-                user && c.userId === user.id
-                  ? () =>
-                      removeComment(c.id, user.id).catch((e: unknown) =>
-                        console.warn('Failed to delete comment', e),
-                      )
-                  : undefined
-              }
-            />
+          {threads.map((thread) => (
+            <View key={thread.comment.id} style={styles.thread}>
+              <CommentCard
+                comment={thread.comment}
+                likeSummary={commentLikes.summaries.get(thread.comment.id)}
+                onToggleLike={() => commentLikes.toggle(thread.comment.id)}
+                onReply={() => startReply(thread.comment)}
+                onDelete={deleteHandler(thread.comment)}
+              />
+              {thread.replies.length > 0 && (
+                <View style={[styles.replies, { borderColor: theme.backgroundElement }]}>
+                  {thread.replies.map((reply) => (
+                    <CommentCard
+                      key={reply.id}
+                      comment={reply}
+                      likeSummary={commentLikes.summaries.get(reply.id)}
+                      onToggleLike={() => commentLikes.toggle(reply.id)}
+                      onReply={() => startReply(reply)}
+                      onDelete={deleteHandler(reply)}
+                    />
+                  ))}
+                </View>
+              )}
+            </View>
           ))}
         </PageContainer>
       </ScrollView>
@@ -429,6 +478,18 @@ const styles = StyleSheet.create({
   },
   commentBox: { gap: Spacing.two, alignItems: 'flex-start' },
   commentInput: { minHeight: 70, textAlignVertical: 'top', alignSelf: 'stretch' },
+  replyBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    alignSelf: 'stretch',
+    borderRadius: 8,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+  },
+  thread: { gap: Spacing.two },
+  // Replies sit indented under their parent with a hairline rail on the left.
+  replies: { marginLeft: Spacing.four, borderLeftWidth: 2, paddingLeft: Spacing.two, gap: Spacing.two },
   error: {},
   trackRow: {
     flexDirection: 'row',

@@ -34,11 +34,55 @@ export function filterSortComments(comments: Comment[], opts: CommentViewOptions
   const friends = opts.friends ?? EMPTY;
   const base =
     opts.scope === 'friends' ? comments.filter((c) => isFriendComment(c, friends)) : comments;
-  return [...base].sort((a, b) => {
-    const ta = Date.parse(a.createdAt);
-    const tb = Date.parse(b.createdAt);
-    return opts.sort === 'newest' ? tb - ta : ta - tb;
-  });
+  return [...base].sort((a, b) => byTime(a, b, opts.sort));
+}
+
+/** A top-level comment with its replies (oldest-first — a thread reads top-down). */
+export interface CommentThread {
+  comment: Comment;
+  replies: Comment[];
+}
+
+/**
+ * Group a flat comment list into threads: top-level comments (scope-filtered
+ * and sorted per `opts`) each carrying their replies in chronological order.
+ * Replies are attached regardless of the scope filter — once a parent is
+ * visible, the whole conversation under it shows. Replies whose parent is
+ * absent (shouldn't happen: the DB cascades deletes) are dropped, not promoted
+ * to top-level. Never mutates the input array.
+ */
+export function buildThreads(comments: Comment[], opts: CommentViewOptions): CommentThread[] {
+  const roots: Comment[] = [];
+  const repliesByParent = new Map<string, Comment[]>();
+  for (const c of comments) {
+    if (c.parentId) {
+      const list = repliesByParent.get(c.parentId) ?? [];
+      list.push(c);
+      repliesByParent.set(c.parentId, list);
+    } else {
+      roots.push(c);
+    }
+  }
+
+  const friends = opts.friends ?? EMPTY;
+  const visibleRoots =
+    opts.scope === 'friends' ? roots.filter((c) => isFriendComment(c, friends)) : roots;
+
+  return [...visibleRoots]
+    .sort((a, b) => byTime(a, b, opts.sort))
+    .map((comment) => ({
+      comment,
+      // Replies always read oldest→newest, independent of the top-level sort.
+      replies: (repliesByParent.get(comment.id) ?? [])
+        .slice()
+        .sort((a, b) => byTime(a, b, 'oldest')),
+    }));
+}
+
+function byTime(a: Comment, b: Comment, sort: CommentSort): number {
+  const ta = Date.parse(a.createdAt);
+  const tb = Date.parse(b.createdAt);
+  return sort === 'newest' ? tb - ta : ta - tb;
 }
 
 const EMPTY: ReadonlySet<string> = new Set();

@@ -21,9 +21,11 @@ interface Props {
   onToggleLike?: () => void;
   /** Present only on the viewer's own comments — renders the delete button. */
   onDelete?: () => void;
+  /** Present on top-level comments only — renders the Reply button. */
+  onReply?: () => void;
 }
 
-export function CommentCard({ comment, likeSummary, onToggleLike, onDelete }: Props) {
+export function CommentCard({ comment, likeSummary, onToggleLike, onDelete, onReply }: Props) {
   const theme = useTheme();
   const haptics = useHaptics();
   const likedByMe = likeSummary?.likedByMe ?? false;
@@ -55,21 +57,37 @@ export function CommentCard({ comment, likeSummary, onToggleLike, onDelete }: Pr
           )}
         </View>
         <ThemedText type="small">{comment.body}</ThemedText>
-        {onToggleLike && (
-          <Pressable
-            testID={`like-comment-${comment.id}`}
-            onPress={toggleLike}
-            hitSlop={8}
-            style={({ pressed }) => [styles.likeRow, { opacity: pressed ? 0.6 : 1 }]}>
-            <Ionicons
-              name={likedByMe ? 'heart' : 'heart-outline'}
-              size={14}
-              color={likedByMe ? theme.accent : theme.textSecondary}
-            />
-            <ThemedText type="small" themeColor="textSecondary">
-              {likeSummary?.count ?? 0}
-            </ThemedText>
-          </Pressable>
+        {(onToggleLike || onReply) && (
+          <View style={styles.actions}>
+            {onToggleLike && (
+              <Pressable
+                testID={`like-comment-${comment.id}`}
+                onPress={toggleLike}
+                hitSlop={8}
+                style={({ pressed }) => [styles.likeRow, { opacity: pressed ? 0.6 : 1 }]}>
+                <Ionicons
+                  name={likedByMe ? 'heart' : 'heart-outline'}
+                  size={14}
+                  color={likedByMe ? theme.accent : theme.textSecondary}
+                />
+                <ThemedText type="small" themeColor="textSecondary">
+                  {likeSummary?.count ?? 0}
+                </ThemedText>
+              </Pressable>
+            )}
+            {onReply && (
+              <Pressable
+                testID={`reply-comment-${comment.id}`}
+                onPress={onReply}
+                hitSlop={8}
+                style={({ pressed }) => [styles.likeRow, { opacity: pressed ? 0.6 : 1 }]}>
+                <Ionicons name="arrow-undo-outline" size={14} color={theme.textSecondary} />
+                <ThemedText type="small" themeColor="textSecondary">
+                  Reply
+                </ThemedText>
+              </Pressable>
+            )}
+          </View>
         )}
       </View>
     </Surface>
@@ -81,4 +99,5 @@ const styles = StyleSheet.create({
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   avatar: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   likeRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.four },
 });

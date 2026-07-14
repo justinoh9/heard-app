@@ -14,6 +14,7 @@ interface CommentRow {
   display_name: string;
   body: string;
   created_at: string;
+  parent_id: string | null;
 }
 
 function fromRow(row: CommentRow): Comment {
@@ -28,6 +29,7 @@ function fromRow(row: CommentRow): Comment {
     displayName: row.display_name,
     body: row.body,
     createdAt: row.created_at,
+    parentId: row.parent_id ?? undefined,
   };
 }
 
@@ -45,20 +47,22 @@ export class SupabaseCommentsBackend implements CommentsBackend {
   }
 
   async add(input: NewCommentInput): Promise<Comment> {
-    const { data, error } = await getSupabase()
-      .from('comments')
-      .insert({
-        item_id: input.itemId,
-        item_type: input.itemType,
-        item_title: input.itemTitle,
-        item_artist: input.itemArtist,
-        item_art_url: input.itemArtUrl ?? null,
-        user_id: input.userId,
-        display_name: input.displayName,
-        body: input.body,
-      })
-      .select('*')
-      .single();
+    const row: Record<string, unknown> = {
+      item_id: input.itemId,
+      item_type: input.itemType,
+      item_title: input.itemTitle,
+      item_artist: input.itemArtist,
+      item_art_url: input.itemArtUrl ?? null,
+      user_id: input.userId,
+      display_name: input.displayName,
+      body: input.body,
+    };
+    // Only send parent_id for an actual reply. Omitting it for top-level
+    // comments means they keep inserting fine even before 0016 adds the
+    // column — replies are the only path that needs the migration.
+    if (input.parentId) row.parent_id = input.parentId;
+
+    const { data, error } = await getSupabase().from('comments').insert(row).select('*').single();
 
     if (error) throw new CommentsError(error.message);
     return fromRow(data as CommentRow);

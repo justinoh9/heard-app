@@ -18,6 +18,8 @@ export interface Comment {
   displayName: string;
   body: string;
   createdAt: string;
+  /** Set on a reply — the id of the top-level comment it answers. */
+  parentId?: string;
 }
 
 export interface NewCommentInput {
@@ -29,6 +31,8 @@ export interface NewCommentInput {
   userId: string;
   displayName: string;
   body: string;
+  /** Set to post a reply under an existing comment; omit for a top-level one. */
+  parentId?: string;
 }
 
 /** Thrown for expected, user-facing failures (network down, bad status). */
