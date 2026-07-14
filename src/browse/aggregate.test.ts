@@ -5,7 +5,11 @@ import { describe, it } from 'node:test';
 
 import {
   aggregateBrowseItems,
+  browseDecades,
   browseGenres,
+  decadeOf,
+  forAnyGenre,
+  forDecade,
   forGenre,
   topRated,
   trending,
@@ -113,6 +117,56 @@ describe('forGenre', () => {
     );
     const result = forGenre(items, 'Hip-Hop/Rap');
     assert.deepEqual(result.map((i) => i.id), ['rap1', 'rap2']);
+  });
+});
+
+describe('forAnyGenre', () => {
+  it('matches any of the alias labels, case-insensitively', () => {
+    const items = aggregateBrowseItems(
+      [
+        rating('edm', 9, daysAgo(1), { genres: ['Electronic'] }),
+        rating('house', 8, daysAgo(1), { genres: ['dance'] }),
+        rating('rock', 10, daysAgo(1), { genres: ['Rock'] }),
+      ],
+      NOW,
+    );
+    const result = forAnyGenre(items, ['Electronic', 'Dance']);
+    assert.deepEqual(result.map((i) => i.id), ['edm', 'house']);
+  });
+});
+
+describe('decades', () => {
+  it('decadeOf maps years to decade labels and missing years to null', () => {
+    assert.equal(decadeOf(1994), '1990s');
+    assert.equal(decadeOf(2020), '2020s');
+    assert.equal(decadeOf(undefined), null);
+  });
+
+  it('forDecade filters by release decade and sorts by average', () => {
+    const items = aggregateBrowseItems(
+      [
+        rating('nineties-good', 9, daysAgo(1), { releaseYear: 1994 }),
+        rating('nineties-ok', 7, daysAgo(1), { releaseYear: 1999 }),
+        rating('modern', 10, daysAgo(1), { releaseYear: 2021 }),
+        rating('undated', 10, daysAgo(1), { releaseYear: undefined }),
+      ],
+      NOW,
+    );
+    const result = forDecade(items, '1990s');
+    assert.deepEqual(result.map((i) => i.id), ['nineties-good', 'nineties-ok']);
+  });
+
+  it('browseDecades lists represented decades newest-first, skipping undated', () => {
+    const items = aggregateBrowseItems(
+      [
+        rating('a', 8, daysAgo(1), { releaseYear: 1994 }),
+        rating('b', 8, daysAgo(1), { releaseYear: 2016 }),
+        rating('c', 8, daysAgo(1), { releaseYear: 2021 }),
+        rating('d', 8, daysAgo(1), { releaseYear: undefined }),
+      ],
+      NOW,
+    );
+    assert.deepEqual(browseDecades(items), ['2020s', '2010s', '1990s']);
   });
 });
 

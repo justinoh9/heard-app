@@ -246,10 +246,17 @@ follow) is entirely real.
       (`trending`/`topRated`/`forGenre`/`browseGenres`) — the same "select then
       tally" posture as the leaderboard. Guest-browsable, and carries a second
       AdSlot placement (`EXPO_PUBLIC_ADSENSE_SLOT_BROWSE`) so the discovery pages
-      earn. *Remaining:* new-releases + "popular among people you follow"
-      sections; decade browsing; dedicated crawlable `/browse/genre/[genre]`
-      routes; and the Phase-4 move from client-side tally to Postgres
-      views/RPCs over `ratings`/`feed_events` once the tables grow.
+      earn. **2026-07-14 follow-ups shipped:** decade browsing (chips over
+      `browseDecades`/`forDecade`); a **"Popular among people you follow"**
+      section (pure `recommendations/popular.ts` over the friend lists the
+      For-you hook already fetches); and **crawlable `/browse/genre/[slug]`
+      landing pages** — ten curated genres (`src/browse/genres.ts`) statically
+      exported via `generateStaticParams` with unique intro copy each, linked
+      from a "Browse by genre" section and listed in `sitemap.xml` (the
+      SEO/AdSense surface). *Remaining:* a new-releases section (needs an
+      external feed — e.g. Apple Marketing Tools RSS); and the Phase-4 move
+      from client-side tally to Postgres views/RPCs over
+      `ratings`/`feed_events` once the tables grow.
 - [~] **(G3) Recommendations** — **shipped: a "For you" row** at the top of the
       Browse tab for signed-in users. `src/recommendations/` — pure, unit-tested
       `recommend.ts` takes the followed friends' ranked lists (via a thin

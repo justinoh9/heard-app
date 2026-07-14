@@ -11,10 +11,12 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { browseGenres, forGenre, topRated, trending } from '@/browse/aggregate';
+import { browseDecades, browseGenres, forDecade, forGenre, topRated, trending } from '@/browse/aggregate';
+import { CURATED_GENRES } from '@/browse/genres';
 import { browseBackend } from '@/browse/provider';
 import type { BrowseItem } from '@/browse/types';
 import type { Item } from '@/ranking/types';
+import type { PopularPick } from '@/recommendations/popular';
 import { useRecommendations } from '@/recommendations/use-recommendations';
 import type { Recommendation } from '@/recommendations/recommend';
 
@@ -31,8 +33,10 @@ export default function BrowseScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
-  const [genre, setGenre] = useState<string | null>(null);
-  const recommendations = useRecommendations();
+  // One active filter across both chip rails — a pick on either rail replaces
+  // the other (genre AND decade at once is a Phase-4 nicety, not v1).
+  const [filter, setFilter] = useState<{ kind: 'genre' | 'decade'; value: string } | null>(null);
+  const { forYou, popular } = useRecommendations();
 
   const load = useCallback(() => {
     setError(false);
@@ -69,8 +73,9 @@ export default function BrowseScreen() {
     });
   }
 
-  function openRec(rec: Recommendation) {
-    const item: Item = rec.item;
+  // For-you and popular rows carry engine Items (year/genre as strings), not
+  // BrowseItems — hence the separate opener.
+  function openRankedItem(item: Item) {
     router.push({
       pathname: '/item/[id]',
       params: {
@@ -86,9 +91,14 @@ export default function BrowseScreen() {
   }
 
   const genres = browseGenres(items, 2);
+  const decades = browseDecades(items, 2);
   const trendingItems = trending(items);
   const topItems = topRated(items);
-  const genreItems = genre ? forGenre(items, genre) : [];
+  const filteredItems = filter
+    ? filter.kind === 'genre'
+      ? forGenre(items, filter.value)
+      : forDecade(items, filter.value)
+    : [];
 
   if (loading) {
     return (
@@ -129,13 +139,34 @@ export default function BrowseScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={theme.accent} />
         }>
         <PageContainer>
-          {genre === null && recommendations.length > 0 && (
+          {filter === null && forYou.length > 0 && (
             <View style={styles.section}>
               <ThemedText type="subtitle" style={styles.sectionHeader}>
                 For you
               </ThemedText>
-              {recommendations.map((rec, i) => (
-                <ForYouRow key={rec.item.id} rank={i + 1} rec={rec} onPress={() => openRec(rec)} />
+              {forYou.map((rec, i) => (
+                <ForYouRow
+                  key={rec.item.id}
+                  rank={i + 1}
+                  rec={rec}
+                  onPress={() => openRankedItem(rec.item)}
+                />
+              ))}
+            </View>
+          )}
+
+          {filter === null && popular.length > 0 && (
+            <View style={styles.section}>
+              <ThemedText type="subtitle" style={styles.sectionHeader}>
+                Popular among people you follow
+              </ThemedText>
+              {popular.map((pick, i) => (
+                <PopularRow
+                  key={pick.item.id}
+                  rank={i + 1}
+                  pick={pick}
+                  onPress={() => openRankedItem(pick.item)}
+                />
               ))}
             </View>
           )}
@@ -145,19 +176,49 @@ export default function BrowseScreen() {
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.chips}>
-              <Chip label="All" active={genre === null} onPress={() => setGenre(null)} />
+              <Chip label="All" active={filter === null} onPress={() => setFilter(null)} />
               {genres.map((g) => (
-                <Chip key={g} label={g} active={genre === g} onPress={() => setGenre(g)} />
+                <Chip
+                  key={g}
+                  label={g}
+                  active={filter?.kind === 'genre' && filter.value === g}
+                  onPress={() => setFilter({ kind: 'genre', value: g })}
+                />
               ))}
             </ScrollView>
           )}
 
-          {genre ? (
+          {decades.length > 0 && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={[styles.chips, genres.length > 0 && styles.chipsSecondRail]}>
+              {/* The genre rail owns the "All" chip; offer it here only when
+                  that rail isn't rendered, so the filter is always clearable. */}
+              {genres.length === 0 && (
+                <Chip label="All" active={filter === null} onPress={() => setFilter(null)} />
+              )}
+              {decades.map((d) => (
+                <Chip
+                  key={d}
+                  label={d}
+                  active={filter?.kind === 'decade' && filter.value === d}
+                  onPress={() => setFilter({ kind: 'decade', value: d })}
+                />
+              ))}
+            </ScrollView>
+          )}
+
+          {filter ? (
             <Section
-              title={`Top in ${genre}`}
-              items={genreItems}
+              title={filter.kind === 'genre' ? `Top in ${filter.value}` : `Best of the ${filter.value}`}
+              items={filteredItems}
               onPick={openItem}
-              emptyNote="Nothing rated in this genre yet."
+              emptyNote={
+                filter.kind === 'genre'
+                  ? 'Nothing rated in this genre yet.'
+                  : 'Nothing rated from this decade yet.'
+              }
             />
           ) : (
             <>
@@ -171,6 +232,24 @@ export default function BrowseScreen() {
               <Section title="Top rated" items={topItems} onPick={openItem} />
             </>
           )}
+
+          <View style={styles.section}>
+            <ThemedText type="subtitle" style={styles.sectionHeader}>
+              Browse by genre
+            </ThemedText>
+            <View style={styles.genreLinks}>
+              {CURATED_GENRES.map((g) => (
+                <Chip
+                  key={g.slug}
+                  label={g.label}
+                  active={false}
+                  onPress={() =>
+                    router.push({ pathname: '/browse/genre/[genre]', params: { genre: g.slug } })
+                  }
+                />
+              ))}
+            </View>
+          </View>
 
           <AdSlot slot={process.env.EXPO_PUBLIC_ADSENSE_SLOT_BROWSE} />
         </PageContainer>
@@ -308,11 +387,50 @@ function ForYouRow({
   );
 }
 
+function PopularRow({
+  rank,
+  pick,
+  onPress,
+}: {
+  rank: number;
+  pick: PopularPick;
+  onPress: () => void;
+}) {
+  const theme = useTheme();
+  const friendsLabel = `${pick.friendCount} ${pick.friendCount === 1 ? 'friend' : 'friends'} rated it`;
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.row, { opacity: pressed ? 0.6 : 1 }]}>
+      <ThemedText type="smallBold" themeColor="textSecondary" style={styles.rank}>
+        {rank}
+      </ThemedText>
+      <AlbumCover uri={pick.item.artUrl} size={52} radius={pick.item.type === 'artist' ? 26 : 8} />
+      <View style={styles.rowText}>
+        <ThemedText type="smallBold" numberOfLines={1}>
+          {pick.item.title}
+        </ThemedText>
+        <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+          {pick.item.artist} · {friendsLabel}
+        </ThemedText>
+      </View>
+      <View style={[styles.scorePill, { backgroundColor: theme.accent }]}>
+        <ThemedText type="smallBold" style={{ color: theme.onAccent }}>
+          {pick.avgScore.toFixed(1)}
+        </ThemedText>
+      </View>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   center: { alignItems: 'center', justifyContent: 'center' },
   content: { paddingBottom: Spacing.six },
   chips: { gap: Spacing.two, paddingVertical: Spacing.three },
+  genreLinks: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+  // Stacked under the genre rail — collapse the doubled vertical padding.
+  chipsSecondRail: { paddingTop: 0 },
   chip: {
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,

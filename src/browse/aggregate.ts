@@ -91,6 +91,49 @@ export function forGenre(items: BrowseItem[], genre: string, limit = 20): Browse
 }
 
 /**
+ * Top-rated items matching ANY of several genre names — the curated genre
+ * pages group iTunes' fine-grained labels (e.g. Electronic + Dance) under one
+ * heading, so they filter with the whole alias list.
+ */
+export function forAnyGenre(items: BrowseItem[], genres: string[], limit = 20): BrowseItem[] {
+  return items
+    .filter((i) => genres.some((g) => hasGenre(i, g)))
+    .sort(byScoreThen((i) => i.avgScore))
+    .slice(0, limit);
+}
+
+/** "1990s"-style label for a release year; null when the item has no year. */
+export function decadeOf(year: number | undefined): string | null {
+  if (!year || !Number.isFinite(year)) return null;
+  return `${Math.floor(year / 10) * 10}s`;
+}
+
+/** Top-rated items released in one decade (label as produced by decadeOf). */
+export function forDecade(items: BrowseItem[], decade: string, limit = 20): BrowseItem[] {
+  return items
+    .filter((i) => decadeOf(i.releaseYear) === decade)
+    .sort(byScoreThen((i) => i.avgScore))
+    .slice(0, limit);
+}
+
+/**
+ * The decade chips worth showing: decades present on at least `minItems` rated
+ * items, newest first (chronology reads better than popularity for eras).
+ */
+export function browseDecades(items: BrowseItem[], minItems = 1): string[] {
+  const counts = new Map<string, number>();
+  for (const item of items) {
+    const d = decadeOf(item.releaseYear);
+    if (!d) continue;
+    counts.set(d, (counts.get(d) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .filter(([, n]) => n >= minItems)
+    .map(([d]) => d)
+    .sort((a, b) => parseInt(b, 10) - parseInt(a, 10));
+}
+
+/**
  * The genre chips worth showing: genres present on at least `minItems` rated
  * items, ordered by how many items carry them (most-represented first). The
  * generic "Music" bucket is dropped.

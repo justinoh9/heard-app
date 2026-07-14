@@ -48,3 +48,5 @@ example
 
 # graphify knowledge-graph output (local artifact)
 graphify-out/
+.vercel
+.env*

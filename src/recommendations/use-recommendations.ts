@@ -5,7 +5,11 @@
  * (social/compatibility) and folding through the pure `recommend()`. Recompute
  * is cheap and local, so rating something new drops it from the list instantly.
  *
- * Returns [] for guests, users who follow no one, or when nothing clears the bar.
+ * Also derives "popular among people you follow" from the same fetched lists
+ * (pure `popularAmongFollows`) — one query feeds both Browse sections.
+ *
+ * Both lists come back empty for guests, users who follow no one, or when
+ * nothing clears the bars.
  */
 
 import { useEffect, useMemo, useState } from 'react';
@@ -15,11 +19,19 @@ import { useRatings } from '@/data/store';
 import { compatibility } from '@/social/compatibility';
 import { useSocial } from '@/social/store';
 
+import { popularAmongFollows, type PopularPick } from './popular';
 import { recommendationsBackend } from './provider';
 import { recommend, type FriendList, type Recommendation } from './recommend';
 import type { FriendRatingList } from './types';
 
-export function useRecommendations(limit = 12): Recommendation[] {
+export interface RecommendationsResult {
+  /** "For you": friends' high ratings on music the viewer hasn't logged. */
+  forYou: Recommendation[];
+  /** "Popular among people you follow": the circle's collective tally. */
+  popular: PopularPick[];
+}
+
+export function useRecommendations(limit = 12): RecommendationsResult {
   const { user } = useAuth();
   const { ranked } = useRatings();
   const { followingIds, people } = useSocial();
@@ -50,7 +62,7 @@ export function useRecommendations(limit = 12): Recommendation[] {
   }, [user, followKey]);
 
   return useMemo(() => {
-    if (lists.length === 0) return [];
+    if (lists.length === 0) return { forYou: [], popular: [] };
     const ratedIds = new Set(ranked.map((r) => r.item.id));
     const nameOf = new Map(people.map((p) => [p.userId, p.displayName]));
     const friends: FriendList[] = lists.map((l) => ({
@@ -59,6 +71,9 @@ export function useRecommendations(limit = 12): Recommendation[] {
       compatibility: compatibility(ranked, l.ratings).percent,
       ratings: l.ratings,
     }));
-    return recommend(friends, ratedIds, { limit });
+    return {
+      forYou: recommend(friends, ratedIds, { limit }),
+      popular: popularAmongFollows(friends),
+    };
   }, [lists, ranked, people, limit]);
 }

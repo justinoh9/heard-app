@@ -4,6 +4,7 @@
   "outputDirectory": "dist",
   "cleanUrls": true,
   "rewrites": [
+    { "source": "/browse/genre/:genre", "destination": "/browse/genre/[genre]" },
     { "source": "/item/:id", "destination": "/item/[id]" },
     { "source": "/artist/:id", "destination": "/artist/[id]" },
     { "source": "/user/:id", "destination": "/user/[id]" },
