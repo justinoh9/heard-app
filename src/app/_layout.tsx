@@ -6,7 +6,7 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider, useRouter, useSegments }
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 
-import { PreviewContext, usePreviewState } from '@/audio/preview';
+import { PreviewContext, STATIC_PREVIEW, usePreviewState } from '@/audio/preview';
 import { JelliLoader } from '@/components/jelli-loader';
 import { ThemedView } from '@/components/themed-view';
 import { ToastProvider } from '@/components/toast';
@@ -45,7 +45,13 @@ export default function RootLayout() {
     if (err) setPendingOAuthError(err);
   }
 
-  if (!fontsLoaded) return null;
+  // Native blocks render on the display fonts so headings never flash the
+  // system face. Web must NOT block: during `expo export` static rendering the
+  // fonts never resolve, and returning null here exports an EMPTY <body> for
+  // every route — killing the crawlable pages (about/privacy) the AdSense
+  // review depends on. In the browser the font-family is already set, so the
+  // text simply repaints when the FontFace finishes loading (brief swap).
+  if (!fontsLoaded && Platform.OS !== 'web') return null;
 
   return (
     <AppThemeBridge>
@@ -114,6 +120,17 @@ function NavThemeProvider({ children }: { children: React.ReactNode }) {
 }
 
 function PreviewBridge({ children }: { children: React.ReactNode }) {
+  // Static rendering can't construct the audio player (no `Audio` in Node) —
+  // hand the export the inert context instead of throwing. The branch is
+  // fixed per environment, so the hook call below is unconditional in any
+  // render that reaches it.
+  if (Platform.OS === 'web' && typeof window === 'undefined') {
+    return <PreviewContext.Provider value={STATIC_PREVIEW}>{children}</PreviewContext.Provider>;
+  }
+  return <LivePreviewBridge>{children}</LivePreviewBridge>;
+}
+
+function LivePreviewBridge({ children }: { children: React.ReactNode }) {
   const preview = usePreviewState();
   return <PreviewContext.Provider value={preview}>{children}</PreviewContext.Provider>;
 }
@@ -194,7 +211,13 @@ function RootNavigator() {
     }
   }, [status, segments, router]);
 
-  if (status === 'loading') {
+  // During static export (Node — no window) effects never run, so auth stays
+  // 'loading' forever; showing the loader there would bake a spinner into
+  // every exported page instead of its content. Render the tree: the screens'
+  // signed-out/empty states ARE the correct crawlable output. In the browser
+  // the loader still gates as before.
+  const isStaticRender = Platform.OS === 'web' && typeof window === 'undefined';
+  if (status === 'loading' && !isStaticRender) {
     return (
       <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
         <JelliLoader scale={1.4} />

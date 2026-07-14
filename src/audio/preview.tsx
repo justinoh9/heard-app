@@ -23,6 +23,19 @@ export interface PreviewApi {
 
 const PreviewContext = createContext<PreviewApi | null>(null);
 
+/**
+ * Inert stand-in for static rendering. expo-audio's web player constructs an
+ * HTMLAudioElement during render, and Node (expo export) has no `Audio`
+ * global — calling usePreviewState there throws and blanks the whole
+ * pre-rendered page (every route shares this provider). The export gets this
+ * no-op instead; the browser mounts the real player on hydration.
+ */
+export const STATIC_PREVIEW: PreviewApi = {
+  activeUrl: null,
+  playing: false,
+  toggle: () => {},
+};
+
 export function usePreviewState(): PreviewApi {
   const player = useAudioPlayer();
   const status = useAudioPlayerStatus(player);
