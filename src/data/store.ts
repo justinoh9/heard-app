@@ -13,7 +13,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 import { useAuth } from '@/auth/store';
 import { isSupabaseConfigured } from '@/lib/supabase';
-import { RatingTiebreakEngine, sortRanked, type RankingEngine } from '@/ranking/engine';
+import { RatingTiebreakEngine, type RankingEngine } from '@/ranking/engine';
 import type { ComparisonEvent, Item, RankedItem } from '@/ranking/types';
 import { useSocial } from '@/social/store';
 import { useStreaks } from '@/streaks/store';
@@ -99,7 +99,9 @@ export function useRatingsState(): RatingsApi {
   }, [userId, backend]);
 
   return useMemo<RatingsApi>(() => {
-    const sorted = sortRanked(ranked);
+    // The engine owns display order: the shipped tie-break engine sorts by
+    // score+tiebreak (ignoring events); an Elo engine would replay the log.
+    const sorted = engine.order(ranked, comparisonLog);
     return {
       engine,
       ranked: sorted,

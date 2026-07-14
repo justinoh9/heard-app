@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { badgeInputsFromRanked, computeBadges, earnedCount } from '@/badges/compute';
@@ -25,6 +25,8 @@ import { useTheme } from '@/hooks/use-theme';
 import { playlistCoverUrls, songCountLabel } from '@/playlists/helpers';
 import { usePlaylists } from '@/playlists/store';
 import { useQueue } from '@/queue/store';
+import { countMoved } from '@/ranking/elo';
+import { EloEngine } from '@/ranking/engine';
 import { rankedOfType, typeCounts, type RankedListType } from '@/ranking/lists';
 import type { RankedItem } from '@/ranking/types';
 import { resolveFavorites, TOP_FAVORITES } from '@/social/favorites';
@@ -37,7 +39,7 @@ const BADGE_TINTS = ['#993556', '#854F0B', '#185FA5'];
 export default function ProfileScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const { ranked, removeRating } = useRatings();
+  const { ranked, removeRating, comparisonLog } = useRatings();
   const { user } = useAuth();
   const { playlists } = usePlaylists();
   const { items: queueItems } = useQueue();
@@ -51,6 +53,21 @@ export default function ProfileScreen() {
 
   const counts = typeCounts(ranked);
   const typedList = rankedOfType(ranked, listType);
+
+  // "Head-to-head" view: replay the banked comparisons through Elo to reorder
+  // within score groups (ROADMAP Phase 3). Off by default — it's a way to
+  // compare orderings before ever switching the default engine.
+  const [rankByElo, setRankByElo] = useState(false);
+  const eloEngine = useMemo(() => new EloEngine(), []);
+  const eloList = useMemo(
+    () => eloEngine.order(typedList, comparisonLog),
+    [eloEngine, typedList, comparisonLog],
+  );
+  const displayList = rankByElo ? eloList : typedList;
+  const eloMoved = countMoved(typedList, eloList);
+  // Only worth offering once there's head-to-head data that actually reorders
+  // something in the current tab.
+  const canElo = comparisonLog.length > 0 && eloMoved > 0;
 
   // The showcase: chosen Top 4, falling back to the top of the ranked list.
   const { items: top4, chosen } = resolveFavorites(myFavorites, ranked);
@@ -395,6 +412,37 @@ export default function ProfileScreen() {
             />
           )}
 
+          {canElo && !editingList && (
+            <View style={styles.eloRow}>
+              <Pressable
+                testID="toggle-elo"
+                onPress={() => setRankByElo((v) => !v)}
+                style={({ pressed }) => [
+                  styles.eloToggle,
+                  {
+                    backgroundColor: rankByElo ? theme.accent : theme.backgroundElement,
+                    opacity: pressed ? 0.7 : 1,
+                  },
+                ]}>
+                <Ionicons
+                  name="git-compare"
+                  size={14}
+                  color={rankByElo ? theme.onAccent : theme.textSecondary}
+                />
+                <ThemedText
+                  type="smallBold"
+                  style={{ color: rankByElo ? theme.onAccent : theme.textSecondary }}>
+                  Head-to-head
+                </ThemedText>
+              </Pressable>
+              <ThemedText type="small" themeColor="textSecondary" style={{ flex: 1 }}>
+                {rankByElo
+                  ? `Reordered ${eloMoved} from your ${comparisonLog.length} matchups`
+                  : 'See your list ranked by who beat who'}
+              </ThemedText>
+            </View>
+          )}
+
           {ranked.length === 0 && (
             <EmptyState
               icon="disc-outline"
@@ -409,7 +457,7 @@ export default function ProfileScreen() {
               No {listType === 'album' ? 'albums' : 'songs'} rated yet.
             </ThemedText>
           )}
-          {typedList.map((r, i) => (
+          {displayList.map((r, i) => (
             <Pressable
               key={r.item.id}
               onPress={() => (editingList ? removeRating(r.item.id) : reRate(r))}
@@ -543,6 +591,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   showsHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  eloRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  eloToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: 999,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: 6,
+  },
   favorites: { flexDirection: 'row', gap: Spacing.two },
   favorite: { flex: 1, gap: 4 },
   favTitle: { marginTop: 2 },

@@ -7,6 +7,7 @@
  * behind it.
  */
 
+import { rerankByElo } from './elo';
 import type { ComparisonEvent, Comparison, Item, RankedItem } from './types';
 
 export interface RankingEngine {
@@ -18,6 +19,14 @@ export interface RankingEngine {
 
   /** Produce the displayed 0–10 scores. Simple engine: the user's own scores. */
   computeScores(list: RankedItem[]): Map<string, number>;
+
+  /**
+   * The display order for a ranked list. The tie-break engine sorts by
+   * score+tiebreak and ignores `events`; the Elo engine replays `events` to
+   * order within score groups. Swapping the engine is the whole point of this
+   * seam — screens call `order()` and never assume how it's derived.
+   */
+  order(list: RankedItem[], events: ComparisonEvent[]): RankedItem[];
 }
 
 /**
@@ -68,6 +77,38 @@ export class RatingTiebreakEngine implements RankingEngine {
 
   computeScores(list: RankedItem[]): Map<string, number> {
     return new Map(list.map((r) => [r.item.id, r.score]));
+  }
+
+  /** Simple engine: score + tiebreak; the banked comparisons aren't replayed. */
+  order(list: RankedItem[], _events?: ComparisonEvent[]): RankedItem[] {
+    return sortRanked(list);
+  }
+}
+
+/**
+ * The alternate engine (ROADMAP Phase 3): identical placement + display scores
+ * to the tie-break engine — so it gathers the same head-to-heads and shows the
+ * same 0–10 numbers — but `order()` replays the banked comparison log through
+ * Elo to sort within each score group. Swappable behind the same interface;
+ * shipped today as a "compare orderings" view, not the default.
+ */
+export class EloEngine implements RankingEngine {
+  private readonly base: RatingTiebreakEngine;
+
+  constructor(now: () => number = () => Date.now()) {
+    this.base = new RatingTiebreakEngine(now);
+  }
+
+  startPlacement(list: RankedItem[], item: Item, score: number): Placement {
+    return this.base.startPlacement(list, item, score);
+  }
+
+  computeScores(list: RankedItem[]): Map<string, number> {
+    return this.base.computeScores(list);
+  }
+
+  order(list: RankedItem[], events: ComparisonEvent[]): RankedItem[] {
+    return rerankByElo(list, events);
   }
 }
 

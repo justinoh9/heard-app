@@ -239,9 +239,18 @@ follow) is entirely real.
       per-decade card; a signed-in smoke test of the capture on device + web.
 - [ ] **Badges / achievements** — concert milestones, genre explorer, streak
       tiers, "first to rate". Cheap retention on top of existing counts.
-- [ ] **Elo engine** — `EloEngine implements RankingEngine`, replayed from the
-      banked `comparisons` table (the whole reason it's been logged since day
-      one). Ship behind a flag; compare orderings before switching.
+- [~] **Elo engine** — **shipped 2026-07-14.** `EloEngine implements
+      RankingEngine` (`src/ranking/engine.ts`), replaying the banked
+      `comparisons` through pure, unit-tested `elo.ts` (`computeEloRatings` /
+      `rerankByElo` — Elo reorders only *within* a score group, so score still
+      does the coarse sort). The `RankingEngine` interface gained `order(list,
+      events)` (tie-break engine → `sortRanked`, Elo engine → `rerankByElo`);
+      the store now routes display order through `engine.order`. Surfaced as a
+      **"Head-to-head" toggle** on the Profile RANKED list (a compare-orderings
+      view, off by default — `countMoved` shows how many the log reorders). The
+      shipped default stays the tie-break engine; the swap is one line.
+      *Remaining:* make it the default (or a persisted global setting) once
+      orderings are validated on real data.
 - [ ] **(F5) Timestamped comments — react to a moment in a song** —
       SoundCloud's signature mechanic: comments anchored to a position in the
       track and shown on a scrub bar during playback. A real differentiator

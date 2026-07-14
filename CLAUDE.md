@@ -64,10 +64,18 @@ retention, differentiators).
 - `src/ranking/` — the core rating engine.
   - `types.ts` — `Item`, `ItemType`, `RankedItem`, `Comparison`, `ComparisonEvent`.
   - `engine.ts` — `RankingEngine` interface (swappable) + `RatingTiebreakEngine`
-    (ships now). Score does the coarse sort; comparisons binary-insert within a tie
-    group. Escape hatches on `Placement`: `skip()` ("haven't heard it" — opponent
-    keeps its slot) and `tooClose()` (settle below the opponent); neither logs a
-    comparison event. See SPEC §5.
+    (ships now) + `EloEngine`. Score does the coarse sort; comparisons binary-insert
+    within a tie group. Escape hatches on `Placement`: `skip()` ("haven't heard it"
+    — opponent keeps its slot) and `tooClose()` (settle below the opponent); neither
+    logs a comparison event. See SPEC §5. The interface's `order(list, events)` owns
+    display order — the store routes through it (tie-break → `sortRanked`, Elo →
+    `rerankByElo`).
+  - `elo.ts` — the alternate ordering (ROADMAP Phase 3): replays the banked
+    `comparisonLog` into per-item Elo (`computeEloRatings`) and reorders *within*
+    each score group (`rerankByElo`), so score still gates. `EloEngine` wraps it;
+    surfaced as the Profile RANKED "Head-to-head" toggle (`countMoved` captions how
+    many the log moves). Off by default — a compare-orderings view, not the shipped
+    default engine yet. Pure + unit-tested (`elo.test.ts`).
   - `nudge.ts` — the re-rank "quick match" (blueprint §2.B): picks an adjacent
     never-compared pair (same-score pairs preferred — those can actually swap;
     cross-score answers are banked only). Rendered by
