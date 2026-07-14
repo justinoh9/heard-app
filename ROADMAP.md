@@ -214,11 +214,21 @@ follow) is entirely real.
 
 ## Phase 3 — Differentiators (what neither Beli nor Letterboxd has)
 
-- [ ] **Concert layer v2** — the stated wedge. Venue autocomplete + lat/lng
-      (columns already exist), a map view of shows attended, an upcoming-shows
-      wishlist ("want to go" = Beli's bookmark), and a real tag-confirmation
-      flow (tags are auto-'pending' today; tagged users can neither confirm
-      nor remove themselves — RLS allows only the owner to insert).
+- [~] **Concert layer v2** — the stated wedge. **Shipped 2026-07-14
+      (`0017_concert_v2.sql`):** a dedicated `/concerts` screen (Attended / Want
+      to go / Invites tabs); a **"want to go" wishlist** (`concerts.status`
+      attended|wishlist — a wishlist entry is silent, no feed event, and can be
+      promoted with "I went"); and a real **tag-confirmation flow**
+      (`concert_tags.status` pending|confirmed — a tagged friend gets an Invite
+      to confirm "I was there" or decline; only confirmed tags count toward
+      their attended map). Pure `rows.ts` gains `attendedFor`/`wishlistFor`/
+      `invitesFor` (unit-tested); backends read tag status via `select *` and
+      degrade gracefully pre-migration (attended logging keeps working; only the
+      new actions need 0017). Profile "shows" now counts attended-only and links
+      to `/concerts`. *Remaining (needs a maps dependency decision):* venue
+      autocomplete + lat/lng geocoding and the literal **map view** of shows
+      attended — deliberately deferred so the fragile static export isn't
+      destabilized by a map SDK.
 - [~] **Share cards** — **shipped: a Wrapped/#1 share card.** A share action on
       the Wrapped screen opens `src/app/share-card.tsx`, which renders a branded,
       fixed-size `components/share-card.tsx` (wordmark, your #1, headline stats,

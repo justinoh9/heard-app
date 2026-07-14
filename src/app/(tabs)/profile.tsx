@@ -15,6 +15,7 @@ import { Surface } from '@/components/surface';
 import { TasteProfileCard } from '@/components/taste-profile-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { attendedFor } from '@/concerts/rows';
 import { useConcerts } from '@/concerts/store';
 import { Spacing } from '@/constants/theme';
 import { PROFILE } from '@/data/catalog';
@@ -74,9 +75,13 @@ export default function ProfileScreen() {
   const displayName = user?.displayName ?? PROFILE.username;
   const taste = computeTasteProfile(ranked);
 
+  // Only attended shows (owned or confirmed-tagged) count as your live-music
+  // map — wishlist entries and unconfirmed tags don't.
+  const attendedShows = attendedFor(user?.id ?? '', concerts);
+
   const badges = computeBadges(
     badgeInputsFromRanked(ranked, {
-      concertCount: concerts.length,
+      concertCount: attendedShows.length,
       longestStreak,
       listCount: playlists.length,
       queueCount: queueItems.length,
@@ -161,7 +166,13 @@ export default function ProfileScreen() {
 
           <View style={styles.stats}>
             <Stat value={String(ranked.length)} label="rated" theme={theme} />
-            <Stat value={String(concerts.length)} label="shows" theme={theme} />
+            <Stat
+              value={String(attendedShows.length)}
+              label="shows"
+              theme={theme}
+              onPress={() => router.push('/concerts')}
+              testID="shows-stat"
+            />
             <Stat
               value={`${streak}🔥`}
               label="streak"
@@ -432,26 +443,33 @@ export default function ProfileScreen() {
           ))}
 
           <View style={styles.top4Header}>
-            <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
-              SHOWS
-            </ThemedText>
+            <Pressable
+              testID="open-concerts"
+              onPress={() => router.push('/concerts')}
+              hitSlop={8}
+              style={styles.showsHeaderLeft}>
+              <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
+                SHOWS
+              </ThemedText>
+              <Ionicons name="chevron-forward" size={14} color={theme.textSecondary} />
+            </Pressable>
             <Pressable testID="log-show" onPress={() => router.push('/concert/new')} hitSlop={8}>
               <ThemedText type="smallBold" style={{ color: theme.accent }}>
                 + Log a show
               </ThemedText>
             </Pressable>
           </View>
-          {concerts.length === 0 ? (
+          {attendedShows.length === 0 ? (
             <EmptyState
               icon="mic-outline"
               doodle="mic"
-              message="No shows yet — log a concert and start your badge wall."
+              message="No shows yet — log a concert and start your live-music map."
               ctaLabel="Log a show"
               onPressCta={() => router.push('/concert/new')}
             />
           ) : (
             <View style={styles.badges}>
-              {concerts.map((c, i) => (
+              {attendedShows.slice(0, 9).map((c, i) => (
                 <View
                   key={c.id}
                   style={[styles.badge, { backgroundColor: theme.backgroundElement }]}>
@@ -524,6 +542,7 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
     justifyContent: 'space-between',
   },
+  showsHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   favorites: { flexDirection: 'row', gap: Spacing.two },
   favorite: { flex: 1, gap: 4 },
   favTitle: { marginTop: 2 },

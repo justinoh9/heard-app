@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
@@ -28,6 +28,11 @@ export default function NewConcertModal() {
   const { logConcert } = useConcerts();
   const { people, followingIds } = useSocial();
   useAuthGate(); // logging a show needs an account — bounce guests to sign-in
+
+  // Wishlist mode ("want to go") drops the score + tag steps — it's a plan, not
+  // a review of something that happened.
+  const params = useLocalSearchParams<{ wishlist?: string }>();
+  const isWishlist = params.wishlist === '1';
 
   const [artistName, setArtistName] = useState('');
   const [venue, setVenue] = useState('');
@@ -62,9 +67,10 @@ export default function NewConcertModal() {
       venue: venue.trim() || undefined,
       city: city.trim() || undefined,
       showDate: showDate.trim(),
-      score,
+      score: isWishlist ? undefined : score,
       notes: notes.trim() || undefined,
-      taggedUserIds: [...tagged],
+      status: isWishlist ? 'wishlist' : 'attended',
+      taggedUserIds: isWishlist ? [] : [...tagged],
     });
     router.back();
   }
@@ -75,7 +81,7 @@ export default function NewConcertModal() {
         <Pressable onPress={() => router.back()} accessibilityLabel="Close" hitSlop={8}>
           <Ionicons name="close" size={26} color={theme.text} />
         </Pressable>
-        <ThemedText type="smallBold">Log a show</ThemedText>
+        <ThemedText type="smallBold">{isWishlist ? 'Want to go' : 'Log a show'}</ThemedText>
         <View style={{ width: 26 }} />
       </View>
 
@@ -109,7 +115,7 @@ export default function NewConcertModal() {
         </View>
         <TextField
           testID="concert-date"
-          label="Date"
+          label={isWishlist ? 'When (if known)' : 'Date'}
           value={showDate}
           onChangeText={setShowDate}
           placeholder="YYYY-MM-DD"
@@ -120,12 +126,16 @@ export default function NewConcertModal() {
           </ThemedText>
         )}
 
-        <ThemedText type="smallBold" themeColor="textSecondary">
-          HOW WAS THE PERFORMANCE?
-        </ThemedText>
-        <ScoreInput value={score} onChange={setScore} />
+        {!isWishlist && (
+          <>
+            <ThemedText type="smallBold" themeColor="textSecondary">
+              HOW WAS THE PERFORMANCE?
+            </ThemedText>
+            <ScoreInput value={score} onChange={setScore} />
+          </>
+        )}
 
-        {taggable.length > 0 && (
+        {!isWishlist && taggable.length > 0 && (
           <>
             <ThemedText type="smallBold" themeColor="textSecondary">
               WHO WAS THERE?
@@ -174,7 +184,7 @@ export default function NewConcertModal() {
             { backgroundColor: theme.accent, opacity: !canSave ? 0.4 : pressed ? 0.7 : 1 },
           ]}>
           <ThemedText type="smallBold" style={{ color: theme.onAccent }}>
-            Log show
+            {isWishlist ? 'Add to wishlist' : 'Log show'}
           </ThemedText>
         </Pressable>
       </ScrollView>

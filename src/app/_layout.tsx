@@ -240,6 +240,7 @@ function RootNavigator() {
       <Stack.Screen name="artist/[id]" />
       <Stack.Screen name="streak" />
       <Stack.Screen name="badges" />
+      <Stack.Screen name="concerts" />
       <Stack.Screen name="diary" />
       <Stack.Screen name="queue" />
       <Stack.Screen name="notifications" />

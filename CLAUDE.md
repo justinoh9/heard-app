@@ -164,12 +164,24 @@ retention, differentiators).
   item page's fake breakdowns.
 - `src/concerts/` — live show logging (blueprint §2.C, the "map" mechanic):
   `useConcerts()` in `store.tsx`, `ConcertsBackend` seam (Supabase
-  `0006_concerts.sql` / AsyncStorage, chosen in `provider.ts`), pure
-  `rows.ts` (unit-tested). Logged via `src/app/concert/new.tsx` (modal:
-  artist/venue/date/score + friend-tag chips); tagged friends see the show on
-  their own profile (`concertsFor`). Publishes a `'concert'` feed event; the
-  Profile tab's SHOWS badges + shows stat and the leaderboard's concerts
-  metric are real counts now.
+  `0006_concerts.sql` + `0017_concert_v2.sql` / AsyncStorage, chosen in
+  `provider.ts`), pure `rows.ts` (unit-tested). Logged via
+  `src/app/concert/new.tsx` (modal: artist/venue/date/score + friend-tag
+  chips; `?wishlist=1` switches it to a scoreless "want to go" add).
+  **Concert v2:** a show carries a `status` (`attended` | `wishlist`) and its
+  tags carry a `status` (`pending` | `confirmed`). `rows.ts` slices the viewer's
+  shows into `attendedFor` (owned + confirmed-tagged attended — the live-music
+  map + the Profile "shows" count), `wishlistFor` (own want-to-go), and
+  `invitesFor` (pending tags to confirm/decline). The dedicated
+  `src/app/concerts.tsx` (`/concerts`, pushed from the Profile SHOWS header and
+  shows stat) has Attended / Want to go / Invites tabs; the store exposes
+  `logConcert`/`markAttended`/`removeConcert`/`confirmTag`/`declineTag`. An
+  attended log publishes a `'concert'` feed event + streak tick; a wishlist add
+  is silent (private intent). Backends read tag status via `select *` and
+  degrade gracefully pre-0017 (missing status → attended/confirmed; attended
+  logging still works — only wishlist/confirm/mark-attended need the migration).
+  *Deferred (needs a maps dep decision):* venue autocomplete + lat/lng and the
+  literal map view.
 - `src/comments/` — `CommentsBackend` seam; `SupabaseCommentsBackend` is the
   only implementation (Supabase-backed from day one — see "Supabase" below).
   Users can delete their own comments (trash icon on the item page).
