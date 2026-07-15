@@ -92,4 +92,33 @@ export class LocalAuthBackend implements AuthBackend {
   async signOut(): Promise<void> {
     await AsyncStorage.removeItem(SESSION_KEY);
   }
+
+  /**
+   * Drops the account from the device's user list and sweeps every per-user key
+   * the local backends wrote — ratings, diary, drop, lists, queue, follows,
+   * streaks, blocks, reports, notification last-seen, the onboarding flag.
+   *
+   * Deliberately a **pattern sweep, not a hardcoded list**: every local backend
+   * keys its per-user storage as `heard.<thing>.<userId>`, and a literal list
+   * here would silently rot the next time a feature adds one — a deletion that
+   * quietly misses data is worse than one that fails loudly. (Writing this by
+   * hand, I already got `heard.streaks.` wrong on the first pass.)
+   *
+   * Device-global demo content (the shared concert list, social feed, and
+   * profile directory) is left alone: those keys aren't per-user, and reaching
+   * into every other module's storage format from here would couple auth to all
+   * of them. Local mode is a zero-config demo — the cloud path above is the one
+   * that has to be exhaustive.
+   */
+  async deleteAccount(): Promise<void> {
+    const userId = await AsyncStorage.getItem(SESSION_KEY);
+    if (!userId) return;
+
+    const users = await this.readUsers();
+    await this.writeUsers(users.filter((u) => u.id !== userId));
+
+    const all = await AsyncStorage.getAllKeys();
+    const mine = all.filter((k) => k.startsWith('heard.') && k.endsWith(`.${userId}`));
+    await AsyncStorage.multiRemove([...mine, SESSION_KEY]);
+  }
 }

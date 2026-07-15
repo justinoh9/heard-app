@@ -330,10 +330,23 @@ follow) is entirely real.
       7 reasons + optional note, and `/blocked` (Settings → PRIVACY & SAFETY) to
       unblock. Notifications gained an `actorId` so blocking filters by identity
       rather than by non-unique display name.
+      **Account deletion shipped 2026-07-15** (`0020_account_deletion.sql`):
+      Settings → ACCOUNT → Delete account, behind a confirm that names what's
+      destroyed. Implemented as a `security definer` Postgres function
+      (`delete_own_account()`) rather than an Edge Function: removing the
+      `auth.users` row needs privileges the client can't have, and the usual
+      answer (a function holding the service-role key) would mean the Supabase
+      CLI, a deploy step, and a second home for secrets — where this project
+      already applies SQL by hand. It's safe because it takes **no arguments**
+      (target derives from `auth.uid()`, so a caller can't name a victim) and
+      pins `search_path = ''` with every name qualified. Deletes across all 16
+      user-keyed tables + the avatar in Storage; deliberately spares
+      `public.items` (shared catalog cache, no personal data). Exposed through
+      the `AuthBackend` seam as a **required** method — a backend that can create
+      accounts but not delete them is the exact gap this closes.
       *Remaining:* **rate limits** (needs a Postgres trigger or Edge Function —
-      client-side can't enforce), an admin review surface (reports are triaged by
-      hand in the SQL editor today), and in-app **account deletion** (also an
-      app-store requirement — see G5).
+      client-side can't enforce) and an admin review surface (reports are triaged
+      by hand in the SQL editor today).
 - [ ] **Display-name propagation** — names are denormalized into
       `feed_events`/`comments` at write time; renames never propagate. Join
       through `profiles` (or backfill on rename).
@@ -356,8 +369,8 @@ follow) is entirely real.
       distribution. To be "fully fledged like Beli/Letterboxd" means being *in
       the stores*: EAS build pipeline, TestFlight + Play internal testing,
       store listings + screenshots, and app-review compliance — Apple sign-in
-      (already noted in F1) and in-app account deletion (RLS exists via `0008`;
-      needs a Settings action). Plus deep links so a shared
+      (already noted in F1). **In-app account deletion shipped 2026-07-15** —
+      see Moderation & safety above. Plus deep links so a shared
       `myjelli.site/item/…` opens the app instead of the browser.
 - [ ] **(G6) Paid tier (Pro)** — Letterboxd monetizes with Pro/Patron
       (ad-free + advanced stats); income is a stated goal. Decide the shape

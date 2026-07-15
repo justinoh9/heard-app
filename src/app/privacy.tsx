@@ -112,8 +112,21 @@ export default function PrivacyScreen() {
 
           <Section title="Data retention and deletion">
             <Paragraph>
-              You can delete your own comments in the app. To delete your account and its data,
-              email us at {CONTACT_EMAIL} and we will remove it.
+              You can delete your own ratings and comments in the app at any time.
+            </Paragraph>
+            <Paragraph>
+              You can also delete your whole account from Settings → Account → Delete account. This
+              is immediate and permanent: it erases your profile, ranked list, reviews, comments,
+              likes, concerts, lists, diary, queue, follows, avatar, and any blocks or reports you
+              filed, and then removes the account itself. We keep no copy and cannot restore it.
+            </Paragraph>
+            <Paragraph>
+              One thing survives, because it is not yours: the shared catalog of songs and albums
+              (titles, artists, and cover art) that everyone’s ratings point at. It contains no
+              personal information.
+            </Paragraph>
+            <Paragraph>
+              If you would rather we did it for you, email {CONTACT_EMAIL}.
             </Paragraph>
           </Section>
 

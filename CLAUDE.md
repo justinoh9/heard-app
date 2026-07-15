@@ -119,6 +119,21 @@ retention, differentiators).
   tracked) or `LocalAuthBackend` (AsyncStorage + expo-crypto) chosen by env in
   `provider.ts`. `use-require-auth.ts` gates account-only actions/screens;
   browsing is open to guests (`GuestGate` for personal surfaces).
+  **Account deletion** (`deleteAccount()`, a *required* seam method — an auth
+  backend that can create accounts but not delete them is exactly the gap Apple
+  rejects for): the Supabase impl calls the `delete_own_account()` RPC
+  (`0020_account_deletion.sql`), a `security definer` function — deleting the
+  `auth.users` row needs privileges the client can't hold, and this avoids an
+  Edge Function + service-role key + CLI deploy. It takes **no arguments** (the
+  target is `auth.uid()`, so a caller can't name a victim) and pins
+  `search_path = ''` with everything schema-qualified. It clears all 16
+  user-keyed tables + the Storage avatar, and deliberately spares `public.items`
+  (shared catalog cache — no personal data, and other users' ratings point at
+  it). The Local impl **sweeps keys by pattern** (`heard.*.<userId>`) rather
+  than a hardcoded list, because a literal list silently rots the next time a
+  feature adds a per-user key — a deletion that quietly misses data is worse
+  than one that fails loudly. UI: Settings → ACCOUNT → Delete account, behind an
+  `ActionMenu` confirm that names what's destroyed.
 - `src/music/` — `MusicCatalog` seam; `SpotifyCatalog` (`spotify.ts`) ships now
   (album + track search in one request, popularity-ranked tracks, cached app
   token). `cover-art.ts` builds Cover Art Archive URLs — used only by the mock

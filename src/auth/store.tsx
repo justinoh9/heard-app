@@ -25,6 +25,11 @@ export interface AuthApi {
    * lands via onAuthStateChange.
    */
   signInWithOAuth?: (provider: OAuthProvider) => Promise<void>;
+  /**
+   * Permanently delete the account and everything it owns, then sign out.
+   * Irreversible — callers must confirm first.
+   */
+  deleteAccount: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthApi | null>(null);
@@ -77,6 +82,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       signOut: async () => {
         await backend.signOut();
+        setSession(null);
+        setStatus('signedOut');
+      },
+      deleteAccount: async () => {
+        // Throws on failure, so the UI can say the account still exists rather
+        // than dropping the user to a signed-out screen and leaving them to
+        // guess. Only clear local state once the server confirms.
+        await backend.deleteAccount();
         setSession(null);
         setStatus('signedOut');
       },

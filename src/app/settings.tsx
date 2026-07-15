@@ -6,12 +6,15 @@
  */
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { useAuth } from '@/auth/store';
+import { ActionMenu } from '@/components/action-menu';
 import { PageContainer } from '@/components/page-container';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useToast } from '@/components/toast';
 import { Modes, Spacing, type Appearance, type ModeName, type Variant } from '@/constants/theme';
 import { useTheme, useThemeControls } from '@/hooks/use-theme';
 import { useSpotifyConnection } from '@/music/use-spotify-connection';
@@ -26,9 +29,29 @@ const APPEARANCE_OPTIONS: { key: Appearance; label: string; icon: keyof typeof I
 export default function SettingsScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const { user, signOut } = useAuth();
+  const { user, signOut, deleteAccount } = useAuth();
+  const toast = useToast();
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   // Settings is open to guests so anyone can change the theme (appearance is a
   // device preference, not an account one). Only the ACCOUNT section is gated.
+
+  async function reallyDelete() {
+    setConfirmDelete(false);
+    setDeleting(true);
+    try {
+      await deleteAccount();
+      toast('Your account has been deleted.', '👋');
+      // Nothing left to look at under a signed-out session on this screen.
+      router.replace('/');
+    } catch (e: unknown) {
+      console.warn('[settings] account deletion failed:', e);
+      // Say it plainly: the account still exists. Silently failing here is the
+      // worst outcome — the user believes their data is gone when it isn't.
+      toast('Could not delete your account. Nothing was changed.', '⚠️');
+      setDeleting(false);
+    }
+  }
 
   return (
     <ThemedView style={styles.screen}>
@@ -56,6 +79,14 @@ export default function SettingsScreen() {
                   icon="log-out-outline"
                   label="Sign out"
                   onPress={signOut}
+                  danger
+                  theme={theme}
+                />
+                <Row
+                  testID="delete-account"
+                  icon="trash-outline"
+                  label={deleting ? 'Deleting…' : 'Delete account'}
+                  onPress={deleting ? undefined : () => setConfirmDelete(true)}
                   danger
                   theme={theme}
                 />
@@ -112,6 +143,23 @@ export default function SettingsScreen() {
           </Section>
         </PageContainer>
       </ScrollView>
+
+      {/* Names what's destroyed rather than asking "are you sure?" — the point
+          of a confirmation is to inform the decision, not to add a tap. */}
+      <ActionMenu
+        visible={confirmDelete}
+        title="Delete your account?"
+        message="This permanently erases your ranked list, reviews, comments, concerts, lists, diary, and follows. It cannot be undone, and this app has no way to restore it."
+        actions={[
+          {
+            label: 'Delete everything',
+            icon: 'trash-outline',
+            destructive: true,
+            onPress: reallyDelete,
+          },
+        ]}
+        onClose={() => setConfirmDelete(false)}
+      />
     </ThemedView>
   );
 }

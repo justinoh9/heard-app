@@ -126,6 +126,25 @@ export class SupabaseAuthBackend implements AuthBackend {
     if (error) throw new AuthError(error.message);
   }
 
+  /**
+   * Deletes the account server-side via the `delete_own_account()` RPC
+   * (`0020_account_deletion.sql`) — a SECURITY DEFINER function, because
+   * removing the `auth.users` row needs privileges this client doesn't have and
+   * must never have. The function takes no arguments and derives the target from
+   * `auth.uid()`, so the client cannot name a victim.
+   */
+  async deleteAccount(): Promise<void> {
+    const supabase = getSupabase();
+    const { error } = await supabase.rpc('delete_own_account');
+    if (error) throw new AuthError(error.message);
+
+    // The account is already gone; this just clears the now-dead session from
+    // local storage. Deleting auth.users cascades to sessions/refresh_tokens,
+    // so a failure here means a stale local token for a user that no longer
+    // exists — worth not surfacing as a failed deletion.
+    await supabase.auth.signOut().catch(() => {});
+  }
+
   onAuthStateChange(callback: (session: Session | null) => void): () => void {
     // Only setState in here — supabase-js warns that awaiting its own calls
     // inside this callback can deadlock.

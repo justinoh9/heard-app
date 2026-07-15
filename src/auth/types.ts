@@ -48,4 +48,14 @@ export interface AuthBackend {
    * LocalAuthBackend has no external session source, so it omits this.
    */
   onAuthStateChange?(callback: (session: Session | null) => void): () => void;
+  /**
+   * Permanently delete the signed-in account and everything it owns, then end
+   * the session. Irreversible, and required in-app by Apple for any app that
+   * offers sign-up (ROADMAP G5) — "email support to delete" doesn't qualify.
+   *
+   * Not optional on the interface: an auth backend that can create accounts but
+   * can't delete them is the exact gap this closes, so a future backend has to
+   * answer for it rather than silently omit it.
+   */
+  deleteAccount(): Promise<void>;
 }
