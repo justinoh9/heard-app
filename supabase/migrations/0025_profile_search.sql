@@ -47,33 +47,39 @@ declare
 begin
   perform set_config('request.jwt.claims', '', true);
 
+  -- The probe names are deliberately unpronounceable rather than the obvious
+  -- 'Maya Probe' / 'Devon Probe'. This test asserts exact match COUNTS, and a
+  -- real directory already contains a Maya and a Devon — so friendly probe names
+  -- would collide with live rows and fail an assertion about the schema for
+  -- reasons that have nothing to do with the schema. A self-test runs against
+  -- production data; it must only ever see its own.
   insert into public.profiles (user_id, display_name, handle) values
-    ('00000000-0000-0000-0000-0000000e0001', 'Maya Probe',   'mayap'),
-    ('00000000-0000-0000-0000-0000000e0002', 'Devon Probe',  'devonp'),
-    ('00000000-0000-0000-0000-0000000e0003', 'Priya Probe',  null);
+    ('00000000-0000-0000-0000-0000000e0001', 'Zqxprobe Alpha', 'zqxalpha'),
+    ('00000000-0000-0000-0000-0000000e0002', 'Zqxprobe Beta',  'zqxbeta'),
+    ('00000000-0000-0000-0000-0000000e0003', 'Zqxprobe Gamma', null);
 
-  -- A fragment in the middle of a name must match — the leading-wildcard case the
-  -- trigram index exists for.
-  select count(*) into n from public.profiles where display_name ilike '%aya Pro%';
+  -- A fragment from the MIDDLE of a name must match — the leading-wildcard case
+  -- the trigram index exists for, and the one a B-tree cannot serve.
+  select count(*) into n from public.profiles where display_name ilike '%qxprobe Al%';
   if n <> 1 then
     raise exception 'SELF-TEST FAILED: infix name search matched % rows, expected 1', n;
   end if;
 
   -- Case-insensitively, since people type lowercase.
-  select display_name into got from public.profiles where display_name ilike '%MAYA%';
-  if got is distinct from 'Maya Probe' then
+  select display_name into got from public.profiles where display_name ilike '%ZQXPROBE ALPHA%';
+  if got is distinct from 'Zqxprobe Alpha' then
     raise exception 'SELF-TEST FAILED: case-insensitive search returned %', got;
   end if;
 
-  -- Handle search, including the row whose handle is null (it must not error or
-  -- match, just be absent).
-  select count(*) into n from public.profiles where handle ilike '%devon%';
+  -- Handle search. The third probe's handle is null: it must neither error nor
+  -- match, just be absent.
+  select count(*) into n from public.profiles where handle ilike '%zqxbeta%';
   if n <> 1 then
     raise exception 'SELF-TEST FAILED: handle search matched % rows, expected 1', n;
   end if;
 
-  -- The shared surname finds all three: paging exists because searches match many.
-  select count(*) into n from public.profiles where display_name ilike '%Probe%';
+  -- The shared name finds all three: paging exists because searches match many.
+  select count(*) into n from public.profiles where display_name ilike '%Zqxprobe%';
   if n <> 3 then
     raise exception 'SELF-TEST FAILED: shared-name search matched % rows, expected 3', n;
   end if;

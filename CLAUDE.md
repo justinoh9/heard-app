@@ -464,8 +464,17 @@ retention, differentiators).
   raises if wrong — several run `set local role authenticated` so they exercise
   RLS for real, since the table owner bypasses it and a policy test as `postgres`
   asserts nothing. `KEEP=1` leaves the container up to poke at.
+  **It runs twice.** Pass 1 is a clean database; pass 2 seeds
+  `supabase/test/seed.sql` and re-runs the self-testing migrations against it.
+  Pass 2 exists because pass 1 alone is a lie: a self-test runs against
+  *production*, so any assertion not scoped to rows it created itself ("the
+  top-rated album is mine", "one profile matches %MAYA%") passes on an empty
+  container and fails on the real project. That happened to 0024, and 0025 was
+  next. **The rule: a self-test must assert only about rows it made, using values
+  nothing real could collide with** — the seed deliberately plants a `Probe Rock`
+  item and a profile called `Maya` to punish guessable probe names.
   A pass means the SQL is valid and its logic holds against a Supabase-shaped
-  schema — not that production is fine.
+  schema, populated or not — not that production is fine.
 
 ## Conventions
 - Keep screens talking only to `useRatings()` and the `RankingEngine` interface —

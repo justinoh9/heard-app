@@ -263,8 +263,17 @@ begin
   -- what the trigger did. Inserted the way an OAuth sign-up arrives — the case a
   -- client-side track() call can never see.
   perform set_config('request.jwt.claims', '', true);
-  insert into auth.users (id, raw_app_meta_data)
-    values (u_new::uuid, jsonb_build_object('provider', 'google'));
+  -- Column list matches what Supabase Auth actually populates, so this insert
+  -- works against a real project and not just a permissive local stand-in.
+  insert into auth.users (id, instance_id, aud, role, email, raw_app_meta_data)
+    values (
+      u_new::uuid,
+      '00000000-0000-0000-0000-000000000000',
+      'authenticated',
+      'authenticated',
+      'analytics-selftest@probe.invalid',
+      jsonb_build_object('provider', 'google')
+    );
   select count(*) into n
     from public.analytics_events where user_id = u_new and name = 'signed_up';
   if n <> 1 then

@@ -337,7 +337,14 @@ begin
 
   -- ---- deleting the joiner releases the code, keeps the inviter whole ----
   perform set_config('request.jwt.claims', json_build_object('sub', joiner)::text, true);
-  insert into auth.users (id) values (joiner::uuid);
+  insert into auth.users (id, instance_id, aud, role, email)
+    values (
+      joiner::uuid,
+      '00000000-0000-0000-0000-000000000000',
+      'authenticated',
+      'authenticated',
+      'invites-selftest@probe.invalid'
+    );
   perform public.delete_own_account();
   select count(*) into n from public.invites where inviter_id = inviter;
   if n = 0 then

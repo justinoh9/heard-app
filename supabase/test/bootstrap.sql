@@ -47,14 +47,24 @@ alter default privileges in schema public
 -- ---- the auth schema ----------------------------------------------------------
 create schema if not exists auth;
 
+-- Closer to the real shape than it strictly needs to be, on purpose: migrations
+-- that insert a probe user here must use column lists that also work against a
+-- real Supabase project. A stand-in that's *more* permissive than production
+-- lets a migration pass locally and fail on the SQL editor, which is the exact
+-- failure mode this harness exists to prevent.
 create table if not exists auth.users (
+  instance_id        uuid,
   id                 uuid primary key,
-  email              text,
+  aud                varchar(255),
+  role               varchar(255),
+  email              varchar(255),
+  encrypted_password varchar(255),
   -- Where the account came from ('email', 'google', 'apple'). 0027's signup
   -- trigger reads `provider` out of this, the way Supabase Auth populates it.
   raw_app_meta_data  jsonb default '{}'::jsonb,
   raw_user_meta_data jsonb default '{}'::jsonb,
-  created_at         timestamptz not null default now()
+  created_at         timestamptz default now(),
+  updated_at         timestamptz default now()
 );
 
 /*

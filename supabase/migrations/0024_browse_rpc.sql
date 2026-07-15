@@ -94,13 +94,18 @@ declare
   u2 text := '00000000-0000-0000-0000-0000000b0002';
   rec record;
   n int;
+  -- Deliberately unguessable. These assertions count items *by genre*, so the
+  -- test is only hermetic if no real row can carry the label — and 'Probe Rock',
+  -- the obvious choice, is exactly the sort of thing a seeded catalog turns out
+  -- to contain (supabase/test/seed.sql plants one to prove it).
+  probe_genres constant text[] := array['Zqx Probe Rock 7f3', 'Zqx Probe Jazz 7f3'];
 begin
   perform set_config('request.jwt.claims', '', true);
 
   insert into public.items (id, type, title, artist, release_year, genres) values
-    ('probe-hot',   'album', 'Hot This Week', 'Probe', 2026, array['Probe Rock']),
-    ('probe-gem',   'album', 'Quiet Gem',     'Probe', 1994, array['Probe Jazz']),
-    ('probe-stale', 'album', 'Old Favourite', 'Probe', 2001, array['Probe Rock']);
+    ('probe-hot',   'album', 'Hot This Week', 'Probe', 2026, array['Zqx Probe Rock 7f3']),
+    ('probe-gem',   'album', 'Quiet Gem',     'Probe', 1994, array['Zqx Probe Jazz 7f3']),
+    ('probe-stale', 'album', 'Old Favourite', 'Probe', 2001, array['Zqx Probe Rock 7f3']);
 
   -- Hot: two ratings inside the window, middling scores.
   insert into public.ratings (user_id, item_id, score, created_at) values
@@ -114,8 +119,18 @@ begin
   insert into public.ratings (user_id, item_id, score, created_at) values
     (u1, 'probe-stale', 8.0, now() - interval '200 days');
 
+  -- Every assertion below is scoped to `probe_genres`, which nothing real
+  -- carries. That is not decoration — it is what makes this test HERMETIC.
+  --
+  -- The first version of this file queried the whole catalog and passed against
+  -- an empty database, then failed the moment it met a real one: with sections
+  -- capped to prove a point, a genuine album with a better average correctly beat
+  -- the probe out of the "top rated" slot, and the test called that a bug. It
+  -- wasn't. The rule this cost us: a self-test runs against production data, so
+  -- it must assert only about rows it created itself.
+
   -- ---- aggregation is arithmetically right ----------------------------
-  select * into rec from public.browse_items(7, 200, null) where id = 'probe-hot';
+  select * into rec from public.browse_items(7, 200, probe_genres) where id = 'probe-hot';
   if rec.rating_count <> 2 then
     raise exception 'SELF-TEST FAILED: probe-hot rating_count = %, expected 2', rec.rating_count;
   end if;
@@ -127,27 +142,27 @@ begin
   end if;
 
   -- ---- the window actually windows -------------------------------------
-  select * into rec from public.browse_items(7, 200, null) where id = 'probe-gem';
+  select * into rec from public.browse_items(7, 200, probe_genres) where id = 'probe-gem';
   if rec.recent_count <> 0 then
     raise exception 'SELF-TEST FAILED: probe-gem recent_count = %, expected 0 (its ratings are >1yr old)', rec.recent_count;
   end if;
 
   -- ---- THE UNION'S REASON FOR EXISTING --------------------------------
-  -- With one section of size 1 ordered by recency, a naive single-ORDER-BY would
-  -- return only probe-hot. The union must still surface the old high-scorer,
-  -- because that is exactly the row "Top rated" needs.
-  select count(*) into n from public.browse_items(7, 1, null) where id = 'probe-gem';
+  -- Within the probe set, one section of size 1 ordered by recency would return
+  -- probe-hot alone. The union must still surface the old high-scorer, because
+  -- that is exactly the row "Top rated" needs and a single ORDER BY loses it.
+  select count(*) into n from public.browse_items(7, 1, probe_genres) where id = 'probe-gem';
   if n <> 1 then
     raise exception 'SELF-TEST FAILED: a high-scoring old item vanished when sections were capped — Top rated would be wrong';
   end if;
 
   -- ---- genre scoping ---------------------------------------------------
-  select count(*) into n from public.browse_items(7, 200, array['probe rock']);
+  select count(*) into n from public.browse_items(7, 200, array['zqx probe rock 7f3']);
   if n <> 2 then
-    raise exception 'SELF-TEST FAILED: genre filter returned % items, expected the 2 Probe Rock ones', n;
+    raise exception 'SELF-TEST FAILED: genre filter returned % items, expected the 2 probe-genre ones', n;
   end if;
   -- Case-insensitively, the way the client's hasGenre() compares.
-  select count(*) into n from public.browse_items(7, 200, array['PROBE JAZZ']);
+  select count(*) into n from public.browse_items(7, 200, array['ZQX PROBE JAZZ 7F3']);
   if n <> 1 then
     raise exception 'SELF-TEST FAILED: genre filter is case-sensitive; the client compares case-insensitively';
   end if;
@@ -157,8 +172,12 @@ begin
   end if;
 
   -- ---- an unrated item never appears ----------------------------------
-  insert into public.items (id, type, title, artist) values ('probe-unrated', 'album', 'Nobody Rated This', 'Probe');
-  select count(*) into n from public.browse_items(7, 200, null) where id = 'probe-unrated';
+  -- Given a probe genre deliberately: without one, the genre filter would exclude
+  -- it and this assertion would pass for the wrong reason. The ONLY thing keeping
+  -- it out of the result must be that nobody rated it.
+  insert into public.items (id, type, title, artist, genres)
+    values ('probe-unrated', 'album', 'Nobody Rated This', 'Probe', array['Zqx Probe Rock 7f3']);
+  select count(*) into n from public.browse_items(7, 200, probe_genres) where id = 'probe-unrated';
   if n <> 0 then
     raise exception 'SELF-TEST FAILED: an unrated item appeared in browse';
   end if;

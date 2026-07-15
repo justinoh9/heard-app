@@ -74,27 +74,64 @@ fi
 
 failed=0
 count=0
-for f in "$HERE"/supabase/migrations/*.sql; do
-  name="$(basename "$f")"
-  count=$((count + 1))
-  if out="$(psql_file "$f" 2>&1)"; then
-    # Surface RAISE NOTICE output (the self-tests announce themselves there).
-    # psql prefixes these with `psql:<stdin>:NNN: `, so anchoring to ^NOTICE
-    # silently matches nothing — which is how a self-test goes unnoticed.
-    notices="$(printf '%s' "$out" | grep -iE 'NOTICE: +[A-Z]' | grep -viE 'already exists|skipping|does not exist' || true)"
-    green "  ok   $name"
-    [ -n "$notices" ] && printf '%s\n' "$notices" | sed 's/^/         /'
-  else
-    red   "  FAIL $name"
-    printf '%s\n' "$out" | sed 's/^/         /'
-    failed=1
-    break   # a later migration assumes this one applied; carrying on is noise
+
+run_all() {
+  count=0
+  for f in "$@"; do
+    name="$(basename "$f")"
+    count=$((count + 1))
+    if out="$(psql_file "$f" 2>&1)"; then
+      # Surface RAISE NOTICE output (the self-tests announce themselves there).
+      # psql prefixes these with `psql:<stdin>:NNN: `, so anchoring to ^NOTICE
+      # silently matches nothing — which is how a self-test goes unnoticed.
+      notices="$(printf '%s' "$out" | grep -iE 'NOTICE: +[A-Z]' | grep -viE 'already exists|skipping|does not exist' || true)"
+      green "  ok   $name"
+      [ -n "$notices" ] && printf '%s\n' "$notices" | sed 's/^/         /'
+    else
+      red   "  FAIL $name"
+      printf '%s\n' "$out" | sed 's/^/         /'
+      failed=1
+      return 1   # a later migration assumes this one applied; carrying on is noise
+    fi
+  done
+  return 0
+}
+
+# ---- PASS 1: a clean database -------------------------------------------------
+ALL=("$HERE"/supabase/migrations/*.sql)
+dim "Pass 1/2 — applying ${#ALL[@]} migrations to an empty database…"
+run_all "${ALL[@]}"
+total=$count
+
+# ---- PASS 2: a database that already has data in it ---------------------------
+#
+# This pass is the one that earns its keep. A migration's self-test runs against
+# PRODUCTION, which is full of other people's rows — so an assertion like "the
+# top-rated album is mine" or "one profile matches %MAYA%" is only true of an
+# empty world. It passes pass 1, then fails on the real project. That happened
+# (0024, and 0025 was next); see supabase/test/seed.sql.
+#
+# Only the self-testing migrations are re-run, selected by grepping for the
+# marker rather than by a hardcoded number — so a future one is included the day
+# it's written. They're also the only idempotent ones: the early migrations use
+# bare `create table`, so re-applying them is an error, not a test.
+if [ "$failed" = "0" ]; then
+  echo
+  dim "Pass 2/2 — seeding realistic data and re-running the self-tests against it…"
+  if ! psql_file "$HERE/supabase/test/seed.sql" >/dev/null 2>&1; then
+    red "seed.sql failed — the harness itself is broken, not your migration."
+    exit 1
   fi
-done
+  SELFTESTED=()
+  for f in "$HERE"/supabase/migrations/*.sql; do
+    grep -q 'SELF-TEST' "$f" && SELFTESTED+=("$f")
+  done
+  run_all "${SELFTESTED[@]}"
+fi
 
 echo
 if [ "$failed" = "0" ]; then
-  green "All $count migrations applied cleanly, and every self-test passed."
+  green "All $total migrations applied cleanly, and every self-test passed — including a second run against seeded data, so none of them silently assume an empty database."
 else
   red "Migration run failed. Nothing was applied to any real database."
   exit 1
