@@ -58,10 +58,22 @@ fn() {
 }
 
 # A storage bucket.
+#
+# NOT via /storage/v1/bucket/<name>: that's the admin endpoint, it refuses the
+# anon key, and — the trap — it phrases the refusal as "Bucket not found". So it
+# reports every bucket as missing whether or not it exists, and this script's
+# first version duly told me avatar upload was broken when it was perfectly fine.
+#
+# Asking for a public object that cannot exist distinguishes properly, because
+# storage answers "Bucket not found" and "Object not found" differently. Works
+# only for public buckets — which avatars is (0015), by design.
 bucket() {
-  code=$(curl -s -o /dev/null -w "%{http_code}" \
-    "$URL/storage/v1/bucket/$1" -H "apikey: $KEY" -H "Authorization: Bearer $KEY")
-  if [ "$code" = "200" ]; then green "  ok      $2"; else red "  MISSING $2   (HTTP $code)"; missing=1; fi
+  body=$(curl -s "$URL/storage/v1/object/public/$1/__probe_that_cannot_exist__")
+  if printf '%s' "$body" | grep -qi 'bucket not found'; then
+    red "  MISSING $2"; missing=1
+  else
+    green "  ok      $2"
+  fi
 }
 
 echo "Probing $URL"
