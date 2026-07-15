@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { forAnyGenre } from '@/browse/aggregate';
@@ -38,10 +38,16 @@ export default function GenrePage() {
   const [items, setItems] = useState<BrowseItem[]>([]);
   const [loaded, setLoaded] = useState(false);
 
+  // Scope the query to this page's genre aliases. Without it, a niche genre would
+  // be filtered out of a globally-capped set and this page — one of the crawlable,
+  // ad-carrying SEO surfaces — would render empty for exactly the long tail it
+  // exists to serve. `forAnyGenre` below still filters, since the hint is a hint.
+  const aliases = useMemo(() => curated?.itunes, [curated]);
+
   useEffect(() => {
     let live = true;
     browseBackend
-      .load()
+      .load({ genres: aliases })
       .then((res) => {
         if (live) setItems(res);
       })
@@ -52,7 +58,7 @@ export default function GenrePage() {
     return () => {
       live = false;
     };
-  }, []);
+  }, [aliases]);
 
   function goBack() {
     if (router.canGoBack()) router.back();

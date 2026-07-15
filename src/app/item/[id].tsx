@@ -67,7 +67,7 @@ export default function ItemProfileScreen() {
 
   const existing = ratingFor(id);
   const itemLike = useLikeSummary('item', id);
-  const { comments, loading, error, addComment, removeComment } = useComments(
+  const { comments, loading, error, hasMore, loadingMore, loadMore, addComment, removeComment } = useComments(
     id,
     type === 'song' ? 'song' : 'album',
   );
@@ -433,6 +433,31 @@ export default function ItemProfileScreen() {
               )}
             </View>
           ))}
+
+          {/*
+            Only offered on the unfiltered list. Under the "friends" scope,
+            buildThreads filters the page we hold, so "Load more" would fetch a
+            page of mostly-strangers and appear to do nothing — the honest
+            affordance there is no affordance.
+          */}
+          {hasMore && scope === 'everyone' && (
+            <Pressable
+              onPress={loadMore}
+              accessibilityRole="button"
+              accessibilityLabel="Load more comments"
+              style={({ pressed }) => [
+                styles.loadMore,
+                { borderColor: theme.textSecondary, opacity: pressed ? 0.6 : 1 },
+              ]}>
+              {loadingMore ? (
+                <ActivityIndicator color={theme.accent} />
+              ) : (
+                <ThemedText type="smallBold" themeColor="textSecondary">
+                  Load more comments
+                </ThemedText>
+              )}
+            </Pressable>
+          )}
         </PageContainer>
       </ScrollView>
 
@@ -544,6 +569,13 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two,
   },
   thread: { gap: Spacing.two },
+  loadMore: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingVertical: Spacing.three,
+    alignItems: 'center',
+    marginTop: Spacing.two,
+  },
   // Replies sit indented under their parent with a hairline rail on the left.
   replies: { marginLeft: Spacing.four, borderLeftWidth: 2, paddingLeft: Spacing.two, gap: Spacing.two },
   error: {},

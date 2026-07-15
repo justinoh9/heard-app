@@ -105,11 +105,49 @@ export interface ItemRating {
 /** Thrown for expected persistence failures — UI-safe message. */
 export class SocialError extends Error {}
 
+/** A page of directory results, plus whether there's more behind it. */
+export interface ProfilePage {
+  profiles: Profile[];
+  /** True when another page exists — drives the "Load more" affordance. */
+  hasMore: boolean;
+}
+
+export interface ProfileSearch {
+  /** Matches display name or handle, case-insensitively. Omit for "everyone". */
+  query?: string;
+  limit?: number;
+  /** How many to skip — the page cursor. */
+  offset?: number;
+}
+
 export interface SocialBackend {
   /** Make/refresh the user's directory entry (called at sign-in). */
   upsertProfile(profile: Profile): Promise<void>;
-  /** Everyone in the directory (including the caller — the store filters). */
+  /**
+   * Everyone in the directory (including the caller — the store filters).
+   *
+   * SCALE NOTE: this is unbounded, and knowingly so. It backs `useSocial().people`,
+   * which several screens use as a local id→profile map (the item page's friend
+   * scores, the concert tag picker). Capping it here would not make those screens
+   * slower — it would make them silently wrong, showing "Unknown" for anyone past
+   * the cap. The honest fix is to make those consumers ask for the ids they need
+   * rather than scan a directory, and until they do, a cap would be a bug wearing
+   * a performance costume. `searchProfiles` below is the paginated path, and the
+   * People directory — the screen that actually grows without limit — uses it.
+   */
   listProfiles(): Promise<Profile[]>;
+  /**
+   * One page of the directory, searched and paginated in the database.
+   * This is the read that has to survive real user counts.
+   */
+  searchProfiles(search?: ProfileSearch): Promise<ProfilePage>;
+  /**
+   * Resolve specific profiles by id. Screens that know whose profile they want
+   * (a user page, a block list) use this instead of scanning the directory —
+   * which is both cheaper and, once the directory is paginated, the only way to
+   * be sure the person is actually in the result.
+   */
+  profilesByIds(ids: string[]): Promise<Profile[]>;
   /** Ids the user follows. */
   following(userId: string): Promise<string[]>;
   setFollowing(followerId: string, followeeId: string, follow: boolean): Promise<void>;

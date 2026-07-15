@@ -7,8 +7,16 @@
 
 import { getSupabase } from '@/lib/supabase';
 
+import { fromAdminReportRow, type AdminReportRow } from './admin-rows';
 import { reportKey } from './filter';
-import { ModerationError, type ModerationBackend, type NewReport } from './types';
+import {
+  ModerationError,
+  type AdminReport,
+  type ModerationBackend,
+  type NewReport,
+  type ReportStatus,
+  type ReportTargetType,
+} from './types';
 
 interface BlockRow {
   blocker_id: string;
@@ -94,5 +102,49 @@ export class SupabaseModerationBackend implements ModerationBackend {
       .eq('reporter_id', userId);
     if (error) throw new ModerationError(error.message);
     return (data as ReportRow[]).map((r) => reportKey(r.target_type, r.target_id));
+  }
+
+  // ---- Review surface (0023) ----------------------------------------------
+
+  async isAdmin(): Promise<boolean> {
+    // The RPC answers only about the caller (it reads auth.uid() itself and takes
+    // no argument), so there's nothing to pass and nothing to spoof.
+    const { data, error } = await getSupabase().rpc('is_admin');
+    if (error) {
+      // A project that hasn't run 0023 yet has no such function. That's "not an
+      // admin, because admins don't exist here" — not an error worth surfacing
+      // in a UI that would otherwise work fine.
+      return false;
+    }
+    return data === true;
+  }
+
+  async listReports(status?: ReportStatus): Promise<AdminReport[]> {
+    let query = getSupabase().from('reports').select('*').order('created_at', { ascending: false });
+    if (status) query = query.eq('status', status);
+    const { data, error } = await query;
+    if (error) throw new ModerationError(error.message);
+    // A non-admin doesn't get an error here — RLS just returns their own rows (or
+    // none). The empty list IS the enforcement; there's no client-side check to
+    // forget, and no way to see someone else's reports by editing this file.
+    return (data as AdminReportRow[]).map(fromAdminReportRow);
+  }
+
+  async setReportStatus(id: string, status: ReportStatus): Promise<void> {
+    // Only `status` is sent: 0023 revokes UPDATE on the table and grants it back
+    // for that one column, so adding fields here would start failing rather than
+    // silently letting a reviewer edit the evidence. reviewed_by/reviewed_at are
+    // stamped by a trigger from the JWT.
+    const { error } = await getSupabase().from('reports').update({ status }).eq('id', id);
+    if (error) throw new ModerationError(error.message);
+  }
+
+  async deleteReportedContent(targetType: ReportTargetType, targetId: string): Promise<void> {
+    const table = targetType === 'comment' ? 'comments' : targetType === 'feed_event' ? 'feed_events' : null;
+    if (!table) {
+      throw new ModerationError(`${targetType} content can't be removed from here.`);
+    }
+    const { error } = await getSupabase().from(table).delete().eq('id', targetId);
+    if (error) throw new ModerationError(error.message);
   }
 }

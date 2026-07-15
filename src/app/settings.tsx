@@ -17,6 +17,7 @@ import { ThemedView } from '@/components/themed-view';
 import { useToast } from '@/components/toast';
 import { Modes, Spacing, type Appearance, type ModeName, type Variant } from '@/constants/theme';
 import { useTheme, useThemeControls } from '@/hooks/use-theme';
+import { useModeration } from '@/moderation/store';
 import { useSpotifyConnection } from '@/music/use-spotify-connection';
 
 /** Appearance toggle options, in presentation order. */
@@ -30,6 +31,7 @@ export default function SettingsScreen() {
   const theme = useTheme();
   const router = useRouter();
   const { user, signOut, deleteAccount } = useAuth();
+  const { isAdmin } = useModeration();
   const toast = useToast();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -124,6 +126,19 @@ export default function SettingsScreen() {
             />
             <Row icon="eye-outline" label="Profile visibility" value="Public" soon theme={theme} />
             <Row icon="people-outline" label="Friends" soon theme={theme} />
+            {/*
+              Only moderators see the door. Hiding it is presentation, not
+              protection — RLS (0023) is what makes the queue empty for everyone
+              else, so there's no harm if this ever renders by mistake.
+            */}
+            {isAdmin ? (
+              <Row
+                icon="flag-outline"
+                label="Review reports"
+                onPress={() => router.push('/admin/reports')}
+                theme={theme}
+              />
+            ) : null}
           </Section>
 
           <Section label="ABOUT">

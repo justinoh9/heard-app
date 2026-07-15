@@ -16,6 +16,13 @@ import type { BrowseBackend, BrowseItem, RatingWithItem } from './types';
 const RATINGS_KEY_PREFIX = 'heard.ratings.';
 
 export class LocalBrowseBackend implements BrowseBackend {
+  /**
+   * `options.genres` is ignored on purpose. It's a scoping hint that exists so the
+   * Supabase backend can avoid shipping the whole table; a device holding a
+   * handful of demo ratings has nothing to save by honouring it, and the callers
+   * filter with `forAnyGenre` regardless. Returning a superset is allowed by the
+   * seam — returning a *subset* would not be.
+   */
   async load(): Promise<BrowseItem[]> {
     const keys = (await AsyncStorage.getAllKeys()).filter((k) => k.startsWith(RATINGS_KEY_PREFIX));
     if (keys.length === 0) return [];

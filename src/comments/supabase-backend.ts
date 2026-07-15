@@ -1,7 +1,15 @@
 import { getSupabase } from '@/lib/supabase';
 import type { SearchResultKind } from '@/music';
 
-import { CommentsError, type Comment, type CommentsBackend, type NewCommentInput } from './types';
+import {
+  CommentsError,
+  DEFAULT_PAGE_SIZE,
+  type Comment,
+  type CommentPage,
+  type CommentPageRequest,
+  type CommentsBackend,
+  type NewCommentInput,
+} from './types';
 
 interface CommentRow {
   id: string;
@@ -34,16 +42,60 @@ function fromRow(row: CommentRow): Comment {
 }
 
 export class SupabaseCommentsBackend implements CommentsBackend {
-  async listForItem(itemId: string, itemType: SearchResultKind): Promise<Comment[]> {
-    const { data, error } = await getSupabase()
+  /**
+   * One page of an item's comments (ROADMAP Phase 4 — "paginate comments").
+   *
+   * PAGE THE ROOTS, NOT THE ROWS. The obvious version — `select * ... limit 20` —
+   * pages a flat list, which cuts threads in half: you would get a reply whose
+   * parent fell on the next page, and `buildThreads` drops replies whose parent is
+   * missing (deliberately — that's what makes a blocked user's thread vanish with
+   * them). The comments would not just be paginated, they would be *gone*.
+   *
+   * So the page is 20 top-level comments, and then every reply belonging to those
+   * 20. A thread arrives whole or not at all. Two round trips instead of one,
+   * which is the correct trade: threads that silently lose their replies are the
+   * kind of bug nobody reports, they just stop commenting.
+   */
+  async listForItem(
+    itemId: string,
+    itemType: SearchResultKind,
+    page?: CommentPageRequest,
+  ): Promise<CommentPage> {
+    const limit = page?.limit ?? DEFAULT_PAGE_SIZE;
+    const offset = page?.offset ?? 0;
+
+    // Fetch one extra to learn whether another page exists, without a count(*).
+    const roots = await getSupabase()
       .from('comments')
       .select('*')
       .eq('item_id', itemId)
       .eq('item_type', itemType)
-      .order('created_at', { ascending: false });
+      .is('parent_id', null)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit);
+    if (roots.error) throw new CommentsError(roots.error.message);
 
-    if (error) throw new CommentsError(error.message);
-    return (data as CommentRow[]).map(fromRow);
+    const rootRows = (roots.data as CommentRow[]) ?? [];
+    const hasMore = rootRows.length > limit;
+    const pageRoots = rootRows.slice(0, limit);
+    if (pageRoots.length === 0) return { comments: [], hasMore: false };
+
+    // Threads are one level deep (0016: a reply to a reply anchors to its root),
+    // so every reply in the page is reachable in this single query.
+    const replies = await getSupabase()
+      .from('comments')
+      .select('*')
+      .in(
+        'parent_id',
+        pageRoots.map((r) => r.id),
+      )
+      .order('created_at', { ascending: true });
+    if (replies.error) throw new CommentsError(replies.error.message);
+
+    return {
+      comments: [...pageRoots, ...((replies.data as CommentRow[]) ?? [])].map(fromRow),
+      hasMore,
+    };
   }
 
   async add(input: NewCommentInput): Promise<Comment> {

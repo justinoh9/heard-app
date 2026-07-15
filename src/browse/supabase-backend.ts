@@ -1,59 +1,82 @@
 /**
- * Supabase-backed browse (ROADMAP G2). Reads every rating joined to its item in
- * one query and folds them client-side through the pure aggregation — the same
- * "select then tally in memory" posture as the leaderboard. Fine at prototype
- * scale; the Phase-4 "scale the reads" follow-up is to move this to a Postgres
- * view/RPC (materialized `trending`/`top_rated` over ratings×items).
+ * Supabase-backed browse (ROADMAP G2, rebuilt for Phase 4's "scale the reads").
+ *
+ * This used to `select` every rating joined to its item and tally them in the
+ * browser. It now calls the `browse_items` RPC (0024_browse_rpc.sql), which does
+ * the tallying in Postgres and returns per-item aggregates — tens of rows instead
+ * of the whole ratings table. The pure `trending`/`topRated`/`forGenre` functions
+ * still decide what the screen shows; only the counting moved.
+ *
+ * `aggregate.ts`'s `aggregateBrowseItems` is still the local backend's path, and
+ * still tested — the two backends agree on the BrowseItem shape, which is what
+ * lets the seam stay honest.
  */
 
 import { getSupabase } from '@/lib/supabase';
 import type { ItemType } from '@/ranking/types';
 
-import { aggregateBrowseItems } from './aggregate';
-import { BrowseError, type BrowseBackend, type BrowseItem, type RatingWithItem } from './types';
+import { TRENDING_WINDOW_MS } from './aggregate';
+import {
+  BrowseError,
+  type BrowseBackend,
+  type BrowseItem,
+  type BrowseLoadOptions,
+} from './types';
 
-/** Shape of the joined select below (Supabase nests the FK'd item). */
-interface BrowseRow {
-  score: number | string;
-  created_at: string;
-  items: {
-    id: string;
-    type: ItemType;
-    title: string;
-    artist: string;
-    art_url: string | null;
-    release_year: number | null;
-    genres: string[] | null;
-  } | null;
+/** One row of `browse_items` — already aggregated. */
+interface BrowseItemRow {
+  id: string;
+  type: ItemType;
+  title: string;
+  artist: string;
+  art_url: string | null;
+  release_year: number | null;
+  genres: string[] | null;
+  avg_score: number | string;
+  rating_count: number | string;
+  recent_count: number | string;
 }
 
-function toRatingWithItem(row: BrowseRow): RatingWithItem | null {
-  if (!row.items) return null;
-  const i = row.items;
+/**
+ * How many items each section of the union returns. 200 is far more than any
+ * screen renders (sections show 20) — the headroom is for the genre and decade
+ * chips, which are drawn from whatever this returns.
+ */
+const PER_SECTION = 200;
+
+/**
+ * The trending window is defined once, in the pure module, and passed to the RPC
+ * — rather than defaulting on both sides where they could drift apart and nobody
+ * would notice which one was lying.
+ */
+const WINDOW_DAYS = Math.round(TRENDING_WINDOW_MS / (24 * 60 * 60 * 1000));
+
+function fromRow(row: BrowseItemRow): BrowseItem {
   return {
-    score: Number(row.score),
-    createdAt: row.created_at,
-    item: {
-      id: i.id,
-      type: i.type,
-      title: i.title,
-      artist: i.artist,
-      artUrl: i.art_url ?? undefined,
-      releaseYear: i.release_year ?? undefined,
-      genres: i.genres ?? undefined,
-    },
+    id: row.id,
+    type: row.type,
+    title: row.title,
+    artist: row.artist,
+    artUrl: row.art_url ?? undefined,
+    releaseYear: row.release_year ?? undefined,
+    genres: row.genres ?? undefined,
+    // Postgres returns numeric/bigint as strings over the wire; Number() them
+    // here so nothing downstream ever sorts "10" before "9".
+    avgScore: Number(row.avg_score),
+    ratingCount: Number(row.rating_count),
+    recentCount: Number(row.recent_count),
   };
 }
 
 export class SupabaseBrowseBackend implements BrowseBackend {
-  async load(): Promise<BrowseItem[]> {
-    const { data, error } = await getSupabase()
-      .from('ratings')
-      .select('score, created_at, items (id, type, title, artist, art_url, release_year, genres)');
+  async load(options?: BrowseLoadOptions): Promise<BrowseItem[]> {
+    const genres = options?.genres?.length ? options.genres : null;
+    const { data, error } = await getSupabase().rpc('browse_items', {
+      p_window_days: WINDOW_DAYS,
+      p_per_section: PER_SECTION,
+      p_genres: genres,
+    });
     if (error) throw new BrowseError(error.message);
-    const rows = ((data ?? []) as unknown as BrowseRow[])
-      .map(toRatingWithItem)
-      .filter((r): r is RatingWithItem => r !== null);
-    return aggregateBrowseItems(rows, Date.now());
+    return ((data ?? []) as BrowseItemRow[]).map(fromRow);
   }
 }

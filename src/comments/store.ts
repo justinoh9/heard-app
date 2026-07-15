@@ -18,6 +18,12 @@ export interface CommentsState {
   comments: Comment[];
   loading: boolean;
   error: string | null;
+  /** True while another page of top-level comments is available. */
+  hasMore: boolean;
+  /** True while a loadMore() page is in flight. */
+  loadingMore: boolean;
+  /** Fetch the next page of top-level comments (with their replies) and append. */
+  loadMore: () => void;
   addComment: (input: Omit<NewCommentInput, 'itemId' | 'itemType'>) => Promise<void>;
   /** Delete the caller's own comment, then refetch. */
   removeComment: (id: string, userId: string) => Promise<void>;
@@ -27,6 +33,8 @@ export interface CommentsState {
 export function useComments(itemId: string, itemType: SearchResultKind): CommentsState {
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { blockedIds } = useModeration();
 
@@ -35,12 +43,32 @@ export function useComments(itemId: string, itemType: SearchResultKind): Comment
     setError(null);
     backend
       .listForItem(itemId, itemType)
-      .then(setComments)
+      .then((page) => {
+        setComments(page.comments);
+        setHasMore(page.hasMore);
+      })
       .catch((e: unknown) => {
         setError(e instanceof CommentsError ? e.message : 'Could not load comments.');
       })
       .finally(() => setLoading(false));
   }, [itemId, itemType]);
+
+  const loadMore = useCallback(() => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    // The offset counts TOP-LEVEL comments, so it must be the number of roots we
+    // hold — not comments.length, which includes replies and would skip whole
+    // threads as soon as anyone replied to anything.
+    const rootCount = comments.filter((c) => !c.parentId).length;
+    backend
+      .listForItem(itemId, itemType, { offset: rootCount })
+      .then((page) => {
+        setComments((prev) => [...prev, ...page.comments]);
+        setHasMore(page.hasMore);
+      })
+      .catch((e: unknown) => console.warn('[comments] loadMore failed:', e))
+      .finally(() => setLoadingMore(false));
+  }, [itemId, itemType, comments, hasMore, loadingMore]);
 
   useEffect(load, [load]);
 
@@ -65,5 +93,14 @@ export function useComments(itemId: string, itemType: SearchResultKind): Comment
   // downstream of this, so a blocked user's replies go with them.
   const visible = useMemo(() => hideBlockedAuthors(comments, blockedIds), [comments, blockedIds]);
 
-  return { comments: visible, loading, error, addComment, removeComment };
+  return {
+    comments: visible,
+    loading,
+    error,
+    hasMore,
+    loadingMore,
+    loadMore,
+    addComment,
+    removeComment,
+  };
 }

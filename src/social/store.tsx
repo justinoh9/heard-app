@@ -18,7 +18,9 @@ import { sortEvents } from './feed-rows';
 import { socialBackend } from './provider';
 import type {
   Profile,
+  ProfilePage,
   ProfilePatch,
+  ProfileSearch,
   SocialEvent,
   SocialEventPayload,
   SocialEventType,
@@ -27,6 +29,11 @@ import type {
 export interface SocialApi {
   /** Everyone else in the directory (the viewer is filtered out). */
   people: Profile[];
+  /**
+   * One searched, paginated page of the directory — the read that has to survive
+   * real user counts, and the only one the People screen should use.
+   */
+  searchPeople: (search?: ProfileSearch) => Promise<ProfilePage>;
   followingIds: Set<string>;
   /** Recent events by the viewer + followees, newest first. */
   feed: SocialEvent[];
@@ -113,6 +120,17 @@ export function useSocialState(): SocialApi {
       // `hideBlockedEvents` also drops reposts *of* a blocked user, so blocking
       // someone doesn't leave them visible second-hand through a friend.
       people: hideBlockedProfiles(people, blockedIds),
+      /**
+       * Paginated directory search. It lives on the store rather than letting the
+       * screen call the backend because of the invariant in CLAUDE.md: blocked
+       * users are filtered in the stores, never in the screens. A screen that
+       * queried `socialBackend.searchProfiles` itself would look perfectly
+       * reasonable and quietly show people you blocked.
+       */
+      searchPeople: async (search) => {
+        const page = await socialBackend.searchProfiles(search);
+        return { ...page, profiles: hideBlockedProfiles(page.profiles, blockedIds) };
+      },
       followingIds,
       feed: hideBlockedEvents(feed, blockedIds),
       feedLoading,

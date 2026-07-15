@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
-  base64,
   parseAlbumResults,
   parseAlbumTracks,
   parseArtistAlbums,
@@ -14,10 +13,13 @@ import {
 } from './spotify';
 import { MusicCatalogError } from './types';
 
-// Credentials for the token fetch. Set for the whole file; the one test that
-// checks the missing-credentials path clears and restores them itself.
-process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_ID = 'test-id';
-process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_SECRET = 'test-secret';
+/**
+ * The catalog is **proxy-only**: its token comes from the spotify-token Edge
+ * Function, never from a client-side secret. Set for the whole file; the
+ * unconfigured test clears and restores it.
+ */
+const PROXY = 'https://proj.supabase.co/functions/v1/spotify-token';
+process.env.EXPO_PUBLIC_SPOTIFY_TOKEN_URL = PROXY;
 
 const img = (url: string, width: number) => ({ url, width, height: width });
 
@@ -121,7 +123,7 @@ const albumTracksFixture = {
 function stubFetch(opts: { search?: unknown; searchStatus?: number; onSearch?: () => Response }) {
   const calls = { token: 0, search: 0 };
   const impl = (async (url: string) => {
-    if (url.includes('accounts.spotify.com')) {
+    if (url === PROXY) {
       calls.token += 1;
       return new Response(JSON.stringify({ access_token: `tok-${calls.token}`, expires_in: 3600 }), {
         status: 200,
@@ -208,10 +210,6 @@ test('parseSearchResults returns artists, then albums, then songs', () => {
   assert.ok(r.some((x) => x.kind === 'album'));
 });
 
-test('base64 encodes ASCII correctly', () => {
-  assert.equal(base64('test-id:test-secret'), 'dGVzdC1pZDp0ZXN0LXNlY3JldA==');
-});
-
 // ---- artist parsing --------------------------------------------------------
 
 test('parses an artist: name in title, blank artist, cover, popularity', () => {
@@ -279,7 +277,7 @@ test('searchTracks maps a successful HTTP response', async () => {
 test('searchAll fetches artists, albums, and songs in a single request', async () => {
   let url = '';
   const impl = (async (u: string) => {
-    if (u.includes('accounts.spotify.com')) {
+    if (u === PROXY) {
       return new Response(JSON.stringify({ access_token: 'tok', expires_in: 3600 }), { status: 200 });
     }
     url = u;
@@ -295,7 +293,7 @@ test('searchAll fetches artists, albums, and songs in a single request', async (
 test('getArtistAlbums hits the artist-albums endpoint, clamps the limit, and dedupes', async () => {
   let url = '';
   const impl = (async (u: string) => {
-    if (u.includes('accounts.spotify.com')) {
+    if (u === PROXY) {
       return new Response(JSON.stringify({ access_token: 'tok', expires_in: 3600 }), { status: 200 });
     }
     url = u;
@@ -320,7 +318,7 @@ test('getArtistAlbums returns [] for a blank id without any fetch', async () => 
 
 test('getArtistAlbums surfaces a non-ok status as MusicCatalogError', async () => {
   const impl = (async (u: string) => {
-    if (u.includes('accounts.spotify.com')) {
+    if (u === PROXY) {
       return new Response(JSON.stringify({ access_token: 'tok', expires_in: 3600 }), { status: 200 });
     }
     return new Response('nope', { status: 404 });
@@ -332,7 +330,7 @@ test('getArtistAlbums surfaces a non-ok status as MusicCatalogError', async () =
 test('getArtistTopTracks runs an artist-scoped track search', async () => {
   let url = '';
   const impl = (async (u: string) => {
-    if (u.includes('accounts.spotify.com')) {
+    if (u === PROXY) {
       return new Response(JSON.stringify({ access_token: 'tok', expires_in: 3600 }), { status: 200 });
     }
     url = u;
@@ -365,7 +363,7 @@ test('parseAlbumTracks maps id, title, number, duration, and artists in order', 
 test('getAlbumTracks hits the album-tracks endpoint (limit up to 50, no dev-mode cap)', async () => {
   let url = '';
   const impl = (async (u: string) => {
-    if (u.includes('accounts.spotify.com')) {
+    if (u === PROXY) {
       return new Response(JSON.stringify({ access_token: 'tok', expires_in: 3600 }), { status: 200 });
     }
     url = u;
@@ -388,7 +386,7 @@ test('getAlbumTracks returns [] for a blank id without any fetch', async () => {
 test('the search limit is clamped to Spotify’s development-mode max (10)', async () => {
   let searchUrl = '';
   const impl = (async (url: string) => {
-    if (url.includes('accounts.spotify.com')) {
+    if (url === PROXY) {
       return new Response(JSON.stringify({ access_token: 'tok', expires_in: 3600 }), { status: 200 });
     }
     searchUrl = url;
@@ -433,7 +431,7 @@ test('non-ok search status throws a MusicCatalogError', async () => {
 
 test('network failure is wrapped as MusicCatalogError', async () => {
   const cat = new SpotifyCatalog((async (url: string) => {
-    if (url.includes('accounts.spotify.com')) {
+    if (url === PROXY) {
       return new Response(JSON.stringify({ access_token: 'tok', expires_in: 3600 }), { status: 200 });
     }
     throw new TypeError('Failed to fetch');
@@ -441,11 +439,9 @@ test('network failure is wrapped as MusicCatalogError', async () => {
   await assert.rejects(() => cat.searchAlbums('x'), MusicCatalogError);
 });
 
-// ---- proxy mode (Edge Function token endpoint) ----------------------------
+// ---- token source: the proxy, and only the proxy ---------------------------
 
-test('proxy mode fetches the token from the token URL, never from Spotify', async () => {
-  const PROXY = 'https://proj.supabase.co/functions/v1/spotify-token';
-  process.env.EXPO_PUBLIC_SPOTIFY_TOKEN_URL = PROXY;
+test('fetches the token from the token URL, never from Spotify', async () => {
   process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = 'anon-key-123';
   try {
     const hits = { proxy: 0, spotifyToken: 0, search: 0 };
@@ -470,38 +466,54 @@ test('proxy mode fetches the token from the token URL, never from Spotify', asyn
     assert.equal(hits.spotifyToken, 0); // the secret never leaves the server
     assert.equal(sentAuth, 'Bearer anon-key-123'); // anon key forwarded to satisfy JWT
   } finally {
-    delete process.env.EXPO_PUBLIC_SPOTIFY_TOKEN_URL;
     delete process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
   }
 });
 
-test('proxy mode surfaces a token-service failure as MusicCatalogError', async () => {
-  const PROXY = 'https://proj.supabase.co/functions/v1/spotify-token';
-  process.env.EXPO_PUBLIC_SPOTIFY_TOKEN_URL = PROXY;
-  try {
-    const impl = (async (url: string) => {
-      if (url === PROXY) return new Response('nope', { status: 500 });
-      return new Response(JSON.stringify(albumFixture), { status: 200 });
-    }) as unknown as typeof fetch;
-    const cat = new SpotifyCatalog(impl);
-    await assert.rejects(() => cat.searchAlbums('x'), MusicCatalogError);
-  } finally {
-    delete process.env.EXPO_PUBLIC_SPOTIFY_TOKEN_URL;
-  }
+test('surfaces a token-service failure as MusicCatalogError', async () => {
+  const impl = (async (url: string) => {
+    if (url === PROXY) return new Response('nope', { status: 500 });
+    return new Response(JSON.stringify(albumFixture), { status: 200 });
+  }) as unknown as typeof fetch;
+  const cat = new SpotifyCatalog(impl);
+  await assert.rejects(() => cat.searchAlbums('x'), MusicCatalogError);
 });
 
-test('missing credentials throws a MusicCatalogError without hitting the network', async () => {
-  const id = process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_ID;
-  const secret = process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_SECRET;
-  delete process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_ID;
-  delete process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_SECRET;
+test('without a token URL it throws without hitting the network', async () => {
+  delete process.env.EXPO_PUBLIC_SPOTIFY_TOKEN_URL;
   try {
     const { impl, calls } = stubFetch({ search: albumFixture });
     const cat = new SpotifyCatalog(impl);
     await assert.rejects(() => cat.searchAlbums('x'), MusicCatalogError);
     assert.equal(calls.token, 0);
+    assert.equal(calls.search, 0);
   } finally {
-    process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_ID = id;
-    process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_SECRET = secret;
+    process.env.EXPO_PUBLIC_SPOTIFY_TOKEN_URL = PROXY;
+  }
+});
+
+/**
+ * The regression guard for the leak this file's header describes: a client
+ * secret in the environment must NOT resurrect a direct-to-Spotify token call.
+ * If someone re-adds a `tokenDirect` fallback, this test fails — which is the
+ * whole point of deleting the code path rather than documenting against it.
+ */
+test('a client secret in the env does not enable direct mode', async () => {
+  delete process.env.EXPO_PUBLIC_SPOTIFY_TOKEN_URL;
+  process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_ID = 'test-id';
+  process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_SECRET = 'test-secret';
+  try {
+    let hitSpotify = false;
+    const impl = (async (url: string) => {
+      if (url.includes('accounts.spotify.com')) hitSpotify = true;
+      return new Response('{}', { status: 200 });
+    }) as unknown as typeof fetch;
+    const cat = new SpotifyCatalog(impl);
+    await assert.rejects(() => cat.searchAlbums('x'), MusicCatalogError);
+    assert.equal(hitSpotify, false, 'the secret must never be used from the client');
+  } finally {
+    delete process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_ID;
+    delete process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_SECRET;
+    process.env.EXPO_PUBLIC_SPOTIFY_TOKEN_URL = PROXY;
   }
 });

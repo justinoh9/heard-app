@@ -13,7 +13,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { socialBackend } from '@/social/provider';
 
 import { reportKey } from './filter';
-import type { ModerationBackend, NewReport } from './types';
+import type { AdminReport, ModerationBackend, NewReport, ReportStatus } from './types';
 
 const blocksKey = (userId: string) => `heard.blocks.${userId}`;
 const reportsKey = (userId: string) => `heard.reports.${userId}`;
@@ -58,5 +58,27 @@ export class LocalModerationBackend implements ModerationBackend {
 
   async reportedKeys(userId: string): Promise<string[]> {
     return readList(reportsKey(userId));
+  }
+
+  // ---- Review surface -----------------------------------------------------
+  // Local mode is a single-device demo with no reviewer and no second user, so
+  // there is nothing to moderate. Answering "no admins here" makes the entrance
+  // simply not render, which is the honest outcome — better than a Reports screen
+  // that opens onto a permanent empty state.
+
+  async isAdmin(): Promise<boolean> {
+    return false;
+  }
+
+  async listReports(_status?: ReportStatus): Promise<AdminReport[]> {
+    return [];
+  }
+
+  async setReportStatus(): Promise<void> {
+    // Unreachable: nothing can be listed, so nothing can be resolved.
+  }
+
+  async deleteReportedContent(): Promise<void> {
+    // Same.
   }
 }

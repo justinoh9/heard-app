@@ -47,11 +47,26 @@ export interface BrowseItem {
 /** Thrown for expected persistence failures — UI-safe message. */
 export class BrowseError extends Error {}
 
+export interface BrowseLoadOptions {
+  /**
+   * Narrow to items carrying ANY of these genres, case-insensitively — the same
+   * comparison `forAnyGenre` makes. A *hint*, not a contract: a backend may
+   * return a superset (the local one does), so callers must still filter with the
+   * pure functions. What it buys is that the Supabase backend can scope the query
+   * server-side instead of shipping the world to filter three albums out of it.
+   */
+  genres?: string[];
+}
+
 export interface BrowseBackend {
   /**
-   * Every rated item with its community aggregates. The backend fetches the raw
-   * ratings×items rows and folds them through the pure `aggregateBrowseItems`;
-   * screens then slice with `trending` / `topRated` / `forGenre`.
+   * Rated items with their community aggregates. Screens slice the result with
+   * `trending` / `topRated` / `forGenre` / `forDecade`.
+   *
+   * Deliberately NOT "every rated item": the Supabase backend returns the top
+   * slice of each section (see 0024_browse_rpc.sql). Reading every rating to
+   * render twenty covers stopped scaling long before it stopped working — and it
+   * would have stopped *working* silently, by truncation, which is worse.
    */
-  load(): Promise<BrowseItem[]>;
+  load(options?: BrowseLoadOptions): Promise<BrowseItem[]>;
 }

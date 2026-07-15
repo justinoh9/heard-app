@@ -14,7 +14,9 @@ import {
   type LeaderboardEntry,
   type NewSocialEvent,
   type Profile,
+  type ProfilePage,
   type ProfilePatch,
+  type ProfileSearch,
   type SocialBackend,
   type SocialEvent,
 } from './types';
@@ -57,6 +59,44 @@ export class SupabaseSocialBackend implements SocialBackend {
       .from('profiles')
       .select(PROFILE_COLUMNS)
       .order('display_name');
+    if (error) throw new SocialError(error.message);
+    return (data as ProfileRow[]).map(fromProfileRow);
+  }
+
+  async searchProfiles(search?: ProfileSearch): Promise<ProfilePage> {
+    const limit = search?.limit ?? 30;
+    const offset = search?.offset ?? 0;
+    let query = getSupabase().from('profiles').select(PROFILE_COLUMNS).order('display_name');
+
+    const q = search?.query?.trim();
+    if (q) {
+      // Escape the LIKE wildcards and PostgREST's own delimiters. Without this a
+      // query of "%" matches everyone (harmless but wrong) and a comma would split
+      // the .or() into bogus conditions (not harmless — it would error or match
+      // something nobody asked for).
+      const safe = q.replace(/[%_,()]/g, (c) => `\\${c}`);
+      query = query.or(`display_name.ilike.%${safe}%,handle.ilike.%${safe}%`);
+    }
+
+    // Fetch one more than asked for: if it comes back, there's another page. This
+    // beats a count(*) — exact counts get expensive on big tables, and all the UI
+    // needs to know is whether to draw the button.
+    const { data, error } = await query.range(offset, offset + limit);
+    if (error) throw new SocialError(error.message);
+
+    const rows = data as ProfileRow[];
+    return {
+      profiles: rows.slice(0, limit).map(fromProfileRow),
+      hasMore: rows.length > limit,
+    };
+  }
+
+  async profilesByIds(ids: string[]): Promise<Profile[]> {
+    if (ids.length === 0) return [];
+    const { data, error } = await getSupabase()
+      .from('profiles')
+      .select(PROFILE_COLUMNS)
+      .in('user_id', ids);
     if (error) throw new SocialError(error.message);
     return (data as ProfileRow[]).map(fromProfileRow);
   }

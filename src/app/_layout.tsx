@@ -252,6 +252,7 @@ function RootNavigator() {
       <Stack.Screen name="streak" />
       <Stack.Screen name="badges" />
       <Stack.Screen name="blocked" />
+      <Stack.Screen name="admin/reports" />
       <Stack.Screen name="concerts" />
       <Stack.Screen name="diary" />
       <Stack.Screen name="queue" />

@@ -9,15 +9,20 @@
  * Docs: https://developer.spotify.com/documentation/web-api/tutorials/client-credentials-flow
  *       https://developer.spotify.com/documentation/web-api/reference/search
  *
- * TOKEN SOURCE (two modes, see `requestToken`):
- *   1. Proxy (recommended) — set `EXPO_PUBLIC_SPOTIFY_TOKEN_URL` to the Supabase
- *      Edge Function in `supabase/functions/spotify-token`. The secret stays
- *      server-side; the client only ever holds a short-lived app token.
- *   2. Direct (quick start) — set `EXPO_PUBLIC_SPOTIFY_CLIENT_ID` +
- *      `EXPO_PUBLIC_SPOTIFY_CLIENT_SECRET`. Simplest, but `EXPO_PUBLIC_*` values
- *      are inlined into the client bundle, so the secret is exposed — the same
- *      trust level as the Supabase anon key elsewhere in this prototype. Fine
- *      for a demo; use mode 1 before any real launch (SPEC §7).
+ * TOKEN SOURCE — the proxy, and only the proxy (see `requestToken`): set
+ * `EXPO_PUBLIC_SPOTIFY_TOKEN_URL` to the Supabase Edge Function in
+ * `supabase/functions/spotify-token`. The client secret stays server-side and
+ * the client only ever holds a short-lived, read-only app token.
+ *
+ * There used to be a second "direct" mode that read
+ * `EXPO_PUBLIC_SPOTIFY_CLIENT_SECRET` and called accounts.spotify.com straight
+ * from the app. It is **deleted, not merely discouraged** (ROADMAP Phase 4).
+ * `EXPO_PUBLIC_*` values are inlined into the bundle, so that mode published the
+ * secret to anyone who opened devtools — and it did, on the live web build,
+ * because a `.env` var is far too easy to set by accident. A comment saying
+ * "use mode 1 before launch" did not survive contact with a real deploy; having
+ * no code path that can read a secret does. If this file ever needs the secret
+ * again, the answer is another Edge Function, not another env var.
  */
 
 import {
@@ -28,7 +33,6 @@ import {
   type SearchResult,
 } from './types';
 
-const TOKEN_URL = 'https://accounts.spotify.com/api/token';
 const API = 'https://api.spotify.com/v1';
 
 /**
@@ -96,33 +100,6 @@ interface SpotifyArtistAlbumsResponse {
 interface SpotifyTokenResponse {
   access_token?: string;
   expires_in?: number;
-}
-
-/**
- * base64-encode an ASCII string. Prefers the platform `btoa` (present on web
- * and modern Hermes/Node); the manual fallback keeps native builds working on
- * runtimes that don't expose it. Only ever fed `clientId:clientSecret`, which
- * is pure ASCII.
- */
-const B64_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-export function base64(input: string): string {
-  const g = globalThis as { btoa?: (s: string) => string };
-  if (typeof g.btoa === 'function') return g.btoa(input);
-  let out = '';
-  for (let i = 0; i < input.length; i += 3) {
-    const c0 = input.charCodeAt(i);
-    const c1 = input.charCodeAt(i + 1);
-    const c2 = input.charCodeAt(i + 2);
-    out += B64_ALPHABET[c0 >> 2];
-    out += B64_ALPHABET[((c0 & 3) << 4) | (Number.isNaN(c1) ? 0 : c1 >> 4)];
-    if (Number.isNaN(c1)) {
-      out += '==';
-    } else {
-      out += B64_ALPHABET[((c1 & 15) << 2) | (Number.isNaN(c2) ? 0 : c2 >> 6)];
-      out += Number.isNaN(c2) ? '=' : B64_ALPHABET[c2 & 63];
-    }
-  }
-  return out;
 }
 
 function artistNames(artists?: SpotifyArtist[]): string {
@@ -312,12 +289,11 @@ export class SpotifyCatalog implements MusicCatalog {
     const proxyUrl = process.env.EXPO_PUBLIC_SPOTIFY_TOKEN_URL;
     if (proxyUrl) return this.tokenFromProxy(proxyUrl);
 
-    const id = process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_ID;
-    const secret = process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_SECRET;
-    if (id && secret) return this.tokenDirect(id, secret);
-
+    // Deliberately no fallback to a client-side secret. See the file header:
+    // an env-var-shaped escape hatch is one `.env` line away from republishing
+    // the secret, so there is no code here that could read one.
     throw new MusicCatalogError(
-      'Spotify search isn’t configured. Set EXPO_PUBLIC_SPOTIFY_TOKEN_URL (recommended), or EXPO_PUBLIC_SPOTIFY_CLIENT_ID + EXPO_PUBLIC_SPOTIFY_CLIENT_SECRET, in your .env.',
+      'Spotify search isn’t configured. Deploy the spotify-token Edge Function and set EXPO_PUBLIC_SPOTIFY_TOKEN_URL in your .env (see supabase/functions/spotify-token/README.md).',
     );
   }
 
@@ -336,24 +312,6 @@ export class SpotifyCatalog implements MusicCatalog {
     });
     if (!res.ok) {
       throw new MusicCatalogError(`Spotify token service failed (${res.status}).`);
-    }
-    return (await res.json()) as SpotifyTokenResponse;
-  }
-
-  /** Token straight from Spotify using the embedded secret (quick-start mode). */
-  private async tokenDirect(id: string, secret: string): Promise<SpotifyTokenResponse> {
-    const res = await this.fetchImpl(TOKEN_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        Authorization: `Basic ${base64(`${id}:${secret}`)}`,
-      },
-      body: 'grant_type=client_credentials',
-    }).catch(() => {
-      throw new MusicCatalogError('Could not reach Spotify. Check your connection.');
-    });
-    if (!res.ok) {
-      throw new MusicCatalogError(`Spotify authentication failed (${res.status}).`);
     }
     return (await res.json()) as SpotifyTokenResponse;
   }

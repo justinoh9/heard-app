@@ -20,7 +20,9 @@ import type {
   LeaderboardEntry,
   NewSocialEvent,
   Profile,
+  ProfilePage,
   ProfilePatch,
+  ProfileSearch,
   SocialBackend,
   SocialEvent,
 } from './types';
@@ -76,6 +78,39 @@ export class LocalSocialBackend implements SocialBackend {
 
   async listProfiles(): Promise<Profile[]> {
     return readJson<Profile[]>(PROFILES_KEY, []);
+  }
+
+  /**
+   * Same contract as the Supabase backend — searched, ordered and paginated —
+   * just done in memory over a device-local list. Implementing it properly rather
+   * than returning everything matters: the People screen's paging is driven by
+   * `hasMore`, so a backend that ignored the page arguments would leave the demo
+   * with a "Load more" button that loads the same thirty people forever.
+   */
+  async searchProfiles(search?: ProfileSearch): Promise<ProfilePage> {
+    const all = await readJson<Profile[]>(PROFILES_KEY, []);
+    const q = search?.query?.trim().toLowerCase();
+    const matched = q
+      ? all.filter(
+          (p) =>
+            p.displayName.toLowerCase().includes(q) ||
+            (p.handle ?? '').toLowerCase().includes(q),
+        )
+      : all;
+    const sorted = [...matched].sort((a, b) => a.displayName.localeCompare(b.displayName));
+    const limit = search?.limit ?? 30;
+    const offset = search?.offset ?? 0;
+    return {
+      profiles: sorted.slice(offset, offset + limit),
+      hasMore: sorted.length > offset + limit,
+    };
+  }
+
+  async profilesByIds(ids: string[]): Promise<Profile[]> {
+    if (ids.length === 0) return [];
+    const wanted = new Set(ids);
+    const all = await readJson<Profile[]>(PROFILES_KEY, []);
+    return all.filter((p) => wanted.has(p.userId));
   }
 
   async following(userId: string): Promise<string[]> {

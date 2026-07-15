@@ -29,6 +29,12 @@ export interface ModerationApi {
   hasReported: (targetType: ReportTargetType, targetId: string) => boolean;
   /** File a report. Re-reporting the same target is a no-op. */
   report: (input: Omit<NewReport, 'reporterId'>) => Promise<void>;
+  /**
+   * Whether to show the report-review entrance. A UI hint only — the database
+   * decides what an admin can actually read (0023). Flipping this in devtools
+   * gets you an empty screen, not someone else's reports.
+   */
+  isAdmin: boolean;
 }
 
 export const ModerationContext = createContext<ModerationApi | null>(null);
@@ -41,19 +47,28 @@ export function useModerationState(): ModerationApi {
   const userId = user?.id ?? null;
   const [blockedIds, setBlockedIds] = useState<Set<string>>(EMPTY);
   const [reported, setReported] = useState<Set<string>>(EMPTY);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const load = useCallback(() => {
     if (!userId) {
       setBlockedIds(EMPTY);
       setReported(EMPTY);
+      setIsAdmin(false);
       return;
     }
     let cancelled = false;
-    Promise.all([moderationBackend.blockedBy(userId), moderationBackend.reportedKeys(userId)])
-      .then(([blocked, keys]) => {
+    Promise.all([
+      moderationBackend.blockedBy(userId),
+      moderationBackend.reportedKeys(userId),
+      // Never rejects (the backend swallows a missing-function error into false),
+      // so a project that hasn't run 0023 just doesn't show the entrance.
+      moderationBackend.isAdmin(),
+    ])
+      .then(([blocked, keys, admin]) => {
         if (cancelled) return;
         setBlockedIds(new Set(blocked));
         setReported(new Set(keys));
+        setIsAdmin(admin);
       })
       .catch((e: unknown) => {
         // Fail open on the *read*: an unreachable block list shouldn't lock the
@@ -109,8 +124,9 @@ export function useModerationState(): ModerationApi {
         await moderationBackend.report({ ...input, reporterId: userId });
         setReported((prev) => new Set(prev).add(reportKey(input.targetType, input.targetId)));
       },
+      isAdmin,
     }),
-    [blockedIds, reported, userId],
+    [blockedIds, reported, userId, isAdmin],
   );
 }
 

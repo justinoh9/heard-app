@@ -38,8 +38,36 @@ export interface NewCommentInput {
 /** Thrown for expected, user-facing failures (network down, bad status). */
 export class CommentsError extends Error {}
 
+/** How many TOP-LEVEL comments a page holds (replies to them ride along). */
+export const DEFAULT_PAGE_SIZE = 20;
+
+export interface CommentPageRequest {
+  /** Top-level comments per page — replies to them are always included. */
+  limit?: number;
+  /** How many top-level comments to skip. */
+  offset?: number;
+}
+
+export interface CommentPage {
+  /**
+   * A flat list of this page's top-level comments plus every reply belonging to
+   * them. Flat because `buildThreads` is what folds it — the backend's job is to
+   * guarantee no reply arrives without its parent, not to build the tree.
+   */
+  comments: Comment[];
+  hasMore: boolean;
+}
+
 export interface CommentsBackend {
-  listForItem(itemId: string, itemType: SearchResultKind): Promise<Comment[]>;
+  /**
+   * One page of an item's comments. Paging counts TOP-LEVEL comments, not rows —
+   * see the implementation for why a flat page would silently delete replies.
+   */
+  listForItem(
+    itemId: string,
+    itemType: SearchResultKind,
+    page?: CommentPageRequest,
+  ): Promise<CommentPage>;
   add(input: NewCommentInput): Promise<Comment>;
   /** Delete one of the caller's own comments (RLS enforces ownership too). */
   remove(id: string, userId: string): Promise<void>;

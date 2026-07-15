@@ -27,7 +27,7 @@ import { computeTasteProfile } from '@/taste/profile';
 import { resolveFavorites } from '@/social/favorites';
 import { socialBackend } from '@/social/provider';
 import { useSocial } from '@/social/store';
-import type { SocialEvent } from '@/social/types';
+import type { Profile, SocialEvent } from '@/social/types';
 
 const TOP_COUNT = 5;
 
@@ -54,9 +54,17 @@ export default function UserProfileScreen() {
 
   const [theirs, setTheirs] = useState<RankedItem[] | null>(null);
   const [activity, setActivity] = useState<SocialEvent[]>([]);
+  const [fetchedProfile, setFetchedProfile] = useState<Profile | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+    // Resolve the profile by id rather than trusting the directory to contain it.
+    socialBackend
+      .profilesByIds([userId])
+      .then((found) => {
+        if (!cancelled) setFetchedProfile(found[0] ?? null);
+      })
+      .catch((e: unknown) => console.warn('[user] profile load failed:', e));
     // Only their real stored ratings — no demo-seed fallback, or every new
     // user would show an identical fake list (and a fake ~100% match).
     ratingsBackend
@@ -79,11 +87,16 @@ export default function UserProfileScreen() {
   }, [userId]);
 
   const following = followingIds.has(userId);
-  const theirProfile = people.find((p) => p.userId === userId);
+  // Prefer the directory (already in memory, so the page paints immediately) but
+  // never depend on it: `people` is one page of a searchable directory, so the
+  // person whose profile this is may simply not be in it. Falling back to a
+  // by-id fetch is what keeps a profile openable from a deep link or a feed
+  // avatar rather than rendering a nameless shell.
+  const theirProfile = people.find((p) => p.userId === userId) ?? fetchedProfile;
   const compat: Compatibility | null = theirs ? compatibility(mine, theirs) : null;
   // Their chosen Top 4 (only when explicitly picked — the ranked list below
   // already covers the fallback).
-  const favoriteIds = people.find((p) => p.userId === userId)?.favorites;
+  const favoriteIds = theirProfile?.favorites;
   const theirTop4 = theirs ? resolveFavorites(favoriteIds, theirs) : null;
 
   return (
