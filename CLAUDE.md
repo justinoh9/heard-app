@@ -188,8 +188,29 @@ retention, differentiators).
   is silent (private intent). Backends read tag status via `select *` and
   degrade gracefully pre-0017 (missing status → attended/confirmed; attended
   logging still works — only wishlist/confirm/mark-attended need the migration).
-  *Deferred (needs a maps dep decision):* venue autocomplete + lat/lng and the
-  literal map view.
+  **The map** (`0018_concert_geo.sql` — nullable `lat`/`lng`): venue
+  autocomplete runs on **Photon** (`geocode.ts`, the `VenueGeocoder` seam,
+  singleton in `provider.ts`) — an OpenStreetMap geocoder picked for the same
+  reasons as iTunes: keyless, no backend, no secret, and CORS-open so `fetch`
+  works on web. (Nominatim is better known but its policy forbids
+  autocomplete-shaped queries.) Pure `parsePhoton` holds every mapping decision
+  and is unit-tested; the transport just fetches. Picking a suggestion is what
+  sets `lat`/`lng` — a hand-typed venue still logs fine, it just gets no dot, and
+  `toConcertRow` omits the columns when unset so inserts work pre-0018.
+  `components/concert-map.tsx` is a **stylized SVG poster**, deliberately not a
+  tile map (no map SDK, no key, no billing; renders on web + native + the static
+  export, reusing `react-native-svg`). All its geometry is pure and tested in
+  `map.ts` — equirectangular `projectPoint`, `venuePoints` (fold shows → dots,
+  deduped ~100m and sized by count), `viewBoxFor` (auto-fit to the viewer's
+  shows), and `unitsPerPixel` (keeps dots a constant *screen* size at any zoom;
+  the component measures its width via `onLayout` so the fitted box matches the
+  real aspect and SVG can't letterbox it). `world.ts` stores coastlines as
+  `[lng,lat]` rings — **not** a pre-baked SVG path — so land projects through the
+  same function as the pins and cannot drift out of alignment. **Every ring must
+  be simple:** a self-intersecting ring fills its own interior (an early draft
+  traced all of Eurasia at once and painted the Mediterranean solid), so Europe /
+  Asia / Italy are separate overlapping rings and `world.test.ts` enforces
+  simplicity, cities-on-land, and seas-stay-wet.
 - `src/comments/` — `CommentsBackend` seam; `SupabaseCommentsBackend` is the
   only implementation (Supabase-backed from day one — see "Supabase" below).
   Users can delete their own comments (trash icon on the item page).

@@ -25,6 +25,10 @@ export interface Concert {
   artistId?: string;
   venue?: string;
   city?: string;
+  /** Venue latitude (0018), when the venue was picked from autocomplete. */
+  lat?: number;
+  /** Venue longitude (0018). Absent for hand-typed venues — those skip the map. */
+  lng?: number;
   /** 'YYYY-MM-DD'. */
   showDate: string;
   /** Performance rating, 0–10 (same scale as music). Absent on a wishlist show. */
@@ -44,6 +48,8 @@ export interface NewConcert {
   artistId?: string;
   venue?: string;
   city?: string;
+  lat?: number;
+  lng?: number;
   showDate: string;
   score?: number;
   notes?: string;

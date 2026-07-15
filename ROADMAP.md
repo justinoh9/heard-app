@@ -214,7 +214,7 @@ follow) is entirely real.
 
 ## Phase 3 — Differentiators (what neither Beli nor Letterboxd has)
 
-- [~] **Concert layer v2** — the stated wedge. **Shipped 2026-07-14
+- [x] **Concert layer v2** — the stated wedge. **Shipped 2026-07-14
       (`0017_concert_v2.sql`):** a dedicated `/concerts` screen (Attended / Want
       to go / Invites tabs); a **"want to go" wishlist** (`concerts.status`
       attended|wishlist — a wishlist entry is silent, no feed event, and can be
@@ -225,10 +225,23 @@ follow) is entirely real.
       `invitesFor` (unit-tested); backends read tag status via `select *` and
       degrade gracefully pre-migration (attended logging keeps working; only the
       new actions need 0017). Profile "shows" now counts attended-only and links
-      to `/concerts`. *Remaining (needs a maps dependency decision):* venue
-      autocomplete + lat/lng geocoding and the literal **map view** of shows
-      attended — deliberately deferred so the fragile static export isn't
-      destabilized by a map SDK.
+      to `/concerts`.
+      **The map shipped 2026-07-15 (`0018_concert_geo.sql`)** — nullable
+      `lat`/`lng` on `concerts`, fed by keyless **venue autocomplete** (Photon /
+      OpenStreetMap behind a `VenueGeocoder` seam; Nominatim's policy forbids
+      per-keystroke queries, Photon exists for it). The map itself is a
+      **stylized SVG poster**, not a tile map: `concerts/world.ts` holds coarse
+      coastlines as `[lng,lat]` rings, `concerts/map.ts` projects them through
+      the *same* equirectangular function as the show pins (so land and dots
+      can't drift apart) and auto-fits the viewBox to where you've actually
+      been. Chosen over `react-native-maps` (native-only — the web deploy is the
+      ad surface) and Leaflet (DOM-only, and would risk the static export):
+      zero new dependencies, reuses `react-native-svg`, renders identically on
+      web/native/SSG. Pure + unit-tested (`map.test.ts`, `world.test.ts` — the
+      latter enforces ring simplicity and keeps cities on land / seas wet, after
+      a self-intersecting draft painted the Mediterranean solid).
+      *Follow-ups:* a public map on `/user/[id]`, backfilling coordinates for
+      already-logged venues, and clustering if anyone logs hundreds of shows.
 - [~] **Share cards** — **shipped: a Wrapped/#1 share card.** A share action on
       the Wrapped screen opens `src/app/share-card.tsx`, which renders a branded,
       fixed-size `components/share-card.tsx` (wordmark, your #1, headline stats,
@@ -237,8 +250,14 @@ follow) is entirely real.
       exported image carries the wordmark, so each share is an acquisition
       surface. *Remaining:* a dedicated Top-4 card variant and a per-artist /
       per-decade card; a signed-in smoke test of the capture on device + web.
-- [ ] **Badges / achievements** — concert milestones, genre explorer, streak
-      tiers, "first to rate". Cheap retention on top of existing counts.
+- [x] **Badges / achievements** — shipped 2026-07-14 (`src/badges/`,
+      `src/app/badges.tsx`, a Badges card on the Profile). 16 badges across 6
+      families (logging milestones, concert milestones, genre explorer, decade
+      range, streak tiers, rating style) computed by pure, unit-tested
+      `compute.ts` over the ranked list + concerts + streaks — **no migration**,
+      it's a read-time fold over counts that already exist. Earned and
+      in-progress are shown separately so the next one is always visible.
+      *Follow-up:* a feed event when a badge is earned (currently silent).
 - [~] **Elo engine** — **shipped 2026-07-14.** `EloEngine implements
       RankingEngine` (`src/ranking/engine.ts`), replaying the banked
       `comparisons` through pure, unit-tested `elo.ts` (`computeEloRatings` /

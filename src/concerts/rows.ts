@@ -6,7 +6,10 @@
 
 import type { Concert, ConcertStatus, ConcertTag, NewConcert, TagStatus } from './types';
 
-/** public.concerts select shape. `status` is absent pre-0017 → treated attended. */
+/**
+ * public.concerts select shape. `status` is absent pre-0017 → treated attended;
+ * `lat`/`lng` are absent pre-0018 → the show simply has no map dot.
+ */
 export interface ConcertRow {
   id: string;
   user_id: string;
@@ -19,6 +22,8 @@ export interface ConcertRow {
   notes: string | null;
   created_at: string;
   status?: string | null;
+  lat?: number | null;
+  lng?: number | null;
 }
 
 /** public.concert_tags select shape. `status` absent pre-0017 → confirmed. */
@@ -41,6 +46,8 @@ export function fromConcertRow(row: ConcertRow, tags: ConcertTag[]): Concert {
     artistId: row.artist_id ?? undefined,
     venue: row.venue ?? undefined,
     city: row.city ?? undefined,
+    lat: row.lat ?? undefined,
+    lng: row.lng ?? undefined,
     showDate: row.show_date,
     score: row.score ?? undefined,
     notes: row.notes ?? undefined,
@@ -51,9 +58,10 @@ export function fromConcertRow(row: ConcertRow, tags: ConcertTag[]): Concert {
 }
 
 /**
- * Insert shape for a new show. `status` is only included when it's a wishlist
- * entry: omitting it for an attended show lets the row insert fine even before
- * 0017 adds the column (the DB default is 'attended').
+ * Insert shape for a new show. Columns added by later migrations are only
+ * included when they carry a value, so the insert still works against a project
+ * that hasn't applied them yet: `status` only for a wishlist entry (the DB
+ * default is 'attended'), and `lat`/`lng` only for a geocoded venue (0018).
  */
 export function toConcertRow(c: NewConcert): Record<string, unknown> {
   const row: Record<string, unknown> = {
@@ -67,7 +75,26 @@ export function toConcertRow(c: NewConcert): Record<string, unknown> {
     notes: c.notes ?? null,
   };
   if (c.status === 'wishlist') row.status = 'wishlist';
+  // Both or neither — half a coordinate is worse than none.
+  if (hasCoords(c)) {
+    row.lat = c.lat;
+    row.lng = c.lng;
+  }
   return row;
+}
+
+/** True when the show carries a usable, in-range coordinate pair. */
+export function hasCoords<T extends { lat?: number; lng?: number }>(
+  c: T,
+): c is T & { lat: number; lng: number } {
+  return (
+    typeof c.lat === 'number' &&
+    typeof c.lng === 'number' &&
+    Number.isFinite(c.lat) &&
+    Number.isFinite(c.lng) &&
+    Math.abs(c.lat) <= 90 &&
+    Math.abs(c.lng) <= 180
+  );
 }
 
 /** Newest show first; ties broken by log time so ordering is stable. */

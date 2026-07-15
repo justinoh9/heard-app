@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { useAuth } from '@/auth/store';
+import { ConcertMap } from '@/components/concert-map';
 import { EmptyState } from '@/components/empty-state';
 import { GuestGate } from '@/components/guest-gate';
 import { PageContainer } from '@/components/page-container';
@@ -93,6 +94,11 @@ export default function ConcertsScreen() {
             onChange={(v) => setTab(v as Tab)}
             testIDPrefix="concerts-tab"
           />
+
+          {/* The wedge: where you've been. Only over attended shows — a
+              wishlist isn't a place you've stood, and invites aren't yours yet.
+              Hidden on the empty list, where EmptyState already says its piece. */}
+          {tab === 'attended' && attended.length > 0 && <ConcertMap concerts={attended} />}
 
           {tab === 'wishlist' && (
             <Pressable

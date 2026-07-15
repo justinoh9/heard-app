@@ -50,6 +50,8 @@ export class LocalConcertsBackend implements ConcertsBackend {
       artistId: concert.artistId,
       venue: concert.venue,
       city: concert.city,
+      lat: concert.lat,
+      lng: concert.lng,
       showDate: concert.showDate,
       score: concert.score,
       notes: concert.notes,
