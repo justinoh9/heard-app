@@ -72,8 +72,16 @@ begin
 
   -- Avatar: files live at `<uid>/avatar.<ext>` (0015), so the first path
   -- segment identifies the owner.
-  delete from storage.objects
-    where bucket_id = 'avatars' and (storage.foldername(name))[1] = uid;
+  -- The avatar is NOT deleted here. Supabase guards its storage tables with a
+  -- `storage.protect_delete()` trigger that rejects direct DML ("Direct deletion
+  -- from storage tables is not allowed. Use the Storage API instead."), so the
+  -- line that used to live here didn't merely fail to remove the file — it threw,
+  -- and took the whole account deletion down with it. It was there from 0020 and
+  -- never once worked.
+  --
+  -- The client removes the avatar through the Storage API *before* calling this
+  -- function, while the account still exists to authorize it (the bucket's RLS is
+  -- owner-scoped). See SupabaseAuthBackend.removeAvatar.
 
   -- Deliberately NOT touched: public.items. It's the shared, insert-only
   -- catalog cache (title/artist/art for songs everyone rates) — it holds no

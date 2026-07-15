@@ -167,8 +167,8 @@ retention, differentiators).
   `auth.users` row needs privileges the client can't hold, and this avoids an
   Edge Function + service-role key + CLI deploy. It takes **no arguments** (the
   target is `auth.uid()`, so a caller can't name a victim) and pins
-  `search_path = ''` with everything schema-qualified. It clears all 16
-  user-keyed tables + the Storage avatar, and deliberately spares `public.items`
+  `search_path = ''` with everything schema-qualified. It clears all
+  user-keyed tables and deliberately spares `public.items`
   (shared catalog cache — no personal data, and other users' ratings point at
   it). The Local impl **sweeps keys by pattern** (`heard.*.<userId>`) rather
   than a hardcoded list, because a literal list silently rots the next time a
@@ -548,3 +548,23 @@ first.** Backends `select *` and omit new columns when unset (`toConcertRow` sin
 0018), and where a query can't avoid naming a new column, catch Postgres `42703`
 and fall back to the pre-migration shape (`SupabaseCommentsBackend
 .listForItemPre0016`). Run `check:live` before assuming a feature is live.
+
+### The avatar is deleted by the client, not by `delete_own_account()`
+Supabase guards its storage tables with a **statement-level** `storage.protect_delete()`
+trigger that rejects direct DML (*"Use the Storage API instead"*). From 0020 until
+Phase 4, `delete_own_account()` ended with a `delete from storage.objects` — so it
+threw `42501` and **the Delete Account button never worked once**. Nothing caught
+it: the RPC existed and correctly rejected anon, which is what got checked; that
+proves a function exists, not that it runs.
+
+So `SupabaseAuthBackend.removeAvatar` deletes the file through the Storage API
+**before** calling the RPC — the bucket's RLS is owner-scoped (0015), so
+authorization dies with the account and doing it after would orphan the photo
+publicly forever. "Nothing to delete" counts as success (no avatar, or 0015 never
+run); anything else throws so the caller retries with the account intact.
+
+`supabase/test/bootstrap.sql` now mirrors that trigger — **statement-level, which
+is load-bearing**: a row-level copy only fires when the DELETE matches something,
+so a probe user with no avatar sails through and the harness certifies the bug
+again. A stand-in that is more permissive than production doesn't just miss bugs,
+it vouches for them.

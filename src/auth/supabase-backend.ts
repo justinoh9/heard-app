@@ -26,6 +26,18 @@ function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
+/**
+ * "The thing you asked me to delete isn't there" — which, for a delete, is the
+ * outcome we wanted. Matched on the message because supabase-js's StorageError
+ * doesn't carry a stable code for these, and the alternative (treating every
+ * error as fatal) would trap a user with no avatar inside an account they asked
+ * to close.
+ */
+function isMissingStorageTarget(message: string): boolean {
+  const m = message.toLowerCase();
+  return m.includes('not found') || m.includes('does not exist');
+}
+
 /** Map a Supabase auth user onto the app's `User` shape. */
 function toUser(u: SupabaseUser): User {
   // Email/password sets display_name; OAuth providers (Google/Spotify) populate
@@ -133,8 +145,52 @@ export class SupabaseAuthBackend implements AuthBackend {
    * must never have. The function takes no arguments and derives the target from
    * `auth.uid()`, so the client cannot name a victim.
    */
+  /**
+   * Remove the user's avatar through the Storage API.
+   *
+   * This used to be a `delete from storage.objects` inside delete_own_account(),
+   * which never worked: Supabase puts a `storage.protect_delete()` trigger on
+   * those tables that rejects direct DML ("Use the Storage API instead"). The
+   * whole deletion failed on that line, every time.
+   *
+   * It runs BEFORE the RPC on purpose. The bucket's RLS scopes objects to their
+   * owner (`<uid>/avatar.<ext>`, 0015), so authorization to delete the file dies
+   * with the account — do it after and the photo is orphaned, public, forever.
+   *
+   * "Nothing to delete" is success, not failure: a user with no avatar, or a
+   * project that never ran 0015, must still be able to close their account.
+   * Anything else throws, so the caller retries the whole flow with the account
+   * intact rather than leaving a photo of someone who asked to be erased.
+   */
+  private async removeAvatar(userId: string): Promise<void> {
+    const supabase = getSupabase();
+    const bucket = supabase.storage.from('avatars');
+
+    const listed = await bucket.list(userId);
+    if (listed.error) {
+      if (isMissingStorageTarget(listed.error.message)) return;
+      throw new AuthError(`Could not check your avatar: ${listed.error.message}`);
+    }
+    if (!listed.data?.length) return;
+
+    // The extension varies (0015 stores `<uid>/avatar.<ext>`), so remove whatever
+    // is actually in the folder rather than guessing at the name.
+    const paths = listed.data.map((f) => `${userId}/${f.name}`);
+    const removed = await bucket.remove(paths);
+    if (removed.error && !isMissingStorageTarget(removed.error.message)) {
+      throw new AuthError(`Could not delete your avatar: ${removed.error.message}`);
+    }
+  }
+
   async deleteAccount(): Promise<void> {
     const supabase = getSupabase();
+
+    // Needs the uid before the account is gone, and from the server rather than
+    // from local state — deleting the wrong user's avatar is unrecoverable.
+    const { data, error: userError } = await supabase.auth.getUser();
+    if (userError || !data.user) throw new AuthError('You need to be signed in to delete your account.');
+    await this.removeAvatar(data.user.id);
+
     const { error } = await supabase.rpc('delete_own_account');
     if (error) throw new AuthError(error.message);
 

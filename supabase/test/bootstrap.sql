@@ -127,3 +127,39 @@ begin
   return parts[1 : array_length(parts, 1) - 1];
 end;
 $$;
+
+/*
+ * Supabase refuses direct DML against its storage tables and tells you to use the
+ * Storage API. Reproducing that here is not pedantry — it is the single most
+ * expensive thing this file has learned.
+ *
+ * `delete_own_account()` carried a `delete from storage.objects` from 0020
+ * onwards. It ran fine against a permissive local stand-in and threw 42501 on the
+ * real project *every single time*, which meant the Delete Account button — an
+ * Apple requirement — had never once worked, and nothing here noticed, because
+ * the harness was more permissive than production.
+ *
+ * A stand-in that accepts what production rejects doesn't just fail to catch
+ * bugs; it actively certifies them.
+ */
+create or replace function storage.protect_delete()
+returns trigger
+language plpgsql
+as $$
+begin
+  raise exception 'Direct deletion from storage tables is not allowed. Use the Storage API instead.'
+    using errcode = '42501',
+          hint = 'This prevents accidental data loss from orphaned objects.';
+end;
+$$;
+
+-- FOR EACH STATEMENT, not FOR EACH ROW. This distinction is the reason the bug
+-- survived a second time: a row-level trigger only fires when the DELETE actually
+-- matches something, so `delete from storage.objects where <nobody's avatar>`
+-- passes silently — which is exactly what a self-test with no avatar does. The
+-- real one rejects the statement regardless of what it would have matched, which
+-- is why production threw on a user who had no avatar at all.
+drop trigger if exists protect_delete_objects on storage.objects;
+create trigger protect_delete_objects
+  before delete on storage.objects
+  for each statement execute function storage.protect_delete();
