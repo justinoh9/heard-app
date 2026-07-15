@@ -336,15 +336,12 @@ begin
   end if;
 
   -- ---- deleting the joiner releases the code, keeps the inviter whole ----
+  -- No auth.users row is created for the probe: that table belongs to
+  -- supabase_auth_admin and a real project refuses the insert, so a test that
+  -- needed one would only ever pass on a local Postgres. delete_own_account's
+  -- final DELETE is a harmless no-op for an id that was never an account, and
+  -- every step before it — the part this asserts — still runs.
   perform set_config('request.jwt.claims', json_build_object('sub', joiner)::text, true);
-  insert into auth.users (id, instance_id, aud, role, email)
-    values (
-      joiner::uuid,
-      '00000000-0000-0000-0000-000000000000',
-      'authenticated',
-      'authenticated',
-      'invites-selftest@probe.invalid'
-    );
   perform public.delete_own_account();
   select count(*) into n from public.invites where inviter_id = inviter;
   if n = 0 then

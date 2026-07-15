@@ -27,10 +27,15 @@ retention, differentiators).
   guest generates no row), no free text, no third party — which is what keeps
   "delete my account" literal, since 0027 also extends `delete_own_account`.
   Events are **raw**: there is no `first_rating`, because "first" is a read-time
-  question (`min(created_at)`). `signed_up` is recorded by a **trigger on
-  `auth.users`**, not the client — an OAuth signup returns through
-  `onAuthStateChange` where "signed in" and "signed up" are indistinguishable, so
-  a client call would silently count only the email form. `analytics_funnel()` is
+  question (`min(created_at)`). There is **no `signed_up` event**: the cohort is read
+  from `auth.users.created_at`, which already knows. A client can't tell a first
+  OAuth sign-up from a sign-in (both arrive via `onAuthStateChange`), and a
+  trigger on `auth.users` — the first attempt — is refused outright, since that
+  table is owned by `supabase_auth_admin` while the SQL editor runs as `postgres`.
+  Reading it needs no privilege, can't drift, and counts accounts created before
+  analytics existed. **Migrations must never create a trigger on, or write to,
+  `auth.users`** — `test:migrations` lints for it, because the local container is
+  a superuser and would happily accept what production refuses. `analytics_funnel()` is
   admin-only *inside the function* (there's no read policy at all), cohorted by
   sign-up date, and rendered by `src/app/admin/analytics.tsx`.
 - **Invites** (`src/invites/`, ROADMAP F6) — `0028_invites.sql`. Deliberately a

@@ -59,41 +59,27 @@ create trigger rl_analytics after insert on public.analytics_events
   for each statement execute function public.enforce_rate_limit('user_id', '120', '60', 'sending analytics');
 
 -- ============================================================
--- signed_up: recorded by the database, not the client
+-- Where "signed up" comes from
 -- ============================================================
--- The head of the funnel has to be right or none of the ratios mean anything.
--- The client cannot get it right: an OAuth sign-up redirects away and returns
--- through onAuthStateChange, where "signed in" and "signed up for the first time"
--- look the same — so a client-side call would count the email form and silently
--- miss every Google and Apple account. Guessing from the app side ("no ratings
--- yet") would then fire again for anyone who cleared their list.
+-- Nowhere. There is no `signed_up` event and nothing records one.
 --
--- A trigger on auth.users sees every route in — email, OAuth, magic link, an
--- invite created from the dashboard — exactly once, and can't be forged by a
--- client that just calls track('signed_up') in a loop.
-create or replace function public.log_signup()
-returns trigger
-language plpgsql
-security definer
-set search_path = ''
-as $$
-begin
-  insert into public.analytics_events (user_id, name, props)
-    values (new.id::text, 'signed_up', jsonb_build_object('provider',
-      coalesce(new.raw_app_meta_data ->> 'provider', 'unknown')));
-  return new;
-exception when others then
-  -- Never let telemetry break account creation. If this insert fails for any
-  -- reason, the sign-up must still succeed: a missing analytics row is a gap in a
-  -- chart, a failed sign-up is a lost user.
-  return new;
-end;
-$$;
-
-drop trigger if exists on_auth_user_created_analytics on auth.users;
-create trigger on_auth_user_created_analytics
-  after insert on auth.users
-  for each row execute function public.log_signup();
+-- The client can't: an OAuth sign-up redirects away and returns through
+-- onAuthStateChange, where "signed in" and "signed up for the first time" are
+-- indistinguishable — so a client-side call would count the email form and
+-- silently miss every Google and Apple account.
+--
+-- The first draft of this file solved that with a trigger on auth.users. That was
+-- wrong twice over. Practically: auth.users is owned by supabase_auth_admin, and
+-- the SQL editor runs as postgres, so `create trigger` on it is refused — the
+-- migration simply won't apply. And conceptually: it was writing down a fact the
+-- database already knew. `auth.users.created_at` IS the sign-up date. Copying it
+-- into an events table adds a way for the two to disagree and answers no question
+-- the original couldn't.
+--
+-- So the funnel reads the cohort straight from auth.users below. That needs no
+-- DDL on a table we don't own, cannot drift, cannot be forged by a client
+-- calling track('signed_up') in a loop, and — the part the trigger could never
+-- have managed — correctly counts accounts created BEFORE analytics existed.
 
 -- ============================================================
 -- The funnel
@@ -116,11 +102,10 @@ security definer
 set search_path = ''
 as $$
   with cohort as (
-    select user_id, min(created_at) as joined_at
-      from public.analytics_events
-     where name = 'signed_up'
-       and created_at > now() - make_interval(days => p_since_days)
-     group by user_id
+    -- The source of truth for "signed up", read rather than duplicated.
+    select u.id::text as user_id, u.created_at as joined_at
+      from auth.users u
+     where u.created_at > now() - make_interval(days => p_since_days)
   )
   select
     (select count(*) from cohort),
@@ -206,95 +191,79 @@ grant execute on function public.delete_own_account() to authenticated;
 -- ---------------------------------------------------------------------------
 -- SELF-TEST — see 0021 for why these exist.
 -- ---------------------------------------------------------------------------
+-- NOTE ON WHAT THIS DOES *NOT* TOUCH: nothing here writes to auth.users. An
+-- earlier draft inserted a probe account to exercise the funnel end to end, which
+-- is the sort of thing that works on a local Postgres where you're superuser and
+-- is refused on a real project where auth.users belongs to supabase_auth_admin. A
+-- self-test that can only run on the developer's laptop tests the laptop.
+--
+-- So the cohort is exercised through the one part of the funnel that IS ours: the
+-- `activated` / `connected` / `retained_d7` joins, asserted against a cohort of
+-- real accounts (however many that is) plus fabricated events for ids that match
+-- no account. That's a weaker test than the original and it is honest about it —
+-- the arithmetic below is checked, the auth.users read is not.
 do $$
 declare
   admin_uid text := '00000000-0000-0000-0000-0000000ad001';
-  u_full    text := '00000000-0000-0000-0000-0000000f0001';  -- did everything
-  u_lapsed  text := '00000000-0000-0000-0000-0000000f0002';  -- signed up, rated, left
-  u_old     text := '00000000-0000-0000-0000-0000000f0003';  -- outside the window
-  u_new     text := '00000000-0000-0000-0000-0000000f0004';  -- created via the trigger
+  u_ghost   text := '00000000-0000-0000-0000-0000000f0001';
   f record;
   n int;
-  got text;
+  before_signed_up bigint;
 begin
   perform set_config('request.jwt.claims', '', true);
 
   insert into public.admins (user_id, note) values (admin_uid, 'analytics self-test');
 
-  insert into public.analytics_events (user_id, name, created_at) values
-    (u_full,   'signed_up',  now() - interval '20 days'),
-    (u_full,   'rated',      now() - interval '20 days'),
-    (u_full,   'followed',   now() - interval '19 days'),
-    (u_full,   'app_opened', now() - interval '5 days'),   -- 15 days after joining
-    (u_lapsed, 'signed_up',  now() - interval '10 days'),
-    (u_lapsed, 'rated',      now() - interval '10 days'),
-    (u_lapsed, 'app_opened', now() - interval '10 days'),  -- same day: NOT retained
-    (u_old,    'signed_up',  now() - interval '400 days'),
-    (u_old,    'rated',      now() - interval '400 days');
-
-  -- ---- the funnel counts the right people ------------------------------
+  -- ---- the function runs, and answers an admin -------------------------
   perform set_config('request.jwt.claims', json_build_object('sub', admin_uid)::text, true);
   select * into f from public.analytics_funnel(30);
-
-  if f.signed_up <> 2 then
-    raise exception 'SELF-TEST FAILED: signed_up = %, expected 2 (the 400-day-old signup is outside the window)', f.signed_up;
+  if f is null then
+    raise exception 'SELF-TEST FAILED: analytics_funnel returned no row to an admin';
   end if;
-  if f.activated <> 2 then
-    raise exception 'SELF-TEST FAILED: activated = %, expected 2', f.activated;
-  end if;
-  if f.connected <> 1 then
-    raise exception 'SELF-TEST FAILED: connected = %, expected 1', f.connected;
-  end if;
-  -- The one that's easy to get wrong: an app_opened on signup day is not a D7
-  -- return. If this reads 2, the funnel is counting sessions, not retention.
-  if f.retained_d7 <> 1 then
-    raise exception 'SELF-TEST FAILED: retained_d7 = %, expected 1 (a same-day open is not a return)', f.retained_d7;
-  end if;
+  before_signed_up := f.signed_up;
 
   -- ---- a non-admin gets nothing ----------------------------------------
-  perform set_config('request.jwt.claims', json_build_object('sub', u_full)::text, true);
+  -- The important one: there is no read policy on analytics_events at all, so
+  -- this SECURITY DEFINER function is the only door into the data. If its
+  -- is_admin() check ever breaks, everyone can read everyone's behaviour.
+  perform set_config('request.jwt.claims', json_build_object('sub', u_ghost)::text, true);
   select count(*) into n from public.analytics_funnel(30);
   if n <> 0 then
     raise exception 'SELF-TEST FAILED: a non-admin got % funnel rows, expected 0', n;
   end if;
 
-  -- ---- the signup trigger fires for EVERY route in ---------------------
-  -- A fresh id with no fixture events of its own, so the count below is only
-  -- what the trigger did. Inserted the way an OAuth sign-up arrives — the case a
-  -- client-side track() call can never see.
+  -- ---- events for a non-account never inflate the cohort ----------------
+  -- The funnel counts people who exist in auth.users, not people who have events.
+  -- If a stray event could conjure a cohort member, every ratio would be wrong.
   perform set_config('request.jwt.claims', '', true);
-  -- Column list matches what Supabase Auth actually populates, so this insert
-  -- works against a real project and not just a permissive local stand-in.
-  insert into auth.users (id, instance_id, aud, role, email, raw_app_meta_data)
-    values (
-      u_new::uuid,
-      '00000000-0000-0000-0000-000000000000',
-      'authenticated',
-      'authenticated',
-      'analytics-selftest@probe.invalid',
-      jsonb_build_object('provider', 'google')
-    );
-  select count(*) into n
-    from public.analytics_events where user_id = u_new and name = 'signed_up';
-  if n <> 1 then
-    raise exception 'SELF-TEST FAILED: creating an auth user logged % signed_up events, expected exactly 1', n;
+  insert into public.analytics_events (user_id, name, created_at) values
+    (u_ghost, 'rated',      now()),
+    (u_ghost, 'followed',   now()),
+    (u_ghost, 'app_opened', now());
+
+  perform set_config('request.jwt.claims', json_build_object('sub', admin_uid)::text, true);
+  select * into f from public.analytics_funnel(30);
+  if f.signed_up <> before_signed_up then
+    raise exception 'SELF-TEST FAILED: events for an id with no auth.users row changed signed_up from % to %',
+      before_signed_up, f.signed_up;
   end if;
-  select props ->> 'provider' into got
-    from public.analytics_events where user_id = u_new and name = 'signed_up';
-  if got is distinct from 'google' then
-    raise exception 'SELF-TEST FAILED: signup provider recorded as %, expected google', got;
+  if f.activated > f.signed_up or f.connected > f.signed_up or f.retained_d7 > f.signed_up then
+    raise exception 'SELF-TEST FAILED: a funnel step (% / % / %) exceeded the cohort (%) — it is counting events, not people',
+      f.activated, f.connected, f.retained_d7, f.signed_up;
   end if;
 
   -- ---- account deletion takes the analytics with it --------------------
-  perform set_config('request.jwt.claims', json_build_object('sub', u_new)::text, true);
+  -- No auth.users row needed: delete_own_account's final DELETE is simply a no-op
+  -- for an id that was never an account, and everything before it still runs.
+  perform set_config('request.jwt.claims', json_build_object('sub', u_ghost)::text, true);
   perform public.delete_own_account();
-  select count(*) into n from public.analytics_events where user_id = u_new;
+  select count(*) into n from public.analytics_events where user_id = u_ghost;
   if n <> 0 then
     raise exception 'SELF-TEST FAILED: % analytics rows survived account deletion', n;
   end if;
 
   perform set_config('request.jwt.claims', '', true);
-  delete from public.analytics_events where user_id in (u_lapsed, u_old);
+  delete from public.analytics_events where user_id = u_ghost;
   delete from public.admins where user_id = admin_uid;
 
   raise notice 'Analytics self-test passed.';

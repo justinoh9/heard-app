@@ -49,3 +49,11 @@ from generate_series(1, 3) as g(i);
 insert into public.follows (follower_id, followee_id) values
   ('11111111-1111-1111-1111-111111111001', '11111111-1111-1111-1111-111111111002')
 on conflict do nothing;
+
+-- Real accounts, so pass 2 exercises the funnel against a non-empty cohort
+-- (analytics_funnel reads auth.users.created_at rather than an events table).
+insert into auth.users (id, instance_id, aud, role, email, created_at) values
+  ('11111111-1111-1111-1111-111111111001', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'maya@seed.invalid',  now() - interval '20 days'),
+  ('11111111-1111-1111-1111-111111111002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'devon@seed.invalid', now() - interval '10 days'),
+  ('11111111-1111-1111-1111-111111111003', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'priya@seed.invalid', now() - interval '400 days')
+on conflict (id) do nothing;

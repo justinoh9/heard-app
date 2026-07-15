@@ -66,6 +66,26 @@ psql_file() {
     psql -U postgres -d jelli -q -v ON_ERROR_STOP=1 -f - < "$1"
 }
 
+# ---- LINT: things that work here and are refused by a real project ------------
+#
+# This container runs as a superuser that owns everything, so it will happily
+# accept DDL and writes on `auth.users` that Supabase refuses — that table is
+# owned by supabase_auth_admin, and the SQL editor runs as postgres. A migration
+# doing either passes every test here and then cannot be applied at all, which is
+# the worst possible place to find out. Reading auth.users (the analytics funnel's
+# cohort) is fine; owning it is not.
+dim "Linting migrations for operations a real Supabase project would refuse…"
+lint_hits=$(grep -nEi '(create|drop)[[:space:]]+trigger[^;]*[[:space:]]on[[:space:]]+auth\.users|insert[[:space:]]+into[[:space:]]+auth\.users|alter[[:space:]]+table[[:space:]]+auth\.users' \
+  "$HERE"/supabase/migrations/*.sql | grep -v '^\s*--' | grep -vE ':[0-9]+:\s*--' || true)
+if [ -n "$lint_hits" ]; then
+  red "  Migrations must not own or write auth.users (Supabase refuses it):"
+  printf '%s\n' "$lint_hits" | sed 's/^/    /'
+  red "  Read it instead (the funnel reads created_at), or drop the dependency."
+  exit 1
+fi
+green "  ok   no migration owns or writes auth.users"
+echo
+
 dim "Applying supabase/test/bootstrap.sql (Supabase stand-ins)…"
 if ! psql_file "$HERE/supabase/test/bootstrap.sql"; then
   red "bootstrap.sql failed — the harness itself is broken, not your migration."

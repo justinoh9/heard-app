@@ -21,8 +21,10 @@
  * never needs a migration.
  */
 export type AnalyticsEventName =
-  /** A new account was created. The head of the funnel. */
-  | 'signed_up'
+  // There is deliberately no `signed_up`. The head of the funnel is read from
+  // auth.users.created_at, which already knows — see 0027. A client can't tell a
+  // first OAuth sign-up from a sign-in anyway, so an event here would have
+  // undercounted forever.
   /** The app was opened by a signed-in user. Drives D7 retention. */
   | 'app_opened'
   /** A rating was committed — activation. */
