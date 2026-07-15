@@ -169,12 +169,18 @@ export function viewBoxFor(points: MapPoint[], opts: ViewBoxOptions = {}): ViewB
  *
  * An SVG viewBox scales its contents, so a dot with a fixed world-unit radius
  * balloons as the box zooms into one city. Multiplying a pixel size by this
- * keeps dots and strokes visually constant at any zoom. Derived from height
- * alone because `viewBoxFor` already matched the box to the rendered aspect,
- * so `view.w / widthPx` gives the same answer.
+ * keeps dots and strokes visually constant at any zoom.
+ *
+ * Takes both axes and uses the smaller scale, mirroring SVG's default
+ * `preserveAspectRatio="xMidYMid meet"`. When `viewBoxFor` matched the box's
+ * aspect the two agree exactly; when it couldn't — the empty-map case returns
+ * the whole world regardless of aspect — SVG letterboxes, and only the
+ * constraining axis reflects the real scale.
  */
-export function unitsPerPixel(view: ViewBox, renderedHeightPx: number): number {
-  return renderedHeightPx > 0 ? view.h / renderedHeightPx : 1;
+export function unitsPerPixel(view: ViewBox, widthPx: number, heightPx: number): number {
+  if (widthPx <= 0 || heightPx <= 0) return 1;
+  const scale = Math.min(widthPx / view.w, heightPx / view.h);
+  return scale > 0 ? 1 / scale : 1;
 }
 
 /** `viewBox` attribute string for an SVG. */

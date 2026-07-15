@@ -53,23 +53,23 @@ export function ConcertMap({ concerts }: { concerts: Concert[] }) {
   // from height — would size every dot wrong.
   const view = viewBoxFor(points, width > 0 ? { aspect: width / HEIGHT } : {});
   // World units per pixel — keeps dots a constant size however far we zoom.
-  const u = unitsPerPixel(view, HEIGHT);
+  const u = unitsPerPixel(view, width, HEIGHT);
 
   const active = points.find((p) => p.key === selected);
 
-  // Nothing geocoded yet: the map would be an empty world with no dots, which
-  // reads as broken rather than as "add a venue". Say so instead.
-  if (points.length === 0) {
-    return (
-      <View style={[styles.hint, { borderColor: theme.backgroundSelected }]}>
-        <ThemedText type="small" themeColor="textSecondary" style={styles.hintText}>
-          {concerts.length === 0
-            ? 'Log a show with a venue and it lands on your map.'
-            : 'Pick a venue from the suggestions when you log a show, and it lands on your map.'}
-        </ThemedText>
-      </View>
-    );
-  }
+  /**
+   * The empty world is shown, not hidden. This map is the whole point of the
+   * concert layer — hiding it until someone already has a pin means nobody
+   * discovers it, which is exactly backwards for the feature meant to sell the
+   * app. An empty world with an invitation is the ad for logging a show.
+   */
+  const caption = active
+    ? captionFor(active)
+    : points.length > 0
+      ? summaryText(summary)
+      : concerts.length === 0
+        ? 'Log a show and your first pin lands here.'
+        : 'Pick a venue from the suggestions when you log a show to put it on the map.';
 
   return (
     <View style={styles.wrap}>
@@ -121,7 +121,7 @@ export function ConcertMap({ concerts }: { concerts: Concert[] }) {
       </View>
 
       <ThemedText type="small" themeColor="textSecondary" style={styles.caption}>
-        {active ? captionFor(active) : summaryText(summary)}
+        {caption}
       </ThemedText>
     </View>
   );
@@ -147,12 +147,4 @@ const styles = StyleSheet.create({
   wrap: { gap: Spacing.two },
   canvas: { borderRadius: 12, overflow: 'hidden' },
   caption: { textAlign: 'center' },
-  hint: {
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderRadius: 12,
-    paddingVertical: Spacing.four,
-    paddingHorizontal: Spacing.three,
-  },
-  hintText: { textAlign: 'center' },
 });

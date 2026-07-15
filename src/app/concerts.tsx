@@ -97,8 +97,9 @@ export default function ConcertsScreen() {
 
           {/* The wedge: where you've been. Only over attended shows — a
               wishlist isn't a place you've stood, and invites aren't yours yet.
-              Hidden on the empty list, where EmptyState already says its piece. */}
-          {tab === 'attended' && attended.length > 0 && <ConcertMap concerts={attended} />}
+              Shown even with nothing logged: the empty world is how anyone
+              finds out this exists, and it's a better pitch than a sentence. */}
+          {tab === 'attended' && <ConcertMap concerts={attended} />}
 
           {tab === 'wishlist' && (
             <Pressable
@@ -121,7 +122,9 @@ export default function ConcertsScreen() {
               doodle={tab === 'invites' ? undefined : 'mic'}
               message={
                 tab === 'attended'
-                  ? 'No shows yet — log a concert to start your live-music map.'
+                  ? // The map above already makes the pitch — this just says
+                    // what the (empty) list below it is for.
+                    'Every show you log gets listed here.'
                   : tab === 'wishlist'
                     ? 'Nothing on your wishlist yet. Add a show you want to see.'
                     : 'No pending invites. When a friend tags you at a show, it lands here.'

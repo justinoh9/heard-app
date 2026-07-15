@@ -191,19 +191,35 @@ describe('ringToPath', () => {
 });
 
 describe('unitsPerPixel', () => {
+  const W = 507; // a box whose aspect matches WORLD_VIEW at height 200
+  const H = 200;
+
   it('keeps a dot the same on-screen size however far the map zooms', () => {
-    const height = 200;
-    const world = unitsPerPixel(WORLD_VIEW, height);
-    const city = unitsPerPixel(viewBoxFor(venuePoints([show(MSG)])), height);
+    const world = unitsPerPixel(WORLD_VIEW, W, H);
+    const cityBox = viewBoxFor(venuePoints([show(MSG)]), { aspect: W / H });
+    const city = unitsPerPixel(cityBox, W, H);
     // Zoomed into one city, each pixel covers less world → smaller world radius.
     assert.ok(city < world);
-    // A 5px dot is 5px on screen in both frames, by construction.
-    assert.ok(Math.abs((5 * world) / world - 5) < 1e-9);
-    assert.ok(Math.abs((5 * city) / city - 5) < 1e-9);
+  });
+
+  it('matches the height-derived scale when the box aspect fits', () => {
+    // viewBoxFor honoured this aspect, so neither axis letterboxes.
+    const v = viewBoxFor(venuePoints([show(MSG), show(RED_ROCKS)]), { aspect: W / H });
+    assert.ok(Math.abs(unitsPerPixel(v, W, H) - v.h / H) < 1e-6);
+  });
+
+  it('follows the constraining axis when SVG letterboxes', () => {
+    // A tall, narrow box can't fit the 2.5:1 world view, so SVG scales to width
+    // and bands the top/bottom. Height would overstate the scale.
+    const tall = { w: 300, h: 300 };
+    const u = unitsPerPixel(WORLD_VIEW, tall.w, tall.h);
+    assert.ok(Math.abs(u - WORLD_VIEW.w / tall.w) < 1e-6);
+    assert.ok(u > WORLD_VIEW.h / tall.h, 'width constrains, not height');
   });
 
   it('degrades to 1 rather than dividing by zero before layout', () => {
-    assert.equal(unitsPerPixel(WORLD_VIEW, 0), 1);
+    assert.equal(unitsPerPixel(WORLD_VIEW, 0, 0), 1);
+    assert.equal(unitsPerPixel(WORLD_VIEW, 300, 0), 1);
   });
 });
 
