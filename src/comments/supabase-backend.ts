@@ -11,6 +11,9 @@ import {
   type NewCommentInput,
 } from './types';
 
+/** Postgres `undefined_column`. PostgREST passes the SQLSTATE through as `code`. */
+const COLUMN_MISSING = '42703';
+
 interface CommentRow {
   id: string;
   item_id: string;
@@ -73,6 +76,19 @@ export class SupabaseCommentsBackend implements CommentsBackend {
       .is('parent_id', null)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit);
+
+    // Degrade gracefully on a project that hasn't run 0016 yet: no parent_id
+    // column means no replies exist, so every comment IS a root and a flat page
+    // is exactly right. `add()` already omits parent_id for the same reason.
+    //
+    // This matters more than it looks. Without it, deploying this file before the
+    // migration lands takes out comments on every item page — which is precisely
+    // what happened. The concerts backend has done this since 0017 and the rule it
+    // encodes is: a deploy must never require a migration to have run first,
+    // because the two are applied by different people at different times.
+    if (roots.error?.code === COLUMN_MISSING) {
+      return this.listForItemPre0016(itemId, itemType, limit, offset);
+    }
     if (roots.error) throw new CommentsError(roots.error.message);
 
     const rootRows = (roots.data as CommentRow[]) ?? [];
@@ -96,6 +112,29 @@ export class SupabaseCommentsBackend implements CommentsBackend {
       comments: [...pageRoots, ...((replies.data as CommentRow[]) ?? [])].map(fromRow),
       hasMore,
     };
+  }
+
+  /**
+   * The pre-0016 shape: a flat page, no reply lookup. Correct rather than merely
+   * tolerable — without the column there are no replies to lose, so paging rows
+   * and paging roots are the same thing.
+   */
+  private async listForItemPre0016(
+    itemId: string,
+    itemType: SearchResultKind,
+    limit: number,
+    offset: number,
+  ): Promise<CommentPage> {
+    const { data, error } = await getSupabase()
+      .from('comments')
+      .select('*')
+      .eq('item_id', itemId)
+      .eq('item_type', itemType)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit);
+    if (error) throw new CommentsError(error.message);
+    const rows = (data as CommentRow[]) ?? [];
+    return { comments: rows.slice(0, limit).map(fromRow), hasMore: rows.length > limit };
   }
 
   async add(input: NewCommentInput): Promise<Comment> {

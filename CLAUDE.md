@@ -525,3 +525,21 @@ of the SPA fallback) carries an ad-monetization seam:
 - `public/ads.txt` is a commented placeholder until AdSense approval; fill in
   the real `google.com, pub-…` line then. Native ads would be AdMob — a
   separate integration, deliberately not wired.
+
+## Migrations are applied by hand — check, don't assume
+`npm run check:live` probes the **live** project through PostgREST and reports
+which migrations actually landed. `npm run test:migrations` proves the SQL is
+*correct*; only this tells you whether production *has* it, and those are
+different questions. Because migrations are run manually, the deployed bundle and
+the live schema drift silently.
+
+**That drift has bitten twice.** `0015` (avatars bucket) and `0016`
+(comments.parent_id) were written, shipped and never run — so avatar upload
+returned "Bucket not found" and, the moment Phase 4's comment paging referenced
+`parent_id`, comments stopped loading on every item page.
+
+The rule this earned: **a deploy must never require a migration to have run
+first.** Backends `select *` and omit new columns when unset (`toConcertRow` since
+0018), and where a query can't avoid naming a new column, catch Postgres `42703`
+and fall back to the pre-migration shape (`SupabaseCommentsBackend
+.listForItemPre0016`). Run `check:live` before assuming a feature is live.
