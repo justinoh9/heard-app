@@ -84,7 +84,13 @@ export default function SettingsScreen() {
             <Row icon="notifications-outline" label="Notifications" soon theme={theme} />
           </Section>
 
-          <Section label="PRIVACY">
+          <Section label="PRIVACY & SAFETY">
+            <Row
+              icon="ban-outline"
+              label="Blocked accounts"
+              onPress={() => router.push('/blocked')}
+              theme={theme}
+            />
             <Row icon="eye-outline" label="Profile visibility" value="Public" soon theme={theme} />
             <Row icon="people-outline" label="Friends" soon theme={theme} />
           </Section>
@@ -297,6 +303,10 @@ function Row({
       testID={testID}
       onPress={onPress}
       disabled={!interactive}
+      // Without these a navigational row is an unlabelled generic to a screen
+      // reader. The "Soon" rows aren't pressable, so they stay plain text.
+      accessibilityRole={interactive ? 'button' : undefined}
+      accessibilityLabel={interactive ? label : undefined}
       style={({ pressed }) => [styles.row, { opacity: interactive && pressed ? 0.6 : 1 }]}>
       <Ionicons name={icon} size={19} color={danger ? theme.danger : theme.textSecondary} />
       <ThemedText type="small" style={[{ flex: 1 }, danger && { color: theme.danger }]}>

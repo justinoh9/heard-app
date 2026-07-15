@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { useRequireAuth } from '@/auth/use-require-auth';
+import { ActionMenu } from '@/components/action-menu';
 import { AlbumCover } from '@/components/album-cover';
 import { BreadRating } from '@/components/bread-rating';
 import { CommentCard } from '@/components/comment-card';
@@ -17,6 +18,7 @@ import { Surface } from '@/components/surface';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useToast } from '@/components/toast';
 import {
   buildThreads,
   useComments,
@@ -29,6 +31,7 @@ import { useRatings } from '@/data/store';
 import { useHaptics } from '@/hooks/use-haptics';
 import { useTheme } from '@/hooks/use-theme';
 import { useLikeSummaries, useLikeSummary } from '@/likes';
+import { useModeration } from '@/moderation/store';
 import { musicCatalog, MusicCatalogError, type AlbumTrack } from '@/music';
 import type { ItemType } from '@/ranking/types';
 import { useSocial } from '@/social/store';
@@ -40,6 +43,8 @@ export default function ItemProfileScreen() {
   const { user, requireAuth } = useRequireAuth();
   const { ratingFor } = useRatings();
   const { people, followingIds } = useSocial();
+  const { block } = useModeration();
+  const toast = useToast();
   const params = useLocalSearchParams<{
     id: string;
     type?: string;
@@ -73,6 +78,8 @@ export default function ItemProfileScreen() {
   const [sort, setSort] = useState<CommentSort>('newest');
   // The comment being replied to (null = posting a new top-level comment).
   const [replyTo, setReplyTo] = useState<Comment | null>(null);
+  /** The comment whose report/block sheet is open, if any. */
+  const [menuFor, setMenuFor] = useState<Comment | null>(null);
   // "Friends" = the real follow graph: lowercased display names of followed users.
   const friendNames = useMemo(
     () =>
@@ -178,6 +185,12 @@ export default function ItemProfileScreen() {
       removeComment(comment.id, user.id).catch((e: unknown) =>
         console.warn('Failed to delete comment', e),
       );
+  }
+
+  /** Report/block menu, only on other people's comments. */
+  function reportHandler(comment: Comment): (() => void) | undefined {
+    if (user && comment.userId === user.id) return undefined;
+    return () => requireAuth(() => setMenuFor(comment));
   }
 
   return (
@@ -401,6 +414,7 @@ export default function ItemProfileScreen() {
                 onToggleLike={() => commentLikes.toggle(thread.comment.id)}
                 onReply={() => startReply(thread.comment)}
                 onDelete={deleteHandler(thread.comment)}
+                onReport={reportHandler(thread.comment)}
               />
               {thread.replies.length > 0 && (
                 <View style={[styles.replies, { borderColor: theme.backgroundElement }]}>
@@ -412,6 +426,7 @@ export default function ItemProfileScreen() {
                       onToggleLike={() => commentLikes.toggle(reply.id)}
                       onReply={() => startReply(reply)}
                       onDelete={deleteHandler(reply)}
+                      onReport={reportHandler(reply)}
                     />
                   ))}
                 </View>
@@ -420,6 +435,47 @@ export default function ItemProfileScreen() {
           ))}
         </PageContainer>
       </ScrollView>
+
+      <ActionMenu
+        visible={menuFor !== null}
+        title={menuFor?.displayName}
+        actions={
+          menuFor
+            ? [
+                {
+                  label: 'Report this comment',
+                  icon: 'flag-outline',
+                  destructive: true,
+                  onPress: () => {
+                    const c = menuFor;
+                    setMenuFor(null);
+                    router.push({
+                      pathname: '/report',
+                      params: {
+                        targetType: 'comment',
+                        targetId: c.id,
+                        targetUserId: c.userId,
+                        name: c.displayName,
+                      },
+                    });
+                  },
+                },
+                {
+                  label: `Block ${menuFor.displayName}`,
+                  icon: 'ban-outline',
+                  destructive: true,
+                  onPress: () => {
+                    const c = menuFor;
+                    setMenuFor(null);
+                    block(c.userId);
+                    toast(`Blocked ${c.displayName}`, '🛡️');
+                  },
+                },
+              ]
+            : []
+        }
+        onClose={() => setMenuFor(null)}
+      />
     </ThemedView>
   );
 }

@@ -221,6 +221,35 @@ retention, differentiators).
   oldest-first. One level deep — replying to a reply anchors to its root. The
   item page renders replies indented under the parent with a "Reply" affordance
   and a "Replying to X" composer banner.
+- `src/moderation/` — **blocking + reporting** (ROADMAP Phase 4), behind a
+  `ModerationBackend` seam (`0019_moderation.sql`; Supabase + AsyncStorage,
+  `provider.ts`). **These are the app's only private-read tables** — the RLS
+  posture elsewhere is "reads are public", but a block list is readable only by
+  the blocker and a report only by its reporter (+ a service-role reviewer):
+  someone who can tell they've been blocked or reported can retaliate, which is
+  the whole thing we're preventing. Reports are immutable (no update/delete
+  policy) and unique per `(reporter, target_type, target_id)`, so re-reporting is
+  a no-op the UI renders as "already reported".
+  **Read side:** pure, unit-tested `filter.ts` (`hideBlockedEvents` /
+  `hideBlockedAuthors` / `hideBlockedProfiles`). Applied **in the stores, never
+  the screens** — `social/store.tsx` filters `people`+`feed`, `comments/store.ts`
+  filters the list, `notifications/store.tsx` filters the list *and* the bell's
+  unread count — so a new surface can't forget. `useModerationState` therefore
+  mounts **above** `SocialBridge` in `_layout.tsx`; that ordering is load-bearing.
+  `hideBlockedEvents` also drops reposts *of* a blocked user (a repost carries
+  `payload.originalUserId`), and `comments/filter.ts`'s `buildThreads` drops
+  replies whose parent is gone — so a blocked user's thread takes its replies
+  with it. Filtering is client-side: rows are still fetched and still public, so
+  this is "I don't have to see you", not a privacy boundary.
+  **Write side:** 0019 tightens the `follows` / `concert_tags` insert policies so
+  a blocked user can't follow or tag you, and adds "remove own follower" so
+  `severFollows` can cut the incoming follow (0007 only allowed dropping your
+  own). `store.tsx`'s `block()` writes the row then severs both directions.
+  UI: `components/action-menu.tsx` (a sheet — this app never uses RN `Alert`,
+  which is unreliable on web), the overflow menu on `/user/[id]` + comment cards,
+  `src/app/report.tsx`, and `src/app/blocked.tsx` (which reads
+  `socialBackend.listProfiles()` *directly*, since `useSocial().people` is
+  filtered and this is the one screen meant to show blocked users).
 - `src/likes/` — `LikesBackend` seam, same Supabase-backed-from-day-one
   treatment as comments. One generic `likes` table (discriminated by
   `target_type`) covers both item likes (song/album profile) and comment likes.

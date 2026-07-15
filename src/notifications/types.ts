@@ -13,6 +13,11 @@ export interface AppNotification {
   /** Stable id for keys/dedup. */
   id: string;
   kind: NotificationKind;
+  /**
+   * Who caused it, by id — the handle blocking filters on. Names aren't unique,
+   * so this can't be `actorName`.
+   */
+  actorId: string;
   /** Who caused it (follower, commenter, or the friend who tagged you). */
   actorName: string;
   /** ISO timestamp, for ordering + unread comparison. */

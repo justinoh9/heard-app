@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { hideBlockedAuthors } from '@/moderation/filter';
+import { useModeration } from '@/moderation/store';
 import type { SearchResultKind } from '@/music';
 
 import { SupabaseCommentsBackend } from './supabase-backend';
@@ -26,6 +28,7 @@ export function useComments(itemId: string, itemType: SearchResultKind): Comment
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { blockedIds } = useModeration();
 
   const load = useCallback(() => {
     setLoading(true);
@@ -57,5 +60,10 @@ export function useComments(itemId: string, itemType: SearchResultKind): Comment
     [load],
   );
 
-  return { comments, loading, error, addComment, removeComment };
+  // Filtered here rather than in the screen, so every caller (item page,
+  // threads, counts) hides blocked authors consistently. `buildThreads` runs
+  // downstream of this, so a blocked user's replies go with them.
+  const visible = useMemo(() => hideBlockedAuthors(comments, blockedIds), [comments, blockedIds]);
+
+  return { comments: visible, loading, error, addComment, removeComment };
 }

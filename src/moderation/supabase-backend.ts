@@ -1,0 +1,98 @@
+/**
+ * Supabase-backed moderation (0019_moderation.sql). Blocks and reports are the
+ * app's only private-read tables — RLS scopes every select to the caller, so
+ * these queries deliberately don't filter by user id themselves in a way the
+ * policy doesn't already enforce.
+ */
+
+import { getSupabase } from '@/lib/supabase';
+
+import { reportKey } from './filter';
+import { ModerationError, type ModerationBackend, type NewReport } from './types';
+
+interface BlockRow {
+  blocker_id: string;
+  blocked_id: string;
+}
+
+interface ReportRow {
+  target_type: string;
+  target_id: string;
+}
+
+export class SupabaseModerationBackend implements ModerationBackend {
+  async blockedBy(userId: string): Promise<string[]> {
+    const { data, error } = await getSupabase()
+      .from('blocks')
+      .select('blocker_id, blocked_id')
+      .eq('blocker_id', userId);
+    if (error) throw new ModerationError(error.message);
+    return (data as BlockRow[]).map((r) => r.blocked_id);
+  }
+
+  async setBlocked(userId: string, targetId: string, blocked: boolean): Promise<void> {
+    const supabase = getSupabase();
+    if (blocked) {
+      const { error } = await supabase
+        .from('blocks')
+        .upsert({ blocker_id: userId, blocked_id: targetId }, { ignoreDuplicates: true });
+      if (error) throw new ModerationError(error.message);
+    } else {
+      const { error } = await supabase
+        .from('blocks')
+        .delete()
+        .eq('blocker_id', userId)
+        .eq('blocked_id', targetId);
+      if (error) throw new ModerationError(error.message);
+    }
+  }
+
+  async severFollows(userId: string, targetId: string): Promise<void> {
+    const supabase = getSupabase();
+    // Two statements rather than one `.or()`: each direction is authorized by a
+    // different policy (unfollow-as-self vs. remove-own-follower), and a single
+    // combined predicate would silently drop the half RLS refuses.
+    const outgoing = await supabase
+      .from('follows')
+      .delete()
+      .eq('follower_id', userId)
+      .eq('followee_id', targetId);
+    if (outgoing.error) throw new ModerationError(outgoing.error.message);
+
+    const incoming = await supabase
+      .from('follows')
+      .delete()
+      .eq('follower_id', targetId)
+      .eq('followee_id', userId);
+    if (incoming.error) throw new ModerationError(incoming.error.message);
+  }
+
+  async report(input: NewReport): Promise<void> {
+    const { error } = await getSupabase()
+      .from('reports')
+      .upsert(
+        {
+          reporter_id: input.reporterId,
+          target_type: input.targetType,
+          target_id: input.targetId,
+          target_user_id: input.targetUserId ?? null,
+          reason: input.reason,
+          note: input.note ?? null,
+        },
+        // Re-reporting the same thing is a no-op, not an error — the unique
+        // constraint is the point, and `onConflict` keeps the first report's
+        // reason rather than letting a later one overwrite triage state.
+        { onConflict: 'reporter_id,target_type,target_id', ignoreDuplicates: true },
+      );
+    if (error) throw new ModerationError(error.message);
+  }
+
+  async reportedKeys(userId: string): Promise<string[]> {
+    const { data, error } = await getSupabase()
+      .from('reports')
+      .select('target_type, target_id')
+      .eq('reporter_id', userId);
+    if (error) throw new ModerationError(error.message);
+    return (data as ReportRow[]).map((r) => reportKey(r.target_type, r.target_id));
+  }
+}

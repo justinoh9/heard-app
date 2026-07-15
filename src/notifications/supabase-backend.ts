@@ -94,6 +94,7 @@ export class SupabaseNotificationsBackend implements NotificationsBackend {
     const followNotifs: AppNotification[] = followRows.map((f) => ({
       id: `follow-${f.follower_id}-${f.created_at}`,
       kind: 'follow',
+      actorId: f.follower_id,
       actorName: names.get(f.follower_id) ?? 'Someone',
       createdAt: f.created_at,
     }));
@@ -101,6 +102,7 @@ export class SupabaseNotificationsBackend implements NotificationsBackend {
     const commentNotifs: AppNotification[] = commentRows.map((c) => ({
       id: `comment-${c.id}`,
       kind: 'comment',
+      actorId: c.user_id,
       actorName: c.display_name || 'Someone',
       createdAt: c.created_at,
       subject: c.item_title,
@@ -112,6 +114,7 @@ export class SupabaseNotificationsBackend implements NotificationsBackend {
     const tagNotifs: AppNotification[] = concertRows.map((c) => ({
       id: `tag-${c.id}`,
       kind: 'tag',
+      actorId: c.user_id,
       actorName: names.get(c.user_id) ?? 'Someone',
       createdAt: c.created_at,
       subject: c.artist_name,

@@ -309,8 +309,31 @@ follow) is entirely real.
 
 ## Phase 4 — Launch readiness & scale
 
-- [ ] **Moderation & safety** — report/block users, comment moderation, rate
-      limits. Required before any public launch of user-generated content.
+- [~] **Moderation & safety** — **blocking + reporting shipped 2026-07-15**
+      (`src/moderation/`, `0019_moderation.sql`). Blocks and reports are the
+      app's only **private-read** tables: your block list is visible to you
+      alone, and a report only to you and a reviewer — a blocked or reported
+      user must never be able to discover it, or the feature invites the
+      retaliation it exists to prevent.
+      **Read side:** pure, unit-tested `filter.ts` applied *in the stores*
+      (social feed + people, comments, notifications) rather than the screens,
+      so a new surface can't forget to hide someone; `hideBlockedEvents` also
+      drops reposts *of* a blocked user, and `buildThreads` takes their replies
+      with them. Filtering is client-side — the rows are still public, so this
+      is "I don't have to see you", not a privacy boundary.
+      **Write side (the part that actually bites):** 0019 tightens the `follows`
+      and `concert_tags` insert policies so someone you blocked cannot follow or
+      tag you, and adds the missing "remove own follower" delete policy so a
+      block can sever the incoming follow (0007 only let you drop your own).
+      **UI:** an overflow menu on `/user/[id]` and on other people's comments
+      (block behind a confirm, since it severs follows), a `/report` modal with
+      7 reasons + optional note, and `/blocked` (Settings → PRIVACY & SAFETY) to
+      unblock. Notifications gained an `actorId` so blocking filters by identity
+      rather than by non-unique display name.
+      *Remaining:* **rate limits** (needs a Postgres trigger or Edge Function —
+      client-side can't enforce), an admin review surface (reports are triaged by
+      hand in the SQL editor today), and in-app **account deletion** (also an
+      app-store requirement — see G5).
 - [ ] **Display-name propagation** — names are denormalized into
       `feed_events`/`comments` at write time; renames never propagate. Join
       through `profiles` (or backfill on rename).

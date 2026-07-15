@@ -23,6 +23,7 @@ import { useTheme, ThemePreferenceContext, useThemePreferenceState } from '@/hoo
 import { NotificationsContext, useNotificationsState } from '@/notifications/store';
 import { PlaylistsContext, usePlaylistsState } from '@/playlists/store';
 import { QueueContext, useQueueState } from '@/queue/store';
+import { ModerationContext, useModerationState } from '@/moderation/store';
 import { SocialContext, useSocialState } from '@/social/store';
 import { StreaksContext, useStreaksState } from '@/streaks/store';
 
@@ -58,6 +59,9 @@ export default function RootLayout() {
       <PreviewBridge>
         <AuthProvider>
         <StreaksBridge>
+          {/* Above social: the social store filters its feed + directory
+              through the viewer's block list. */}
+          <ModerationBridge>
           {/* Social sits above ratings + feed: both publish activity events. */}
           <SocialBridge>
             <RatingsBridge>
@@ -79,6 +83,7 @@ export default function RootLayout() {
               </FeedBridge>
             </RatingsBridge>
           </SocialBridge>
+          </ModerationBridge>
         </StreaksBridge>
         </AuthProvider>
       </PreviewBridge>
@@ -138,6 +143,11 @@ function LivePreviewBridge({ children }: { children: React.ReactNode }) {
 function StreaksBridge({ children }: { children: React.ReactNode }) {
   const streaks = useStreaksState();
   return <StreaksContext.Provider value={streaks}>{children}</StreaksContext.Provider>;
+}
+
+function ModerationBridge({ children }: { children: React.ReactNode }) {
+  const moderation = useModerationState();
+  return <ModerationContext.Provider value={moderation}>{children}</ModerationContext.Provider>;
 }
 
 function SocialBridge({ children }: { children: React.ReactNode }) {
@@ -234,12 +244,14 @@ function RootNavigator() {
       <Stack.Screen name="repost" options={{ presentation: 'modal' }} />
       <Stack.Screen name="edit-profile" options={{ presentation: 'modal' }} />
       <Stack.Screen name="share-card" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="report" options={{ presentation: 'modal' }} />
       <Stack.Screen name="concert/new" options={{ presentation: 'modal' }} />
       <Stack.Screen name="playlist/[id]" />
       <Stack.Screen name="playlist/new" options={{ presentation: 'modal' }} />
       <Stack.Screen name="artist/[id]" />
       <Stack.Screen name="streak" />
       <Stack.Screen name="badges" />
+      <Stack.Screen name="blocked" />
       <Stack.Screen name="concerts" />
       <Stack.Screen name="diary" />
       <Stack.Screen name="queue" />

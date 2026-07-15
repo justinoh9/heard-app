@@ -58,6 +58,18 @@ export default function PrivacyScreen() {
               signed-out visitors.
             </Paragraph>
             <Paragraph>
+              Venue locations. When you log a concert you can pick a venue from a search box. If you
+              do, we store that venue’s published coordinates so the show can appear on your map.
+              These are the venue’s coordinates, not yours — Jelli never requests or records your
+              device’s location.
+            </Paragraph>
+            <Paragraph>
+              Safety data. If you block someone or report content, we store that too. Unlike the
+              rest of your activity, this is private: your block list is visible only to you, and a
+              report is visible only to you and to whoever reviews it. We never tell someone that
+              they have been blocked or reported, or by whom.
+            </Paragraph>
+            <Paragraph>
               On-device data. Some data never leaves your device: your listening streak, theme
               preference, and — if you connect Spotify — the tokens used to read your recently
               played tracks are stored in local storage on your device only.
@@ -69,9 +81,10 @@ export default function PrivacyScreen() {
               Jelli is hosted on Vercel (web) and Supabase (database and authentication). Music
               search sends your search terms to Apple’s iTunes Search API, and metadata is enriched
               via Last.fm and Deezer; these requests include your search text but not your account
-              identity. If you choose to connect Spotify, Jelli reads your recently played tracks
-              with your permission — you can disconnect at any time in Settings, and imported plays
-              are never logged without your explicit action.
+              identity. Venue search sends what you type to Photon, an OpenStreetMap geocoding
+              service, on the same basis. If you choose to connect Spotify, Jelli reads your
+              recently played tracks with your permission — you can disconnect at any time in
+              Settings, and imported plays are never logged without your explicit action.
             </Paragraph>
           </Section>
 

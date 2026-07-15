@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ActionMenu } from '@/components/action-menu';
 import { AlbumCover } from '@/components/album-cover';
 import { Avatar } from '@/components/avatar';
 import { PageContainer } from '@/components/page-container';
@@ -11,11 +12,13 @@ import { Surface } from '@/components/surface';
 import { TasteProfileCard } from '@/components/taste-profile-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useToast } from '@/components/toast';
 import { Spacing } from '@/constants/theme';
 import { ratingsBackend } from '@/data/ratings-provider';
 import { useRatings } from '@/data/store';
 import { relativeTime } from '@/feed/time';
 import { useTheme } from '@/hooks/use-theme';
+import { useModeration } from '@/moderation/store';
 import { sortRanked } from '@/ranking/engine';
 import { rankedOfType } from '@/ranking/lists';
 import type { RankedItem } from '@/ranking/types';
@@ -43,6 +46,11 @@ export default function UserProfileScreen() {
   const displayName = params.name || 'Someone';
   const { ranked: mine } = useRatings();
   const { followingIds, toggleFollow, people } = useSocial();
+  const toast = useToast();
+  const { isBlocked, block, unblock } = useModeration();
+  /** null = closed, 'menu' = the overflow sheet, 'confirm' = "really block?" */
+  const [sheet, setSheet] = useState<null | 'menu' | 'confirm'>(null);
+  const blocked = isBlocked(userId);
 
   const [theirs, setTheirs] = useState<RankedItem[] | null>(null);
   const [activity, setActivity] = useState<SocialEvent[]>([]);
@@ -90,7 +98,13 @@ export default function UserProfileScreen() {
               <Ionicons name="chevron-back" size={24} color={theme.text} />
             </Pressable>
             <ThemedText type="subtitle">{displayName}</ThemedText>
-            <View style={{ width: 24 }} />
+            <Pressable
+              testID="profile-overflow"
+              onPress={() => setSheet('menu')}
+              accessibilityLabel={`More options for ${displayName}`}
+              hitSlop={8}>
+              <Ionicons name="ellipsis-horizontal" size={22} color={theme.text} />
+            </Pressable>
           </View>
 
           <View style={styles.identity}>
@@ -232,6 +246,67 @@ export default function UserProfileScreen() {
           )}
         </PageContainer>
       </ScrollView>
+
+      <ActionMenu
+        visible={sheet === 'menu'}
+        title={displayName}
+        actions={[
+          {
+            label: `Report ${displayName}`,
+            icon: 'flag-outline',
+            destructive: true,
+            onPress: () => {
+              setSheet(null);
+              router.push({
+                pathname: '/report',
+                params: { targetType: 'user', targetId: userId, targetUserId: userId, name: displayName },
+              });
+            },
+          },
+          blocked
+            ? {
+                label: 'Unblock',
+                icon: 'person-add-outline',
+                onPress: () => {
+                  setSheet(null);
+                  unblock(userId);
+                  toast(`Unblocked ${displayName}`, '👋');
+                },
+              }
+            : {
+                label: 'Block',
+                icon: 'ban-outline',
+                destructive: true,
+                // Two steps: blocking severs follows both ways, which is not
+                // something to do on a stray tap.
+                onPress: () => setSheet('confirm'),
+              },
+        ]}
+        onClose={() => setSheet(null)}
+      />
+
+      <ActionMenu
+        visible={sheet === 'confirm'}
+        title={`Block ${displayName}?`}
+        message={`You won't see their activity or comments, and they won't see yours. If either of you follows the other, that will be undone.`}
+        actions={[
+          {
+            label: `Block ${displayName}`,
+            icon: 'ban-outline',
+            destructive: true,
+            onPress: () => {
+              setSheet(null);
+              block(userId);
+              toast(`Blocked ${displayName}`, '🛡️');
+              // They're now filtered out of every list — standing on their
+              // profile afterwards would be a dead end.
+              if (router.canGoBack()) router.back();
+              else router.replace('/people');
+            },
+          },
+        ]}
+        onClose={() => setSheet(null)}
+      />
     </ThemedView>
   );
 }

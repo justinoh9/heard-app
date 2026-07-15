@@ -47,9 +47,15 @@ export interface CommentThread {
  * Group a flat comment list into threads: top-level comments (scope-filtered
  * and sorted per `opts`) each carrying their replies in chronological order.
  * Replies are attached regardless of the scope filter — once a parent is
- * visible, the whole conversation under it shows. Replies whose parent is
- * absent (shouldn't happen: the DB cascades deletes) are dropped, not promoted
- * to top-level. Never mutates the input array.
+ * visible, the whole conversation under it shows.
+ *
+ * Replies whose parent is absent are dropped, not promoted to top-level. This
+ * is load-bearing for **blocking**: the caller filters a blocked author's
+ * comments out before this runs, so a blocked user's thread takes the replies
+ * under it with it. A reply stranded from the comment it answers is
+ * contextless at best and quotes the blocked user at worst.
+ *
+ * Never mutates the input array.
  */
 export function buildThreads(comments: Comment[], opts: CommentViewOptions): CommentThread[] {
   const roots: Comment[] = [];

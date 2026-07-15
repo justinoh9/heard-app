@@ -23,9 +23,18 @@ interface Props {
   onDelete?: () => void;
   /** Present on top-level comments only — renders the Reply button. */
   onReply?: () => void;
+  /** Present on *other people's* comments — opens the report/block menu. */
+  onReport?: () => void;
 }
 
-export function CommentCard({ comment, likeSummary, onToggleLike, onDelete, onReply }: Props) {
+export function CommentCard({
+  comment,
+  likeSummary,
+  onToggleLike,
+  onDelete,
+  onReply,
+  onReport,
+}: Props) {
   const theme = useTheme();
   const haptics = useHaptics();
   const likedByMe = likeSummary?.likedByMe ?? false;
@@ -53,6 +62,15 @@ export function CommentCard({ comment, likeSummary, onToggleLike, onDelete, onRe
               accessibilityLabel="Delete your comment"
               hitSlop={8}>
               <Ionicons name="trash-outline" size={14} color={theme.textSecondary} />
+            </Pressable>
+          )}
+          {onReport && (
+            <Pressable
+              testID={`report-comment-${comment.id}`}
+              onPress={onReport}
+              accessibilityLabel={`Report or block ${comment.displayName}`}
+              hitSlop={8}>
+              <Ionicons name="ellipsis-horizontal" size={14} color={theme.textSecondary} />
             </Pressable>
           )}
         </View>

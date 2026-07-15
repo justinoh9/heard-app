@@ -10,6 +10,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 
 import { useAuth } from '@/auth/store';
 import { useRatings } from '@/data/store';
+import { hideBlocked } from '@/moderation/filter';
+import { useModeration } from '@/moderation/store';
 
 import { unreadCount } from './merge';
 import { notificationsBackend } from './provider';
@@ -31,6 +33,7 @@ export const NotificationsContext = createContext<NotificationsApi | null>(null)
 export function useNotificationsState(): NotificationsApi {
   const { user } = useAuth();
   const { ranked } = useRatings();
+  const { blockedIds } = useModeration();
   const userId = user?.id ?? null;
 
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -61,22 +64,29 @@ export function useNotificationsState(): NotificationsApi {
 
   useEffect(refresh, [refresh]);
 
+  // A blocked user must not be able to ping you — their follow/comment/tag is
+  // dropped before it can reach the list *or* the bell's unread count.
+  const visible = useMemo(
+    () => hideBlocked(notifications, blockedIds, (n) => [n.actorId]),
+    [notifications, blockedIds],
+  );
+
   return useMemo<NotificationsApi>(
     () => ({
-      notifications,
+      notifications: visible,
       loading,
-      unread: unreadCount(notifications, lastSeen),
+      unread: unreadCount(visible, lastSeen),
       refresh,
       markAllSeen: () => {
-        if (!userId || notifications.length === 0) return;
+        if (!userId || visible.length === 0) return;
         // "Seen" = the newest notification's time, so nothing that arrived
         // before this open ever re-counts as unread.
-        const newest = notifications[0].createdAt;
+        const newest = visible[0].createdAt;
         setLastSeen(newest);
         markSeen(userId, newest).catch(() => {});
       },
     }),
-    [notifications, loading, lastSeen, refresh, userId],
+    [visible, loading, lastSeen, refresh, userId],
   );
 }
 

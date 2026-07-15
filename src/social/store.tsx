@@ -11,6 +11,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 import { useAuth } from '@/auth/store';
+import { hideBlockedEvents, hideBlockedProfiles } from '@/moderation/filter';
+import { useModeration } from '@/moderation/store';
 
 import { sortEvents } from './feed-rows';
 import { socialBackend } from './provider';
@@ -58,6 +60,9 @@ export function useSocialState(): SocialApi {
   const { user } = useAuth();
   const userId = user?.id ?? null;
   const displayName = user?.displayName ?? '';
+  // Blocking is applied here rather than in the screens: every consumer of
+  // `people`/`feed` gets it for free, so a new surface can't forget.
+  const { blockedIds } = useModeration();
   const [people, setPeople] = useState<Profile[]>([]);
   const [followingIds, setFollowingIds] = useState<Set<string>>(new Set());
   const [feed, setFeed] = useState<SocialEvent[]>([]);
@@ -105,9 +110,11 @@ export function useSocialState(): SocialApi {
 
   return useMemo<SocialApi>(
     () => ({
-      people,
+      // `hideBlockedEvents` also drops reposts *of* a blocked user, so blocking
+      // someone doesn't leave them visible second-hand through a friend.
+      people: hideBlockedProfiles(people, blockedIds),
       followingIds,
-      feed,
+      feed: hideBlockedEvents(feed, blockedIds),
       feedLoading,
       feedHasMore,
       feedLoadingMore,
@@ -203,6 +210,7 @@ export function useSocialState(): SocialApi {
       refresh,
       userId,
       displayName,
+      blockedIds,
     ],
   );
 }

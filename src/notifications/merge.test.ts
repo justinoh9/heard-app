@@ -7,6 +7,7 @@ import type { AppNotification } from './types';
 const n = (id: string, createdAt: string): AppNotification => ({
   id,
   kind: 'follow',
+  actorId: `user-${id}`,
   actorName: id,
   createdAt,
 });
