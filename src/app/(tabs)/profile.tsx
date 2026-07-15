@@ -247,6 +247,17 @@ export default function ProfileScreen() {
             <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
           </Surface>
 
+          <Surface testID="open-invite" onPress={() => router.push('/invite')} style={styles.wrappedCard}>
+            <Ionicons name="gift" size={18} color={theme.accent} />
+            <View style={{ flex: 1 }}>
+              <ThemedText type="smallBold">Invite friends</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                They follow you, you follow them — nobody starts with an empty feed
+              </ThemedText>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
+          </Surface>
+
           {ranked.length > 0 && <TasteProfileCard profile={taste} self />}
 
           {ranked.length > 0 && (

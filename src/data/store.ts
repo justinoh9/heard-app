@@ -11,6 +11,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
+import { analyticsBackend } from '@/analytics/provider';
 import { useAuth } from '@/auth/store';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { RatingTiebreakEngine, type RankingEngine } from '@/ranking/engine';
@@ -114,6 +115,13 @@ export function useRatingsState(): RatingsApi {
         if (events.length) setComparisonLog((log) => [...log, ...events]);
         streaks.recordActivity();
         if (rated) {
+          // Activation, the second step of the funnel. Tracked here rather than in
+          // the log screen because this is the one place every rating path
+          // converges — the rate flow, the quick match, and the onboarding wizard
+          // all land here, and a screen-level call would miss two of the three.
+          if (userId) {
+            void analyticsBackend.track(userId, 'rated', { itemType: rated.item.type });
+          }
           social.publish('rated', {
             itemId: rated.item.id,
             itemType: rated.item.type,

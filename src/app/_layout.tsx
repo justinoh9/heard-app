@@ -23,6 +23,7 @@ import { useTheme, ThemePreferenceContext, useThemePreferenceState } from '@/hoo
 import { NotificationsContext, useNotificationsState } from '@/notifications/store';
 import { PlaylistsContext, usePlaylistsState } from '@/playlists/store';
 import { QueueContext, useQueueState } from '@/queue/store';
+import { AnalyticsContext, useAnalyticsState } from '@/analytics/store';
 import { ModerationContext, useModerationState } from '@/moderation/store';
 import { SocialContext, useSocialState } from '@/social/store';
 import { StreaksContext, useStreaksState } from '@/streaks/store';
@@ -58,6 +59,10 @@ export default function RootLayout() {
     <AppThemeBridge>
       <PreviewBridge>
         <AuthProvider>
+        {/* Directly under auth: it only needs the viewer's id, and mounting it
+            high is what lets `app_opened` fire once per session rather than
+            whenever some particular screen happens to be the first one shown. */}
+        <AnalyticsBridge>
         <StreaksBridge>
           {/* Above social: the social store filters its feed + directory
               through the viewer's block list. */}
@@ -85,6 +90,7 @@ export default function RootLayout() {
           </SocialBridge>
           </ModerationBridge>
         </StreaksBridge>
+        </AnalyticsBridge>
         </AuthProvider>
       </PreviewBridge>
     </AppThemeBridge>
@@ -143,6 +149,11 @@ function LivePreviewBridge({ children }: { children: React.ReactNode }) {
 function StreaksBridge({ children }: { children: React.ReactNode }) {
   const streaks = useStreaksState();
   return <StreaksContext.Provider value={streaks}>{children}</StreaksContext.Provider>;
+}
+
+function AnalyticsBridge({ children }: { children: React.ReactNode }) {
+  const analytics = useAnalyticsState();
+  return <AnalyticsContext.Provider value={analytics}>{children}</AnalyticsContext.Provider>;
 }
 
 function ModerationBridge({ children }: { children: React.ReactNode }) {
@@ -253,6 +264,8 @@ function RootNavigator() {
       <Stack.Screen name="badges" />
       <Stack.Screen name="blocked" />
       <Stack.Screen name="admin/reports" />
+      <Stack.Screen name="admin/analytics" />
+      <Stack.Screen name="invite" />
       <Stack.Screen name="concerts" />
       <Stack.Screen name="diary" />
       <Stack.Screen name="queue" />

@@ -10,6 +10,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
+import { analyticsBackend } from '@/analytics/provider';
 import { useAuth } from '@/auth/store';
 import { hideBlockedEvents, hideBlockedProfiles } from '@/moderation/filter';
 import { useModeration } from '@/moderation/store';
@@ -197,7 +198,13 @@ export function useSocialState(): SocialApi {
         });
         socialBackend
           .setFollowing(userId, targetId, willFollow)
-          .then(refresh)
+          .then(() => {
+            // Only the follow direction is a funnel step — unfollowing isn't the
+            // opposite of connecting, it's just a Tuesday. Tracked after the write
+            // lands so a failed follow doesn't count as one.
+            if (willFollow) void analyticsBackend.track(userId, 'followed');
+            refresh();
+          })
           .catch((e: unknown) => {
             console.warn('[social] follow toggle failed:', e);
             setFollowingIds((prev) => {

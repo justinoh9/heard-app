@@ -70,6 +70,20 @@ export default function PrivacyScreen() {
               they have been blocked or reported, or by whom.
             </Paragraph>
             <Paragraph>
+              Usage data. If you have an account, we record a small number of plain events so we
+              can tell whether Jelli is working: that an account was created, that the app was
+              opened, that something was rated, followed, or logged. Each is stored with your
+              account id, the time, and nothing else — no search terms, no what you rated, no
+              free text, no location, and no device or advertising identifiers. We do not record
+              anything at all about signed-out visitors.
+            </Paragraph>
+            <Paragraph>
+              This data stays in our own database. We do not use a third-party analytics service,
+              so there is no copy of it anywhere we cannot delete — which is what lets the
+              deletion promise below be literal. We look at it only in aggregate (how many people
+              did something), never to follow an individual around.
+            </Paragraph>
+            <Paragraph>
               On-device data. Some data never leaves your device: your listening streak, theme
               preference, and — if you connect Spotify — the tokens used to read your recently
               played tracks are stored in local storage on your device only.
@@ -117,8 +131,9 @@ export default function PrivacyScreen() {
             <Paragraph>
               You can also delete your whole account from Settings → Account → Delete account. This
               is immediate and permanent: it erases your profile, ranked list, reviews, comments,
-              likes, concerts, lists, diary, queue, follows, avatar, and any blocks or reports you
-              filed, and then removes the account itself. We keep no copy and cannot restore it.
+              likes, concerts, lists, diary, queue, follows, usage data, and avatar, along with any
+              blocks or reports you filed, and then removes the account itself. We keep no copy and
+              cannot restore it.
             </Paragraph>
             <Paragraph>
               One thing survives, because it is not yours: the shared catalog of songs and albums

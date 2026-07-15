@@ -132,12 +132,20 @@ export default function SettingsScreen() {
               else, so there's no harm if this ever renders by mistake.
             */}
             {isAdmin ? (
-              <Row
-                icon="flag-outline"
-                label="Review reports"
-                onPress={() => router.push('/admin/reports')}
-                theme={theme}
-              />
+              <>
+                <Row
+                  icon="flag-outline"
+                  label="Review reports"
+                  onPress={() => router.push('/admin/reports')}
+                  theme={theme}
+                />
+                <Row
+                  icon="stats-chart-outline"
+                  label="Funnel"
+                  onPress={() => router.push('/admin/analytics')}
+                  theme={theme}
+                />
+              </>
             ) : null}
           </Section>
 

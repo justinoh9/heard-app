@@ -74,6 +74,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const s = await backend.signUp(input);
         setSession(s);
         setStatus('authed');
+        // No `signed_up` event here on purpose. The client is the wrong place to
+        // notice an account being created: OAuth sign-ups redirect away and come
+        // back through onAuthStateChange, where "signed in" and "signed up" are
+        // indistinguishable — so a client-side call would silently count only the
+        // email form and quietly undercount the funnel's first step forever.
+        // 0027 puts a trigger on auth.users instead, which sees every route in.
       },
       signIn: async (email, password) => {
         const s = await backend.signIn(email, password);

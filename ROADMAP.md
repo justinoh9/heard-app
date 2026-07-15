@@ -20,8 +20,19 @@ Top 4 favorites, concerts + friend tags, comments, likes, the real leaderboard
 `rated` feed event and persist as likeable comments; the feed pages backward
 and the comments "friends" filter uses the real follow graph. Device-local by
 design: streaks. The mock "From the community" cards now appear only as
-cold-start filler on an empty feed. **Phases 1 and 2 are complete** — Phase 3
-(differentiators) is next.
+cold-start filler on an empty feed.
+
+**Phases 1, 2 and 4 are complete; Phase 3 is complete bar (F5).** Phase 4 (2026-07-15)
+added rate limits, admin report triage, display-name propagation, server-side
+browse aggregation, profile search + comment paging, the analytics funnel, and
+invites — and retired a Spotify client secret that was live in the public bundle.
+Two items remain, and **neither is blocked on code**: shipping to the app stores
+needs paid developer accounts (the review-compliance work itself is done), and the
+Pro tier needs a payment-rails decision that shouldn't be guessed at.
+
+Every migration from `0021` on **self-tests when you run it**, and
+`npm run test:migrations` replays the whole chain into a throwaway Postgres
+container — see CLAUDE.md → Commands.
 
 ---
 
@@ -344,40 +355,123 @@ follow) is entirely real.
       `public.items` (shared catalog cache, no personal data). Exposed through
       the `AuthBackend` seam as a **required** method — a backend that can create
       accounts but not delete them is the exact gap this closes.
-      *Remaining:* **rate limits** (needs a Postgres trigger or Edge Function —
-      client-side can't enforce) and an admin review surface (reports are triaged
-      by hand in the SQL editor today).
-- [ ] **Display-name propagation** — names are denormalized into
-      `feed_events`/`comments` at write time; renames never propagate. Join
-      through `profiles` (or backfill on rename).
-- [ ] **Scale the reads** — `listProfiles()` fetches every profile (the People
-      directory won't survive real user counts); add search + pagination.
-      Paginate comments. Consider Supabase Realtime for the feed.
-- [ ] **Spotify proxy mode everywhere** — retire the in-bundle client secret
-      (direct mode) in favor of the `spotify-token` Edge Function; later move
-      search fully server-side.
-- [ ] **Apple Music (MusicKit)** — second `MusicCatalog` provider; widens the
-      funnel beyond Spotify users.
-- [ ] **Analytics** — instrument the funnel (sign-up → first log → first
-      follow → D7 return) so the roadmap above can be re-prioritized on data.
-- [ ] **(F6) Invite system (Beli-style)** — invite-gated onboarding + referral
-      credit: each user gets a handful of invite codes, joining via a code links
-      inviter↔invitee (seeding the follow graph immediately), and
-      invites-remaining becomes a status nudge. Beli's core growth + scarcity
-      loop; pairs with the share cards above as an acquisition surface.
-- [ ] **(G5) Ship the native apps** — the roadmap plans features but not
-      distribution. To be "fully fledged like Beli/Letterboxd" means being *in
-      the stores*: EAS build pipeline, TestFlight + Play internal testing,
-      store listings + screenshots, and app-review compliance — Apple sign-in
-      (already noted in F1). **In-app account deletion shipped 2026-07-15** —
-      see Moderation & safety above. Plus deep links so a shared
-      `myjelli.site/item/…` opens the app instead of the browser.
-- [ ] **(G6) Paid tier (Pro)** — Letterboxd monetizes with Pro/Patron
-      (ad-free + advanced stats); income is a stated goal. Decide the shape
-      early: free-with-ads / Pro-ad-free is proven, and the env-gated ad seam
-      (`src/components/ad-slot.tsx`) already makes "ad-free for Pro users" a
-      per-user toggle later. Pro perks that fit Jelli: full Wrapped history,
-      advanced taste stats, unlimited lists, profile themes.
+      **Rate limits shipped 2026-07-15** (`0021_rate_limits.sql`). One generic
+      `enforce_rate_limit()` trigger, parameterized by the **actor column** —
+      because `follows` records the actor in `follower_id` and `reports` in
+      `reporter_id`, so a hardcoded `user_id` would have throttled the victim
+      instead of the abuser. `concert_tags` needs its own limiter: its `user_id`
+      is the person *tagged*, while the tagger is the concert's owner. AFTER …
+      FOR EACH STATEMENT (one COUNT per statement, and visibility guaranteed by
+      definition rather than by plpgsql's snapshot behaviour — which was checked,
+      not assumed). SECURITY DEFINER because reports are private-read and RLS
+      would otherwise truncate the COUNT to zero, making the limiter decorative.
+      `blocks` is deliberately unlimited — mass-blocking a brigade is the system
+      working. `PT429` surfaces as a real HTTP 429 via PostgREST.
+      **Admin review shipped 2026-07-15** (`0023_admin_review.sql`,
+      `/admin/reports`). Admins live in a private table rather than a
+      `profiles.is_admin` flag (profiles is public-read — a flag publishes the
+      moderator list), and no API path grants admin. RLS picks the rows; a
+      **column grant** picks the columns, so a reviewer can resolve a report but
+      not rewrite its reason. Reviewer + timestamp are stamped from the JWT.
+      Banning stays in the Supabase dashboard rather than an RPC that mutates
+      `auth.users` — the heaviest action shouldn't sit behind the newest check.
+      *Remaining:* nothing blocking. Appeals ("I was blocked/removed, why?") are
+      the natural next thing if volume ever justifies it.
+- [x] **Display-name propagation** — shipped 2026-07-15
+      (`0022_display_name_propagation.sql`). A trigger on `profiles` sweeps
+      `feed_events`, `comments`, and repost attribution, plus a one-time backfill
+      for names that already drifted. Kept denormalized rather than joined: the
+      denormalization is deliberate ("one-query feeds"), renames are rare and feed
+      reads constant, and PostgREST can only embed through a real FK — which these
+      columns can't have while orphaned local-auth-era rows exist. SECURITY
+      DEFINER because a repost's attribution lives on the *reposter's* row, so
+      propagating your name means writing rows you don't own.
+- [x] **Scale the reads** — shipped 2026-07-15. Browse moved off "select every
+      rating and tally in the browser" onto the `browse_items` RPC
+      (`0024_browse_rpc.sql`) — past PostgREST's row cap that query would have
+      kept succeeding while silently describing an arbitrary subset. It returns a
+      union of three top-N picks because no single ORDER BY serves both Trending
+      and Top rated. People searches + pages in the database
+      (`0025_profile_search.sql`, pg_trgm — the query is an unanchored ILIKE a
+      B-tree can't serve), and `/user/[id]` resolves by id instead of scanning the
+      directory. Comments page by **root**, not by row (`0026_comment_paging.sql`)
+      — a flat page would hand `buildThreads` orphaned replies, which it drops by
+      design. *Remaining:* `listProfiles()` is still unbounded, knowingly — the
+      item page and tag picker use `people` as a local id→name map, so a cap would
+      make them wrong rather than slow; the fix is to make those consumers ask for
+      the ids they need. Supabase Realtime for the feed is still unexplored.
+- [x] **Spotify proxy mode everywhere** — shipped 2026-07-15, and it was more
+      urgent than this line implied: `EXPO_PUBLIC_SPOTIFY_CLIENT_SECRET` was
+      **live in the myjelli.site bundle**, readable by anyone. It had zero
+      consumers (search is iTunes; `SpotifyCatalog` is never instantiated; the
+      user-OAuth flow is PKCE and needs no secret). Fixed by deleting the
+      `tokenDirect` code path rather than unsetting the variable — a `.env` line
+      is too easy to re-add, and this file's own "switch to the proxy before a
+      real launch" comment is the proof. A regression test asserts a secret in the
+      env cannot resurrect direct mode. **The secret must still be rotated.**
+      *Remaining:* moving search fully server-side is moot while search is iTunes.
+- [~] **Apple Music (MusicKit)** — **the stated rationale is obsolete.** This was
+      written when Spotify was the only catalog, so "widens the funnel beyond
+      Spotify users" was real. Search now runs on **iTunes — Apple's own catalog**
+      — keyless, no login, for everyone; the funnel is already as wide as MusicKit
+      would make it. What MusicKit would still add is *full-track playback* for
+      Apple Music subscribers, which is the actual dependency of (F5) timestamped
+      comments. Re-file it there. It needs a paid Apple Developer account and a
+      server-signed ES256 developer token, so it is blocked on an account, not on
+      a decision.
+- [x] **Analytics** — shipped 2026-07-15 (`src/analytics/`, `0027_analytics.sql`,
+      `/admin/analytics`). Sign-up → first log → first follow → D7 return,
+      cohorted by sign-up date (an all-time-signups-vs-this-week's-activity funnel
+      only ever slopes down). Signed-in users only, no free text, no third party —
+      which is what lets the deletion promise stay literal; 0027 extends
+      `delete_own_account`, the first test of the "hardcoded list rots" warning
+      0020 wrote about itself. `signed_up` is recorded by a **trigger on
+      `auth.users`**, because an OAuth signup returns through `onAuthStateChange`
+      where "signed in" and "signed up" are indistinguishable from the client — so
+      a client-side call would have silently counted only the email form.
+      *Remaining:* nothing blocking. Per-surface ad revenue attribution would need
+      AdSense's own reporting, which is a different system.
+- [x] **(F6) Invite system** — shipped 2026-07-15 (`0028_invites.sql`,
+      `src/invites/`, `/invite`). **Deliberately NOT invite-gated**, which is a
+      change from this line's original ask: gating optimizes for exclusivity at
+      the direct expense of the ad impressions the project exists to earn.
+      Scarcity is a lever for when there's a queue at the door, and the schema
+      supports pulling it later by making `redeem_invite` mandatory at signup.
+      What shipped is the part that pays off now: a referral link that seeds a
+      **mutual** follow, so nobody lands on the empty feed that kills day one.
+      `redeem_invite` is SECURITY DEFINER because a code is a bearer token (no
+      select-by-code policy exists — looking one up *is* using it) and because the
+      invitee has no right to make the inviter follow back. It returns one `null`
+      for every failure so it can't be used as an oracle; one redemption per
+      *person*, not per code, or referral credit is farmable.
+- [~] **(G5) Ship the native apps** — the app-review *compliance* work is done:
+      Apple sign-in (F1), in-app account deletion (0020), blocking + reporting
+      for user-generated content (0019), and a published privacy policy. Those
+      were the rejection risks.
+      **What remains is blocked on accounts, not code**, and deliberately not
+      faked: an EAS build needs an Expo account; TestFlight and Play internal
+      testing need paid Apple ($99/yr) and Google ($25) developer memberships;
+      universal links need a real Apple Team ID + bundle identifier in an
+      `apple-app-site-association` file. Writing `eas.json` with invented ids
+      would produce config that looks complete and fails at the first build, which
+      is worse than an empty file. Once those accounts exist this is an afternoon:
+      `eas.json`, bundle ids in `app.json`, AASA + `assetlinks.json` in `public/`,
+      store copy, screenshots.
+- [ ] **(G6) Paid tier (Pro)** — **this is a decision, not a coding task, and it
+      is the founder's.** The blocker isn't the entitlement seam (a `pro` flag
+      gating `ad-slot.tsx` is an hour's work); it's choosing the rails, and the
+      choice isn't reversible cheaply. Stripe on web is 2.9% and works today; App
+      Store IAP is **mandatory** for digital goods in an iOS build and takes
+      15–30%; RevenueCat straddles both for a cut. Building the seam before
+      picking would mean guessing at whether entitlements are keyed to a Stripe
+      customer, an Apple original_transaction_id, or a RevenueCat app_user_id —
+      and that guess is the whole schema.
+      Worth noting the tension with the stated ad goal: Pro's main perk (ad-free)
+      removes the impressions the rest of Phase 4 was built to earn, so Pro only
+      makes sense once ARPU-from-ads is known — which the funnel (now shipped) is
+      what measures. Sequence: ads earn → measure → then price the escape from
+      them. Perks that fit Jelli: full Wrapped history, advanced taste stats,
+      unlimited lists, profile themes.
 
 ## Polish & quick wins
 

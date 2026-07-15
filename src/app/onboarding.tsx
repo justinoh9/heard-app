@@ -36,6 +36,7 @@ import { initialsOf } from '@/social/feed-rows';
 import { socialBackend } from '@/social/provider';
 import { useSocial } from '@/social/store';
 
+import { useAnalytics } from '@/analytics/store';
 import { markOnboarded } from '@/onboarding/flag';
 import { loadSeedAlbums } from '@/onboarding/seed';
 import { rankFollowSuggestions, type FollowSuggestion, type SuggestionCandidate } from '@/onboarding/suggestions';
@@ -58,6 +59,7 @@ export default function OnboardingScreen() {
   const router = useRouter();
   const haptics = useHaptics();
   const { user } = useAuth();
+  const { track } = useAnalytics();
   const { commitPlacement } = useRatings();
   const { toggleFollow, followingIds } = useSocial();
 
@@ -72,10 +74,23 @@ export default function OnboardingScreen() {
   // --- follow state ---
   const [suggestions, setSuggestions] = useState<FollowSuggestion[] | null>(null);
 
-  const finish = useCallback(() => {
-    if (user) markOnboarded(user.id).catch(() => {});
-    router.replace('/');
-  }, [user, router]);
+  /**
+   * Leave the wizard. `completed` separates reaching the end from tapping Skip —
+   * both mark the user onboarded (we're not asking twice either way), but only
+   * one of them is the wizard working. This function is the Skip handler too, so
+   * tracking unconditionally here would report 100% completion forever and make
+   * the biggest D1 lever we've built permanently unmeasurable.
+   */
+  const finish = useCallback(
+    (completed: boolean) => {
+      if (user) {
+        markOnboarded(user.id).catch(() => {});
+        if (completed) track('onboarding_completed', { rated: picks.current.length });
+      }
+      router.replace('/');
+    },
+    [user, router, track],
+  );
 
   // Load the seed as soon as we enter the rate step.
   useEffect(() => {
@@ -162,7 +177,7 @@ export default function OnboardingScreen() {
           {step === 'welcome' ? 'Welcome' : step === 'rate' ? 'Build your taste' : step === 'follow' ? 'Find your people' : ''}
         </ThemedText>
         {step !== 'done' && (
-          <Pressable testID="onboarding-skip" onPress={finish} hitSlop={8}>
+          <Pressable testID="onboarding-skip" onPress={() => finish(false)} hitSlop={8}>
             <ThemedText type="small" themeColor="textSecondary">
               Skip
             </ThemedText>
@@ -196,7 +211,7 @@ export default function OnboardingScreen() {
             />
           )}
 
-          {step === 'done' && <DoneStep theme={theme} onFinish={finish} />}
+          {step === 'done' && <DoneStep theme={theme} onFinish={() => finish(true)} />}
         </PageContainer>
       </ScrollView>
     </ThemedView>

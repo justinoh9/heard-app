@@ -7,6 +7,7 @@ import { useAuthGate } from '@/auth/use-require-auth';
 import { ShareCard, type ShareCardData } from '@/components/share-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useAnalytics } from '@/analytics/store';
 import { useToast } from '@/components/toast';
 import { useConcerts } from '@/concerts/store';
 import { Spacing } from '@/constants/theme';
@@ -29,6 +30,7 @@ export default function ShareCardModal() {
   const { ranked } = useRatings();
   const { concerts } = useConcerts();
   const { myProfile } = useSocial();
+  const { track } = useAnalytics();
   const cardRef = useRef<View>(null);
   const [busy, setBusy] = useState(false);
 
@@ -57,6 +59,10 @@ export default function ShareCardModal() {
     setBusy(true);
     try {
       await shareCard(cardRef.current, `jelli-${myProfile?.handle ?? 'card'}`);
+      // Only after the export succeeds — every card carries the wordmark, so this
+      // counts the acquisition surface actually leaving the building, not someone
+      // tapping a button that then threw.
+      track('shared', { surface: 'wrapped_card', platform: Platform.OS });
       if (Platform.OS === 'web') toast('Image saved', '📸');
     } catch (e) {
       console.warn('[share-card] export failed:', e);

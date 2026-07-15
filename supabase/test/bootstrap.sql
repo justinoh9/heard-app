@@ -48,9 +48,13 @@ alter default privileges in schema public
 create schema if not exists auth;
 
 create table if not exists auth.users (
-  id            uuid primary key,
-  email         text,
-  created_at    timestamptz not null default now()
+  id                 uuid primary key,
+  email              text,
+  -- Where the account came from ('email', 'google', 'apple'). 0027's signup
+  -- trigger reads `provider` out of this, the way Supabase Auth populates it.
+  raw_app_meta_data  jsonb default '{}'::jsonb,
+  raw_user_meta_data jsonb default '{}'::jsonb,
+  created_at         timestamptz not null default now()
 );
 
 /*

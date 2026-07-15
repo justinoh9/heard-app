@@ -20,6 +20,30 @@ retention, differentiators).
   `src/data/catalog.ts` seeds brand-new users **in local/demo mode only** —
   against the cloud backend a new user starts empty, so demo ratings are never
   persisted as real data.
+- **Analytics** (`src/analytics/`, ROADMAP Phase 4) — the funnel (sign-up → first
+  log → first follow → D7 return) behind an `AnalyticsBackend` seam
+  (`0027_analytics.sql`; Supabase or a no-op Local impl). Signed-in users only
+  (`user_id` is NOT NULL and the insert policy demands it match `auth.uid()`, so a
+  guest generates no row), no free text, no third party — which is what keeps
+  "delete my account" literal, since 0027 also extends `delete_own_account`.
+  Events are **raw**: there is no `first_rating`, because "first" is a read-time
+  question (`min(created_at)`). `signed_up` is recorded by a **trigger on
+  `auth.users`**, not the client — an OAuth signup returns through
+  `onAuthStateChange` where "signed in" and "signed up" are indistinguishable, so
+  a client call would silently count only the email form. `analytics_funnel()` is
+  admin-only *inside the function* (there's no read policy at all), cohorted by
+  sign-up date, and rendered by `src/app/admin/analytics.tsx`.
+- **Invites** (`src/invites/`, ROADMAP F6) — `0028_invites.sql`. Deliberately a
+  referral link, **not invite-gated signup**: gating would optimize for
+  exclusivity at the direct expense of the ad impressions this app exists to
+  earn. Scarcity is a lever for when there's a queue at the door; the schema
+  supports pulling it later. Redeeming seeds a **mutual** follow so nobody starts
+  on an empty feed. `redeem_invite` is `security definer` because a code is a
+  bearer token (no select-by-code policy exists — being able to look one up is
+  being able to use it) and because the invitee has no right to make the *inviter*
+  follow them. It returns a single `null` for every failure — wrong / spent /
+  yours / already-used-one — so it can't be used as an oracle to test guesses.
+  One redemption per person, not per code, or referral credit is farmable.
 - Music search runs on the **iTunes Search API** (`src/music/itunes.ts`) —
   keyless, no backend, no secret in the bundle. Reflective CORS (Apple echoes
   the request origin) makes direct `fetch` work on web; native has no CORS. It
@@ -38,6 +62,18 @@ retention, differentiators).
   — the returned CDN image renders fine either way. `src/music/spotify.ts` is
   retained as an alternate `MusicCatalog` and still backs the user-library
   import (the separate Spotify user-OAuth for "recently played").
+  **It is proxy-only, and there is no client-secret env var any more** (Phase 4).
+  The secret used to be read from `EXPO_PUBLIC_SPOTIFY_CLIENT_SECRET`, which Expo
+  inlines into the bundle — so it shipped, publicly readable, on myjelli.site. The
+  `tokenDirect` path is **deleted rather than discouraged**: a comment saying "use
+  the proxy before a real launch" did not survive contact with a deploy, and a
+  code path that cannot read a secret does. `SpotifyCatalog` now takes its token
+  only from the `spotify-token` Edge Function (`EXPO_PUBLIC_SPOTIFY_TOKEN_URL`),
+  and a regression test asserts that a secret in the env does *not* resurrect
+  direct mode. The client **ID** stays public on purpose — the user-OAuth flow is
+  PKCE, which is built for clients that can't keep a secret. (Expo only inlines
+  `EXPO_PUBLIC_*` vars the code actually references, so deleting the read is what
+  stops the leak — verified, not assumed.)
 - Streak state (`src/streaks/`) persists per-user to `AsyncStorage` on the
   device (deliberately not in Supabase — it's a per-device habit nudge).
 - The **Daily Drop** persists behind a `DropsBackend` seam (`src/feed/`):
@@ -179,6 +215,16 @@ retention, differentiators).
   `expo-image-picker` and uploads through `src/social/avatar.ts` (base64→bytes,
   upsert + cache-buster), and the shared `components/avatar.tsx` renders the
   image or an initials monogram (initials fallback for anyone without a photo).
+  **Scale** (Phase 4): `searchProfiles({query, limit, offset})` searches + pages
+  in the database (`0025_profile_search.sql` — pg_trgm GIN indexes, because the
+  query is an *unanchored* `ilike '%maya%'` that a B-tree can't serve), exposed as
+  `useSocial().searchPeople` — on the store, not the backend, because blocked
+  users are filtered in stores and a screen calling the backend directly would
+  quietly show them. `profilesByIds` resolves specific people, and `/user/[id]`
+  uses it rather than scanning a directory it can no longer assume is complete.
+  `listProfiles()` stays unbounded on purpose: several screens use `people` as a
+  local id→name map, so capping it wouldn't make them slower, it would make them
+  silently *wrong*.
   `favorites.ts` resolves the **Top 4 showcase** (blueprint §2.D): chosen ids
   live on `Profile.favorites` (`0005_favorites.sql`; `saveFavorites` in the
   store), edited on the Profile tab (Edit → remove/add via picker sheet, with
@@ -236,6 +282,12 @@ retention, differentiators).
   oldest-first. One level deep — replying to a reply anchors to its root. The
   item page renders replies indented under the parent with a "Reply" affordance
   and a "Replying to X" composer banner.
+  **Paging counts ROOTS, not rows** (Phase 4, `0026_comment_paging.sql`):
+  `listForItem` fetches 20 top-level comments and then every reply belonging to
+  them, in two queries. A flat `limit 20` would hand `buildThreads` replies whose
+  parent fell on the next page — and it drops orphans by design (that's exactly
+  what makes a blocked user's thread vanish with them), so the comments wouldn't
+  be paginated, they'd be *gone*. Two partial indexes serve the two halves.
 - `src/moderation/` — **blocking + reporting** (ROADMAP Phase 4), behind a
   `ModerationBackend` seam (`0019_moderation.sql`; Supabase + AsyncStorage,
   `provider.ts`). **These are the app's only private-read tables** — the RLS
@@ -265,6 +317,41 @@ retention, differentiators).
   `src/app/report.tsx`, and `src/app/blocked.tsx` (which reads
   `socialBackend.listProfiles()` *directly*, since `useSocial().people` is
   filtered and this is the one screen meant to show blocked users).
+  **Rate limits** (`0021_rate_limits.sql`) are the other half: RLS answers "may
+  you write this row?", never "how many this minute?". One generic
+  `enforce_rate_limit()` trigger takes the **actor column** as an argument — not a
+  hardcoded `user_id` — because follows records the actor in `follower_id` and
+  reports in `reporter_id`, so hardcoding would throttle the victim instead of the
+  abuser. `concert_tags` needs its own limiter entirely: its `user_id` is the
+  person *tagged*, while the tagger is the concert's owner. `AFTER … FOR EACH
+  STATEMENT`, not `BEFORE … FOR EACH ROW` — one COUNT per statement instead of per
+  row, with visibility guaranteed by definition rather than by how plpgsql happens
+  to take snapshots. SECURITY DEFINER is load-bearing: reports are private-read, so
+  under the caller's own privileges RLS would filter the COUNT and a limiter that
+  reads 0 never fires. `blocks` is deliberately unlimited — mass-blocking a brigade
+  is the system working.
+  **Admin triage** (`0023_admin_review.sql`, `src/app/admin/reports.tsx`): admins
+  are a private `admins` table, not a `profiles.is_admin` flag (profiles is
+  public-read — a flag would publish the moderator list to anyone with curl), and
+  there is **no API path that grants admin**. `is_admin()` is SECURITY DEFINER to
+  break the recursion of a policy on `admins` that must read `admins`. RLS says
+  which *rows* an admin may update; a **column grant** (`revoke update … grant
+  update (status)`) says which *columns*, so a reviewer can't edit the evidence —
+  `reviewed_by`/`reviewed_at` are stamped from the JWT by a trigger. Admins may
+  delete comments and feed events (the free-text surfaces), deliberately not
+  ratings — removing someone's honest 7/10 isn't moderation. Banning is left to
+  the Supabase dashboard rather than an RPC that mutates `auth.users`.
+  Pure `admin-rows.ts` (unit-tested) groups reports by target — ten people
+  reporting one comment is one decision, and the pile-up is the strongest signal
+  in the queue — and reads an unknown status as `open`, so a row can never look
+  "already handled" by accident.
+  **Renames propagate** (`0022_display_name_propagation.sql`): display names are
+  denormalized into `feed_events`/`comments` for one-query feeds, and a repost's
+  attribution lives on the *reposter's* row — so propagating your new name means
+  writing rows you don't own, which is why the trigger is SECURITY DEFINER. Kept
+  denormalized (rather than joining) because renames are rare and feed reads are
+  constant, and because PostgREST can only embed through a real FK, which these
+  columns can't get while orphaned local-auth-era rows exist.
 - `src/likes/` — `LikesBackend` seam, same Supabase-backed-from-day-one
   treatment as comments. One generic `likes` table (discriminated by
   `target_type`) covers both item likes (song/album profile) and comment likes.
@@ -299,12 +386,19 @@ retention, differentiators).
   with a "Want to listen" card + count on the Profile.
 - `src/browse/` — **browse & discovery** (ROADMAP G2): the non-social surfaces
   both Beli and Letterboxd have, behind a `BrowseBackend` seam (Supabase +
-  AsyncStorage, `provider.ts`). The Supabase impl reads every rating joined to
-  its item in one query and folds them client-side through pure, unit-tested
-  `aggregate.ts` (`aggregateBrowseItems` → per-item avg/count/recent, then
-  `trending` / `topRated` / `forGenre` / `browseGenres`) — the same "select then
-  tally" posture as the leaderboard (a Postgres view/RPC is the Phase-4 scale
-  follow-up). No migration — it reads existing `ratings`/`items`. The Browse tab
+  AsyncStorage, `provider.ts`). The Supabase impl calls the **`browse_items` RPC**
+  (`0024_browse_rpc.sql`) — it used to select every rating in the database and
+  tally them in the browser, which past PostgREST's row cap would have kept
+  *succeeding* while quietly describing an arbitrary subset. Aggregation is now
+  server-side; the pure, unit-tested `aggregate.ts` still owns presentation
+  (`trending` / `topRated` / `forGenre` / `browseGenres`), and
+  `aggregateBrowseItems` still backs the local impl. The RPC returns a **union of
+  three top-N picks** (recent / highest-rated / most-rated) because no single
+  `ORDER BY` serves both Trending and Top rated — sort by count and a quiet
+  four-times-9.5 album never charts; sort by average and this week's release
+  never trends. `load({ genres })` scopes server-side so the crawlable
+  `/browse/genre/[slug]` pages — the long-tail SEO surface — can't render empty.
+  The Browse tab
   (`src/app/(tabs)/browse.tsx`, `/browse`, guest-browsable) renders Trending this
   week + Top rated with genre chips; it carries the Browse AdSlot placement.
 - `src/recommendations/` — the **"For you" recommender** (ROADMAP G3), behind a
@@ -361,6 +455,17 @@ retention, differentiators).
 - `npm start` — Expo dev server (scan QR with Expo Go for a phone)
 - `npm test` — run ranking + music + streaks + likes unit tests (tsx + node:test)
 - `npx tsc --noEmit` — typecheck
+- `npm run test:migrations` — **replay every migration into a throwaway Postgres
+  container** (needs Docker). `supabase/test/bootstrap.sql` stands in for the
+  parts of a Supabase project the migrations don't create (the `auth` schema and
+  a real `auth.uid()` reading `request.jwt.claims`, `storage.objects`, the
+  anon/authenticated roles and their default grants). Every migration from 0021
+  on ends in a `do $$ … $$` **self-test** that asserts its own behavior and
+  raises if wrong — several run `set local role authenticated` so they exercise
+  RLS for real, since the table owner bypasses it and a policy test as `postgres`
+  asserts nothing. `KEEP=1` leaves the container up to poke at.
+  A pass means the SQL is valid and its logic holds against a Supabase-shaped
+  schema — not that production is fine.
 
 ## Conventions
 - Keep screens talking only to `useRatings()` and the `RankingEngine` interface —

@@ -6,6 +6,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
+import { analyticsBackend } from '@/analytics/provider';
 import { useAuth } from '@/auth/store';
 import { useSocial } from '@/social/store';
 import { useStreaks } from '@/streaks/store';
@@ -88,9 +89,16 @@ export function useConcertsState(): ConcertsApi {
           createdAt: new Date().toISOString(),
         };
         setConcerts((prev) => [provisional, ...prev]);
-        // A wishlist add is private intent — no feed event, no streak tick.
+        // A wishlist add is private intent — no feed event, no streak tick, and
+        // no analytics either: this measures the concert layer being used, and
+        // wanting to go somewhere isn't going.
         if (draft.status === 'attended') {
           streaks.recordActivity();
+          void analyticsBackend.track(userId, 'concert_logged', {
+            // Whether the venue was pinned tells us if the map is earning its
+            // keep — a bare count can't distinguish a dot from a typed string.
+            mapped: typeof draft.lat === 'number' && typeof draft.lng === 'number',
+          });
           social.publish('concert', {
             title: draft.artistName,
             artist:
