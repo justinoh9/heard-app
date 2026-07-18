@@ -11,6 +11,7 @@ import { JelliLoader } from '@/components/jelli-loader';
 import { ThemedView } from '@/components/themed-view';
 import { ToastProvider } from '@/components/toast';
 import { AuthProvider, useAuth } from '@/auth/store';
+import { BadgeAnnouncer } from '@/badges/announcer';
 import {
   parseOAuthError,
   peekPendingOAuthError,
@@ -76,6 +77,9 @@ export default function RootLayout() {
                     <QueueBridge>
                       {/* Below ratings: notifications scope to the viewer's rated items. */}
                       <NotificationsBridge>
+                        {/* Null-rendering: publishes 'badge' feed events when a
+                            new badge is earned. Below every store it reads. */}
+                        <BadgeAnnouncer />
                         <NavThemeProvider>
                           <ToastProvider>
                             <RootNavigator />

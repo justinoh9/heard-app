@@ -170,6 +170,30 @@ export default function UserProfileScreen() {
                         : 'Nothing in common yet — rate more music'}
                     </ThemedText>
                   </View>
+                  {/* Exportable only once the number means something. */}
+                  {compat.overlapCount > 0 && (
+                    <Pressable
+                      testID="share-match"
+                      onPress={() =>
+                        router.push({
+                          pathname: '/share-card',
+                          params: {
+                            matchPercent: String(compat.percent),
+                            matchName: displayName,
+                            matchHandle: theirProfile?.handle ?? '',
+                            matchShared: JSON.stringify(
+                              compat.sharedFavorites
+                                .slice(0, 3)
+                                .map((i) => ({ title: i.title, artUrl: i.artUrl })),
+                            ),
+                          },
+                        })
+                      }
+                      accessibilityLabel={`Share your taste match with ${displayName}`}
+                      hitSlop={8}>
+                      <Ionicons name="share-outline" size={20} color={theme.textSecondary} />
+                    </Pressable>
+                  )}
                 </View>
                 {compat.sharedFavorites.length > 0 && (
                   <>

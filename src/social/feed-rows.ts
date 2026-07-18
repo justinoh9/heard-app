@@ -101,6 +101,18 @@ export function toDisplayEvent(e: SocialEvent): FeedEvent {
       repostNote: p.note,
     };
   }
+  if (e.type === 'badge') {
+    // title = badge title; informational card, no item link (like streaks).
+    return {
+      ...base,
+      kind: 'badge',
+      coverUrl: undefined,
+      itemId: undefined,
+      itemType: undefined,
+      artist: undefined,
+      title: p.title ?? 'a badge',
+    };
+  }
   if (e.type === 'made_list') {
     // title = list name; informational card, no item link (like streaks).
     return {

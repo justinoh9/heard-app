@@ -7,7 +7,7 @@
  * device-local last-seen timestamp (see seen.ts). Push is a later slice.
  */
 
-export type NotificationKind = 'follow' | 'comment' | 'tag' | 'twin';
+export type NotificationKind = 'follow' | 'comment' | 'tag' | 'twin' | 'queue';
 
 export interface AppNotification {
   /** Stable id for keys/dedup. */

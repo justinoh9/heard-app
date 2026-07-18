@@ -307,10 +307,13 @@ function FeedRow({
           ? 'saw'
           : event.kind === 'made_list'
             ? 'made a list'
-            : event.title;
-  // The list name / streak text sits inline in the header, so those cards have
-  // no separate art+score body.
-  const inlineOnly = event.kind === 'streak' || event.kind === 'made_list';
+            : event.kind === 'badge'
+              ? 'earned the'
+              : event.title;
+  // The list name / streak text / badge title sits inline in the header, so
+  // those cards have no separate art+score body.
+  const inlineOnly =
+    event.kind === 'streak' || event.kind === 'made_list' || event.kind === 'badge';
   // Show the art+score body whenever there's something to show — AlbumCover
   // falls back to a disc icon, so a missing artUrl shouldn't hide the score.
   const showBody = !inlineOnly && (!!event.coverUrl || event.score != null);
@@ -348,8 +351,10 @@ function FeedRow({
             <ThemedText type="smallBold"> {event.title}</ThemedText>
           ) : null}
           {event.kind === 'concert' ? ' live' : ''}
+          {event.kind === 'badge' ? ' badge' : ''}
         </ThemedText>
         {event.kind === 'streak' && <Ionicons name="flame" size={16} color={theme.warning} />}
+        {event.kind === 'badge' && <Ionicons name="ribbon" size={16} color={theme.accent} />}
         {event.kind === 'made_list' && (
           <Ionicons name="list" size={16} color={theme.accentAlt} />
         )}

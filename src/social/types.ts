@@ -31,7 +31,14 @@ export interface ProfilePatch {
 /** Thrown when a chosen @handle is already taken (unique-index violation). */
 export class HandleTakenError extends Error {}
 
-export type SocialEventType = 'rated' | 'drop' | 'streak' | 'concert' | 'made_list' | 'repost';
+export type SocialEventType =
+  | 'rated'
+  | 'drop'
+  | 'streak'
+  | 'concert'
+  | 'made_list'
+  | 'repost'
+  | 'badge';
 
 /**
  * Type-specific event details. One loose bag (mirrors the jsonb column) so new
@@ -59,6 +66,8 @@ export interface SocialEventPayload {
   originalType?: SocialEventType;
   originalUserId?: string;
   originalDisplayName?: string;
+  /** 'badge' events — the earned badge's id (title rides in `title`). */
+  badgeId?: string;
 }
 // 'made_list' events reuse `title` for the list name (no item link).
 // 'repost' events reuse title/artist/artUrl/score/review/itemId for the

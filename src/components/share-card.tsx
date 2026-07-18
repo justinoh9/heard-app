@@ -26,6 +26,9 @@ export interface ShareCardData {
   meanScore: number | null;
   concertCount: number;
   topArtist?: string;
+  /** The taste-profile rating style ("Generous", "Critical", …) — identity is
+   *  what makes a card worth posting (Growth playbook: Social Currency). */
+  descriptor?: string;
   highest?: { title: string; artist: string; artUrl?: string; score: number };
 }
 
@@ -100,9 +103,15 @@ export const ShareCard = forwardRef<View, { data: ShareCardData }>(function Shar
         <Stat value={String(data.concertCount)} label="shows" />
       </View>
 
-      {data.topArtist && (
+      {(data.descriptor || data.topArtist) && (
         <ThemedText type="small" themeColor="textSecondary" numberOfLines={1} style={styles.center}>
-          Most rated: <ThemedText type="smallBold">{data.topArtist}</ThemedText>
+          {data.descriptor ? <ThemedText type="smallBold">{data.descriptor}</ThemedText> : null}
+          {data.descriptor && data.topArtist ? ' · ' : ''}
+          {data.topArtist ? (
+            <>
+              Most rated: <ThemedText type="smallBold">{data.topArtist}</ThemedText>
+            </>
+          ) : null}
         </ThemedText>
       )}
     </CardShell>
@@ -183,6 +192,58 @@ export const SpotlightCard = forwardRef<View, { owner: CardOwner; data: Spotligh
   },
 );
 
+/** Shared-item art + title for the match card's "you both love" row. */
+export interface MatchShared {
+  title: string;
+  artUrl?: string;
+}
+
+/**
+ * The taste-match card (Growth playbook: Emotion + Social Currency): one
+ * number about the *pair*, so both people look good sharing it. Exported from
+ * another user's profile.
+ */
+export const MatchCard = forwardRef<
+  View,
+  { owner: CardOwner; other: CardOwner; percent: number; shared: MatchShared[] }
+>(function MatchCard({ owner, other, percent, shared }, ref) {
+  const theme = useTheme();
+  const displayFont = useDisplayFont();
+  return (
+    <CardShell ref={ref} owner={owner}>
+      <View style={styles.spotlightHead}>
+        <ThemedText type="smallBold" style={{ color: theme.accent, letterSpacing: 1 }}>
+          TASTE MATCH
+        </ThemedText>
+        <ThemedText style={[styles.matchPercent, { fontFamily: displayFont, color: theme.text }]}>
+          {percent}%
+        </ThemedText>
+        <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+          {owner.handle ? `@${owner.handle}` : owner.name} ×{' '}
+          {other.handle ? `@${other.handle}` : other.name}
+        </ThemedText>
+      </View>
+      {shared.length > 0 && (
+        <>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.center}>
+            You both love
+          </ThemedText>
+          <View style={styles.matchRow}>
+            {shared.slice(0, 3).map((m, i) => (
+              <View key={`${m.title}-${i}`} style={styles.matchItem}>
+                <AlbumCover uri={m.artUrl} size={84} radius={10} />
+                <ThemedText type="small" numberOfLines={1} style={styles.center}>
+                  {m.title}
+                </ThemedText>
+              </View>
+            ))}
+          </View>
+        </>
+      )}
+    </CardShell>
+  );
+});
+
 function Stat({ value, label }: { value: string; label: string }) {
   return (
     <View style={styles.stat}>
@@ -223,4 +284,7 @@ const styles = StyleSheet.create({
   cellCaption: { flexDirection: 'row', alignItems: 'baseline', gap: Spacing.one },
   spotlightHead: { alignItems: 'center', gap: 2 },
   spotlightTitle: { fontSize: 30, lineHeight: 36 },
+  matchPercent: { fontSize: 44, lineHeight: 50 },
+  matchRow: { flexDirection: 'row', justifyContent: 'center', gap: Spacing.two },
+  matchItem: { alignItems: 'center', gap: 4, maxWidth: 92 },
 });

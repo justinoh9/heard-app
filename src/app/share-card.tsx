@@ -1,14 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { useAuthGate } from '@/auth/use-require-auth';
 import {
+  MatchCard,
   ShareCard,
   SpotlightCard,
   Top4Card,
   type CardOwner,
+  type MatchShared,
   type ShareCardData,
 } from '@/components/share-card';
 import { ThemedText } from '@/components/themed-text';
@@ -24,6 +26,7 @@ import { artistSpotlight, decadeSpotlight } from '@/share/cards';
 import { shareCard } from '@/share/export';
 import { resolveFavorites } from '@/social/favorites';
 import { useSocial } from '@/social/store';
+import { MIN_FOR_STYLE, ratingStyle } from '@/taste/profile';
 
 /**
  * Share-card preview + export (ROADMAP Phase 3). Renders the branded card —
@@ -32,14 +35,49 @@ import { useSocial } from '@/social/store';
  * action. Variants with nothing to show simply don't offer their chip.
  */
 
-type Variant = 'wrapped' | 'top4' | 'artist' | 'decade';
+type Variant = 'wrapped' | 'top4' | 'artist' | 'decade' | 'match';
 
 const VARIANT_LABELS: Record<Variant, string> = {
   wrapped: 'Wrapped',
   top4: 'Top 4',
   artist: 'Artist',
   decade: 'Decade',
+  match: 'Match',
 };
+
+/** The taste-match context, when opened from another user's profile. */
+interface MatchParams {
+  other: CardOwner;
+  percent: number;
+  shared: MatchShared[];
+}
+
+function parseMatchParams(params: Record<string, string | string[] | undefined>): MatchParams | null {
+  const percent = Number(params.matchPercent);
+  const name = typeof params.matchName === 'string' ? params.matchName : '';
+  if (!Number.isFinite(percent) || percent < 0 || !name) return null;
+  let shared: MatchShared[] = [];
+  if (typeof params.matchShared === 'string' && params.matchShared) {
+    try {
+      const parsed = JSON.parse(params.matchShared) as unknown;
+      if (Array.isArray(parsed)) {
+        shared = parsed
+          .filter((s): s is MatchShared => !!s && typeof (s as MatchShared).title === 'string')
+          .slice(0, 3);
+      }
+    } catch {
+      // Malformed param — the card just renders without the shared row.
+    }
+  }
+  return {
+    other: {
+      name,
+      handle: typeof params.matchHandle === 'string' && params.matchHandle ? params.matchHandle : undefined,
+    },
+    percent: Math.round(percent),
+    shared,
+  };
+}
 
 export default function ShareCardModal() {
   const theme = useTheme();
@@ -51,8 +89,11 @@ export default function ShareCardModal() {
   const { myProfile, myFavorites } = useSocial();
   const { track } = useAnalytics();
   const cardRef = useRef<View>(null);
+  const params = useLocalSearchParams();
+  const match = useMemo(() => parseMatchParams(params), [params]);
   const [busy, setBusy] = useState(false);
-  const [variant, setVariant] = useState<Variant>('wrapped');
+  // Opened from a profile's match banner → lead with the match card.
+  const [variant, setVariant] = useState<Variant>(match ? 'match' : 'wrapped');
 
   const artist = useMemo(() => artistSpotlight(ranked), [ranked]);
   const decade = useMemo(() => decadeSpotlight(ranked), [ranked]);
@@ -62,12 +103,15 @@ export default function ShareCardModal() {
   const owner: CardOwner = { name: user.displayName, handle: myProfile?.handle };
 
   const stats = computeStats(ranked, concerts);
+  const style = ratingStyle(stats.meanScore, stats.histogram, stats.ratedCount);
   const wrapped: ShareCardData = {
     ...owner,
     ratedCount: stats.ratedCount,
     meanScore: stats.meanScore,
     concertCount: stats.concertCount,
     topArtist: stats.topArtists[0]?.name,
+    // "Getting started" isn't an identity worth printing on a card.
+    descriptor: stats.ratedCount >= MIN_FOR_STYLE ? style.label : undefined,
     highest: stats.highest
       ? {
           title: stats.highest.item.title,
@@ -86,6 +130,7 @@ export default function ShareCardModal() {
   }));
 
   const available: Variant[] = [
+    ...(match ? (['match'] as const) : []),
     'wrapped',
     ...(top4.length > 0 ? (['top4'] as const) : []),
     ...(artist ? (['artist'] as const) : []),
@@ -154,6 +199,15 @@ export default function ShareCardModal() {
         )}
         {variant === 'decade' && decade && (
           <SpotlightCard ref={cardRef} owner={owner} data={decade} />
+        )}
+        {variant === 'match' && match && (
+          <MatchCard
+            ref={cardRef}
+            owner={owner}
+            other={match.other}
+            percent={match.percent}
+            shared={match.shared}
+          />
         )}
 
         <Pressable

@@ -26,6 +26,7 @@ const ICON: Record<NotificationKind, keyof typeof Ionicons.glyphMap> = {
   comment: 'chatbubble',
   tag: 'mic',
   twin: 'sparkles',
+  queue: 'bookmark',
 };
 
 export default function NotificationsScreen() {
@@ -41,7 +42,7 @@ export default function NotificationsScreen() {
   }, []);
 
   function open(n: AppNotification) {
-    if ((n.kind === 'comment' || n.kind === 'twin') && n.itemId && n.itemType) {
+    if ((n.kind === 'comment' || n.kind === 'twin' || n.kind === 'queue') && n.itemId && n.itemType) {
       router.push({
         pathname: '/item/[id]',
         params: { id: n.itemId, type: n.itemType, title: n.subject ?? '', artist: '' },
@@ -71,12 +72,13 @@ export default function NotificationsScreen() {
           {!loading && notifications.length === 0 && (
             <EmptyState
               icon="notifications-outline"
-              message="No notifications yet. Follows, comments on your music, concert tags, and your taste twin's latest raves show up here."
+              message="No notifications yet. Follows, comments on your music, concert tags, and friends rating your want-to-listen picks show up here."
             />
           )}
 
           {notifications.map((n) => {
-            const pressable = (n.kind === 'comment' || n.kind === 'twin') && !!n.itemId;
+            const pressable =
+              (n.kind === 'comment' || n.kind === 'twin' || n.kind === 'queue') && !!n.itemId;
             return (
               <Pressable
                 key={n.id}
@@ -124,6 +126,7 @@ function verb(n: AppNotification): string {
     case 'tag':
       return 'tagged you at';
     case 'twin':
+    case 'queue':
       return 'rated';
   }
 }

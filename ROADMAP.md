@@ -507,6 +507,45 @@ between larger work.
 
 ---
 
+## Growth playbook — Contagious (STEPPS)
+
+Jonah Berger's six reasons things get shared, used here as the lens for
+growth work (adopted 2026-07-18). The test for any new sharing/visibility
+feature: which principle is it pulling on, and does it make the *user* look
+good — not the app? People share things that make them look good, feel
+something, or help a friend; the brand rides along (every export already
+carries the wordmark + myjelli.site — behavioral residue).
+
+- **Social Currency** (sharing it makes me look good): the share cards
+  (Wrapped/#1, Top 4, artist/decade spotlights, the taste **descriptor** on
+  the Wrapped card) and **badges** — which now publish a `badge` feed event on
+  earn (`0029`, `src/badges/announcer.tsx`), because an achievement nobody
+  sees is social currency nobody can spend. *Open:* percentile stats ("more
+  albums rated than 94% of Jelli") once the user base supports honest
+  percentiles — zero-fabrication rule applies.
+- **Triggers** (top of mind → tip of tongue): streaks, the Daily Drop's 24h
+  clock, and the **queue trigger** ("a friend rated something on your
+  want-to-listen list", `src/notifications/queue-trigger.ts` — the G1
+  follow-up, shipped 2026-07-18). *Open:* push notifications (APNs/FCM) are
+  the real trigger channel; in-app bells only fire for people already here.
+- **Emotion** (high-arousal beats informative): the **taste-match card** — a
+  share action on another user's profile exports "{n}% taste match" with the
+  albums you both love (`MatchCard`, entered from `/user/[id]`). Surprise +
+  affirmation, and it flatters *both* people, so it has two natural sharers.
+- **Public** (built to show, built to grow): public profiles, the exported
+  cards, badge events in the feed. *Open (next candidates):* the shareable
+  `/list/[id]` route (lists follow-up) and the public concert map on
+  `/user/[id]` (concert-layer follow-up) — both turn private artifacts into
+  linkable, crawlable pages, which also feeds the SEO surface.
+- **Practical Value** (useful things get forwarded): Browse's genre landing
+  pages, new releases, and the For-you row. *Open:* `/list/[id]` again — a
+  ranked list titled "best albums of 2026" is the single most forwardable
+  object this app can produce.
+- **Stories** (information travels inside narratives): Wrapped is the story
+  surface — "my year in music" — and every card is a chapter of it. *Open:* a
+  shareable year-end Wrapped sequence (multi-card story export) when December
+  arrives.
+
 ## Goals to steer by
 
 1. **Time-to-first-log < 2 minutes** from install (onboarding wizard).

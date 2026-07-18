@@ -162,7 +162,11 @@ retention, differentiators).
   pings the most-compatible followee's (≥50% match) recent (≤14d) high (≥8)
   ratings on unlogged music, capped at 3 — folded client-side so rating
   something drops its ping instantly, and filtered for blocks like every
-  source.
+  source. The fifth is the **queue trigger** (`queue-trigger.ts`, pure +
+  unit-tested; Growth playbook: Triggers): a friend's recent (≤7d) rating of
+  something on the viewer's want-to-listen list, any score, one ping per item
+  (freshest friend wins), capped at 3 — and when both it and the twin would
+  ping about the same item, the queue ping wins.
 - `src/auth/` — `useAuth()`/`AuthBackend` seam; `SupabaseAuthBackend` (real
   accounts, session persisted by the shared client, `onAuthStateChange`
   tracked) or `LocalAuthBackend` (AsyncStorage + expo-crypto) chosen by env in
@@ -437,8 +441,12 @@ retention, differentiators).
   it off — the native share sheet (`expo-sharing`) on device, an `<a download>`
   on web (the myjelli.site acquisition surface). Four variants ship behind
   chips in the `src/app/share-card.tsx` modal (reached from the Wrapped
-  screen's share action): Wrapped/#1, Top 4 (2×2 cover grid over
-  `resolveFavorites`), and artist/decade spotlights. All render through one
+  screen's share action): Wrapped/#1 (carrying the taste-style descriptor),
+  Top 4 (2×2 cover grid over `resolveFavorites`), and artist/decade
+  spotlights — plus a fifth, the **taste-match card** ("{n}% taste match",
+  both handles, the shared favorites), offered only when the modal is opened
+  from another user's profile match banner (`/user/[id]` passes the match via
+  route params; Growth playbook: Emotion). All render through one
   branded `CardShell` in `components/share-card.tsx` (wordmark + `myjelli.site`
   footer — every export is a tiny billboard); a variant with nothing to show
   doesn't offer its chip. The split matters for tests: `cards.ts`

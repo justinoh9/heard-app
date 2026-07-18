@@ -12,6 +12,7 @@ import { useAuth } from '@/auth/store';
 import { useRatings } from '@/data/store';
 import { hideBlocked } from '@/moderation/filter';
 import { useModeration } from '@/moderation/store';
+import { useQueue } from '@/queue/store';
 import { recommendationsBackend } from '@/recommendations/provider';
 import type { FriendRatingList } from '@/recommendations/types';
 import { compatibility } from '@/social/compatibility';
@@ -19,6 +20,7 @@ import { useSocial } from '@/social/store';
 
 import { mergeNotifications, unreadCount } from './merge';
 import { notificationsBackend } from './provider';
+import { queueTriggerNotifications } from './queue-trigger';
 import { getLastSeen, markSeen } from './seen';
 import { tasteTwinNotifications } from './taste-twin';
 import type { AppNotification } from './types';
@@ -40,6 +42,7 @@ export function useNotificationsState(): NotificationsApi {
   const { ranked } = useRatings();
   const { blockedIds } = useModeration();
   const { followingIds, people } = useSocial();
+  const { items: queueItems } = useQueue();
   const userId = user?.id ?? null;
 
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -72,7 +75,7 @@ export function useNotificationsState(): NotificationsApi {
     };
   }, [userId, followKey]);
 
-  const twinNotifs = useMemo(() => {
+  const derivedNotifs = useMemo(() => {
     if (friendLists.length === 0) return [];
     const nameOf = new Map(people.map((p) => [p.userId, p.displayName]));
     const friends = friendLists.map((l) => ({
@@ -81,8 +84,23 @@ export function useNotificationsState(): NotificationsApi {
       compatibility: compatibility(ranked, l.ratings).percent,
       ratings: l.ratings,
     }));
-    return tasteTwinNotifications(friends, new Set(ranked.map((r) => r.item.id)), new Date());
-  }, [friendLists, people, ranked]);
+    const now = new Date();
+    // Queue triggers first: "a friend rated something you already want to
+    // hear" beats a generic twin rave, so when both would ping about the same
+    // item the twin one is dropped.
+    const queueNotifs = queueTriggerNotifications(
+      friends,
+      new Set(queueItems.map((q) => q.itemId)),
+      now,
+    );
+    const queuedItemIds = new Set(queueNotifs.map((n) => n.itemId));
+    const twinNotifs = tasteTwinNotifications(
+      friends,
+      new Set(ranked.map((r) => r.item.id)),
+      now,
+    ).filter((n) => !queuedItemIds.has(n.itemId));
+    return [...queueNotifs, ...twinNotifs];
+  }, [friendLists, people, ranked, queueItems]);
 
   // Rated item ids scope the "comment on your music" source. Kept in a ref so
   // refresh() doesn't get a new identity on every rating (the badge tolerates
@@ -111,8 +129,8 @@ export function useNotificationsState(): NotificationsApi {
   // A blocked user must not be able to ping you — their follow/comment/tag/twin
   // is dropped before it can reach the list *or* the bell's unread count.
   const visible = useMemo(
-    () => hideBlocked(mergeNotifications(notifications, twinNotifs), blockedIds, (n) => [n.actorId]),
-    [notifications, twinNotifs, blockedIds],
+    () => hideBlocked(mergeNotifications(notifications, derivedNotifs), blockedIds, (n) => [n.actorId]),
+    [notifications, derivedNotifs, blockedIds],
   );
 
   return useMemo<NotificationsApi>(
