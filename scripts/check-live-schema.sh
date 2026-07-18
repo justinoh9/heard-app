@@ -76,6 +76,33 @@ bucket() {
   fi
 }
 
+# An RLS WRITE probe: can an ANONYMOUS caller insert into this table?
+#
+# WHY THIS EXISTS: every probe above looks for a thing (column, table, function,
+# bucket). None of them can see a *policy*, and on 2026-07-18 that blind spot
+# cost us — 0007's hardening had only partly applied on production, so anyone
+# holding the anon key (it ships in the public web bundle, by design) could
+# insert feed events, ratings, follows and profiles as anybody. Every check in
+# this script was green at the time. See 0030_rls_drift_repair.sql.
+#
+# HOW IT PROBES WITHOUT WRITING: it posts an empty object `{}`. If RLS refuses
+# the write we get 42501; if RLS *allows* it we get 23502 (a NOT NULL
+# violation) — the insert reached the table's constraints, which is the tell.
+# Either way no row is written, so this is safe to run against production.
+#
+# `anon_cannot_write <table> <label>` — a table anonymous callers must not write.
+anon_cannot_write() {
+  code=$(curl -s -X POST "$URL/rest/v1/$1" \
+    -H "apikey: $KEY" -H "Content-Type: application/json" -d '{}' \
+    | sed -n 's/.*"code":"\([^"]*\)".*/\1/p')
+  case "$code" in
+    42501)       green "  ok      $2" ;;
+    23502|23503|23514|22P02|"")
+                 red   "  OPEN!!! $2 — anon can INSERT (code ${code:-201}). Run 0030." ; missing=1 ;;
+    *)           red   "  ?       $2 — unexpected code $code" ; missing=1 ;;
+  esac
+}
+
 echo "Probing $URL"
 echo
 col    profiles      handle              "0014  profiles.handle / bio / avatar_url"
@@ -94,6 +121,20 @@ tbl    analytics_events                  "0027  analytics_events"
 fn     analytics_funnel                  "0027  analytics_funnel()"
 tbl    invites                           "0028  invites"
 fn     my_invites                        "0028  my_invites()"
+fn     has_blocked_me                    "0031  has_blocked_me()"
+
+echo
+echo "RLS write posture (anon must not be able to insert):"
+anon_cannot_write feed_events            "0007/0030  feed_events"
+anon_cannot_write ratings                "0007/0030  ratings"
+anon_cannot_write profiles               "0007/0030  profiles"
+anon_cannot_write follows                "0007/0030  follows"
+anon_cannot_write concerts               "0007/0030  concerts"
+anon_cannot_write comparisons            "0007/0030  comparisons"
+anon_cannot_write concert_tags           "0007/0030  concert_tags"
+anon_cannot_write items                  "0007/0030  items"
+anon_cannot_write comments               "0007       comments"
+anon_cannot_write likes                  "0007       likes"
 
 echo
 if [ "$missing" = "0" ]; then

@@ -569,10 +569,43 @@ which migrations actually landed. `npm run test:migrations` proves the SQL is
 different questions. Because migrations are run manually, the deployed bundle and
 the live schema drift silently.
 
-**That drift has bitten twice.** `0015` (avatars bucket) and `0016`
+**That drift has bitten three times.** `0015` (avatars bucket) and `0016`
 (comments.parent_id) were written, shipped and never run — so avatar upload
 returned "Bucket not found" and, the moment Phase 4's comment paging referenced
 `parent_id`, comments stopped loading on every item page.
+
+**The third was a security hole, and it hid for months** (found 2026-07-18, fixed
+by `0030_rls_drift_repair.sql`). `0007`'s RLS hardening had only *partly* applied
+on production: its first two sections (comments, likes) took effect and everything
+from the `items` section down did not — the signature of a SQL run that stopped
+partway through the file. The original `anyone can …` policies from 0001–0006
+therefore survived, and **PostgreSQL ORs permissive policies together**, so once
+`with check (true)` is in the set no later owner-scoped policy can take anything
+away. Anyone holding the anon key — which ships in the public web bundle by
+design — could INSERT feed events, ratings, follows, profiles, concerts,
+comparisons, items and concert tags **as any user**.
+Two lessons, both now mechanized:
+- **A passing `test:migrations` says nothing about production.** It proved 0007
+  correct every time, because 0007 *is* correct. Correct and *in effect* are
+  different claims.
+- **`check:live` could not see it**, because it probed for things (columns,
+  tables, functions, buckets) and a policy is not a thing. It now also probes the
+  **write posture**: it posts `{}` as anon to each owner-scoped table and reads
+  the SQLSTATE — `42501` means RLS refused, `23502` (NOT NULL) means the write
+  reached the table and RLS is open. No row is written either way, so it is safe
+  against production. Add a probe there whenever a migration adds a write policy.
+
+Related: `0031_block_enforcement.sql` fixed a second, independent hole the first
+one masked — 0019's "someone you blocked can't follow or tag you" check was
+**decorative**. Its subquery reads `public.blocks`, which is private-read, and a
+policy expression runs as the *calling* user — so the blocked follower could
+never see the row that was supposed to stop them, and `not exists (…)` was always
+true. The fix is a `security definer` helper (`has_blocked_me`) that answers only
+about the caller. **Any policy that tests a private-read table needs one** — RLS
+on the inner table will otherwise silently disable the check rather than fail it.
+0019 predates the self-test convention (which starts at 0021), which is why
+nothing caught it; a self-test run as the owner would have bypassed RLS and
+passed vacuously, so those tests must `set local role authenticated`.
 
 The rule this earned: **a deploy must never require a migration to have run
 first.** Backends `select *` and omit new columns when unset (`toConcertRow` since
