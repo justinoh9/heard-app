@@ -98,6 +98,16 @@ bucket() {
 # violation) — the insert reached the table's constraints, which is the tell.
 # Either way no row is written, so this is safe to run against production.
 #
+# WHAT IT CANNOT SEE, and you must not read into a green: 42501 is ALSO what a
+# table with no write policy at all returns, because RLS denies by default.
+# "anon is refused" and "nobody can write, including the owner" are the same
+# answer from out here, and there is no anon-only probe that separates them.
+# That cost us: 0030 dropped the legacy likes policies without re-creating
+# 0007's replacements, every unlike was silently refused, and this script sat
+# green through all of it (see 0032). Proving the OWNER can still write needs a
+# real JWT, so it lives in the migration self-tests — which is why those assert
+# both directions. A green here means "anon is out", never "writes work".
+#
 # `anon_cannot_write <table> <label>` — a table anonymous callers must not write.
 anon_cannot_write() {
   code=$(curl -s -X POST "$URL/rest/v1/$1" \
