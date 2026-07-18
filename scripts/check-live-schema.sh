@@ -51,9 +51,17 @@ tbl() {
 
 # A function: 404 means it doesn't exist. Anything else (401/403 permission
 # denied, 400 bad args) means it's there and the grants are doing their job.
+#
+# THE ARGUMENT TRAP: PostgREST resolves overloads by argument *name*, so posting
+# `{}` at a function that takes parameters 404s whether or not it exists — the
+# same false-negative shape as the storage-bucket probe above. Every other
+# function here is zero-arg, so this stayed hidden until 0031's has_blocked_me
+# was reported MISSING while working perfectly. Pass a third argument with a
+# JSON body naming the parameters for any function that takes them.
 fn() {
   code=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
-    "$URL/rest/v1/rpc/$1" -H "apikey: $KEY" -H "Content-Type: application/json" -d '{}')
+    "$URL/rest/v1/rpc/$1" -H "apikey: $KEY" -H "Content-Type: application/json" \
+    -d "${3:-\{\}}")
   if [ "$code" = "404" ]; then red "  MISSING $2"; missing=1; else green "  ok      $2"; fi
 }
 
@@ -121,7 +129,7 @@ tbl    analytics_events                  "0027  analytics_events"
 fn     analytics_funnel                  "0027  analytics_funnel()"
 tbl    invites                           "0028  invites"
 fn     my_invites                        "0028  my_invites()"
-fn     has_blocked_me                    "0031  has_blocked_me()"
+fn     has_blocked_me                    "0031  has_blocked_me()" '{"other_id":"probe"}'
 
 echo
 echo "RLS write posture (anon must not be able to insert):"
