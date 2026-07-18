@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useAuth } from '@/auth/store';
 
+import { applyToggle } from './apply';
 import { SupabaseLikesBackend } from './supabase-backend';
 import { LikesError, type LikeSummary, type LikeTargetType } from './types';
 
@@ -41,13 +42,20 @@ export function useLikeSummary(targetType: LikeTargetType, targetId: string): Li
 
   useEffect(load, [load]);
 
+  // Nothing disables the heart while a toggle is in flight, and a tap is cheap
+  // to repeat. Dropping re-entrant taps keeps one tap meaning one write.
+  const inFlight = useRef(false);
+
   const toggle = useCallback(async () => {
-    if (!userId) return;
+    if (!userId || inFlight.current) return;
+    inFlight.current = true;
     try {
-      const likedByMe = await backend.toggle(targetType, targetId, userId);
-      setSummary((s) => ({ ...s, likedByMe, count: s.count + (likedByMe ? 1 : -1) }));
+      const result = await backend.toggle(targetType, targetId, userId);
+      setSummary((s) => applyToggle(s, result));
     } catch (e: unknown) {
       setError(e instanceof LikesError ? e.message : 'Could not update like.');
+    } finally {
+      inFlight.current = false;
     }
   }, [targetType, targetId, userId]);
 
@@ -89,19 +97,25 @@ export function useLikeSummaries(targetType: LikeTargetType, targetIds: string[]
 
   useEffect(load, [load]);
 
+  // Per-target, unlike the single-summary hook: a list of comments has many
+  // hearts, and one being mid-flight must not block the others.
+  const inFlight = useRef(new Set<string>());
+
   const toggle = useCallback(
     async (targetId: string) => {
-      if (!userId) return;
+      if (!userId || inFlight.current.has(targetId)) return;
+      inFlight.current.add(targetId);
       try {
-        const likedByMe = await backend.toggle(targetType, targetId, userId);
+        const result = await backend.toggle(targetType, targetId, userId);
         setSummaries((prev) => {
           const next = new Map(prev);
-          const existing = next.get(targetId) ?? emptySummary(targetId);
-          next.set(targetId, { ...existing, likedByMe, count: existing.count + (likedByMe ? 1 : -1) });
+          next.set(targetId, applyToggle(next.get(targetId) ?? emptySummary(targetId), result));
           return next;
         });
       } catch (e: unknown) {
         setError(e instanceof LikesError ? e.message : 'Could not update like.');
+      } finally {
+        inFlight.current.delete(targetId);
       }
     },
     [targetType, userId],
