@@ -25,6 +25,7 @@ const ICON: Record<NotificationKind, keyof typeof Ionicons.glyphMap> = {
   follow: 'person-add',
   comment: 'chatbubble',
   tag: 'mic',
+  twin: 'sparkles',
 };
 
 export default function NotificationsScreen() {
@@ -40,7 +41,7 @@ export default function NotificationsScreen() {
   }, []);
 
   function open(n: AppNotification) {
-    if (n.kind === 'comment' && n.itemId && n.itemType) {
+    if ((n.kind === 'comment' || n.kind === 'twin') && n.itemId && n.itemType) {
       router.push({
         pathname: '/item/[id]',
         params: { id: n.itemId, type: n.itemType, title: n.subject ?? '', artist: '' },
@@ -70,12 +71,12 @@ export default function NotificationsScreen() {
           {!loading && notifications.length === 0 && (
             <EmptyState
               icon="notifications-outline"
-              message="No notifications yet. Follows, comments on your music, and concert tags show up here."
+              message="No notifications yet. Follows, comments on your music, concert tags, and your taste twin's latest raves show up here."
             />
           )}
 
           {notifications.map((n) => {
-            const pressable = n.kind === 'comment' && !!n.itemId;
+            const pressable = (n.kind === 'comment' || n.kind === 'twin') && !!n.itemId;
             return (
               <Pressable
                 key={n.id}
@@ -96,7 +97,8 @@ export default function NotificationsScreen() {
                   </ThemedText>
                   {n.excerpt ? (
                     <ThemedText type="small" themeColor="textSecondary" numberOfLines={2} style={styles.excerpt}>
-                      “{n.excerpt}”
+                      {/* Only a comment excerpt is a quote; twin context isn't. */}
+                      {n.kind === 'comment' ? `“${n.excerpt}”` : n.excerpt}
                     </ThemedText>
                   ) : null}
                 </View>
@@ -121,6 +123,8 @@ function verb(n: AppNotification): string {
       return 'commented on';
     case 'tag':
       return 'tagged you at';
+    case 'twin':
+      return 'rated';
   }
 }
 

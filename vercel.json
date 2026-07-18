@@ -4,6 +4,10 @@
   "outputDirectory": "dist",
   "cleanUrls": true,
   "rewrites": [
+    {
+      "source": "/feeds/new-releases-albums.json",
+      "destination": "https://rss.marketingtools.apple.com/api/v2/us/music/most-played/50/albums.json"
+    },
     { "source": "/browse/genre/:genre", "destination": "/browse/genre/[genre]" },
     { "source": "/item/:id", "destination": "/item/[id]" },
     { "source": "/artist/:id", "destination": "/artist/[id]" },

@@ -153,8 +153,16 @@ retention, differentiators).
   on your rated items, and `concert_tags` (tags), resolving actor names via
   `profiles`; a `Local` no-op backend + `provider.ts` complete the seam. Pure
   `merge.ts` (unit-tested) orders + counts unread against a device-local
-  last-seen (`seen.ts`); `store.tsx` (`useNotifications`, mounted below ratings)
-  feeds the Feed-header bell/badge and `src/app/notifications.tsx`.
+  last-seen (`seen.ts`); `store.tsx` (`useNotifications`, mounted below ratings
+  **and social** — it reads `useSocial`) feeds the Feed-header bell/badge and
+  `src/app/notifications.tsx`. The fourth source is the **taste twin**
+  (`taste-twin.ts`, pure + unit-tested): the store fetches the recommender's
+  friend lists (`recommendationsBackend.friendLists`, whose ratings carry
+  `ratedAt`) once per follow set, scores them with `social/compatibility`, and
+  pings the most-compatible followee's (≥50% match) recent (≤14d) high (≥8)
+  ratings on unlogged music, capped at 3 — folded client-side so rating
+  something drops its ping instantly, and filtered for blocks like every
+  source.
 - `src/auth/` — `useAuth()`/`AuthBackend` seam; `SupabaseAuthBackend` (real
   accounts, session persisted by the shared client, `onAuthStateChange`
   tracked) or `LocalAuthBackend` (AsyncStorage + expo-crypto) chosen by env in
@@ -406,6 +414,15 @@ retention, differentiators).
   The Browse tab
   (`src/app/(tabs)/browse.tsx`, `/browse`, guest-browsable) renders Trending this
   week + Top rated with genre chips; it carries the Browse AdSlot placement.
+  **New releases** come from the Apple Marketing Tools RSS most-played albums
+  chart (`src/music/apple-rss.ts`, pure + unit-tested — Apple retired the
+  dedicated new-music feed, so this keeps the ≤90-day slice by `releaseDate`).
+  The feed is keyless like iTunes search but **not CORS-open**, so the
+  transport (`apple-rss-request.ts`) fetches a same-origin Vercel rewrite
+  (`/feeds/new-releases-albums.json`, `vercel.json`) on web and Apple directly
+  on native; on the dev server the path 404s and the section quietly hides.
+  Don't put a static file at that path in `public/` — the filesystem beats
+  rewrites on Vercel, so it would freeze the feed.
 - `src/recommendations/` — the **"For you" recommender** (ROADMAP G3), behind a
   thin `RecommendationsBackend` seam (Supabase one-query + AsyncStorage,
   `provider.ts`) that only fetches followed friends' ranked lists. Pure,
@@ -418,10 +435,16 @@ retention, differentiators).
 - `src/share/` — **share cards** (ROADMAP Phase 3): `export.ts`'s `shareCard`
   rasterizes a rendered card view to PNG with `react-native-view-shot` and hands
   it off — the native share sheet (`expo-sharing`) on device, an `<a download>`
-  on web (the myjelli.site acquisition surface). The card itself is the branded,
-  fixed-size `components/share-card.tsx` (wordmark + your #1 + headline stats +
-  `myjelli.site`), rendered by the `src/app/share-card.tsx` modal (reached from
-  the Wrapped screen's share action). Not test-reachable (pulls native modules).
+  on web (the myjelli.site acquisition surface). Four variants ship behind
+  chips in the `src/app/share-card.tsx` modal (reached from the Wrapped
+  screen's share action): Wrapped/#1, Top 4 (2×2 cover grid over
+  `resolveFavorites`), and artist/decade spotlights. All render through one
+  branded `CardShell` in `components/share-card.tsx` (wordmark + `myjelli.site`
+  footer — every export is a tiny billboard); a variant with nothing to show
+  doesn't offer its chip. The split matters for tests: `cards.ts`
+  (`artistSpotlight`/`decadeSpotlight`) is pure + unit-tested, while
+  `export.ts` pulls native capture modules and stays out of test-reachable
+  modules. The export tracks `shared` with `surface: '<variant>_card'`.
 - `src/diary/` — the listen diary (ROADMAP Phase 2; blueprint §1.1): a dated,
   re-loggable entry per active listen, behind a `DiaryBackend` seam
   (`0011_diary.sql` — `diary_entries`, `unique(user,item,logged_at)`, public-read

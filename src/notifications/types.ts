@@ -7,7 +7,7 @@
  * device-local last-seen timestamp (see seen.ts). Push is a later slice.
  */
 
-export type NotificationKind = 'follow' | 'comment' | 'tag';
+export type NotificationKind = 'follow' | 'comment' | 'tag' | 'twin';
 
 export interface AppNotification {
   /** Stable id for keys/dedup. */
@@ -22,11 +22,11 @@ export interface AppNotification {
   actorName: string;
   /** ISO timestamp, for ordering + unread comparison. */
   createdAt: string;
-  /** comment: the item title; tag: the artist name. */
+  /** comment/twin: the item title; tag: the artist name. */
   subject?: string;
-  /** comment: a short excerpt of the comment body. */
+  /** comment: a short excerpt of the body; twin: "9.2 · 88% match" context. */
   excerpt?: string;
-  /** comment: lets the row open the item page. */
+  /** comment/twin: lets the row open the item page. */
   itemId?: string;
   itemType?: 'song' | 'album';
 }

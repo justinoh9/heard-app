@@ -12,6 +12,7 @@ import { RecommendationsError, type FriendRatingList, type RecommendationsBacken
 
 interface FriendRow extends RatingSelectRow {
   user_id: string;
+  created_at: string;
 }
 
 export class SupabaseRecommendationsBackend implements RecommendationsBackend {
@@ -19,7 +20,7 @@ export class SupabaseRecommendationsBackend implements RecommendationsBackend {
     if (userIds.length === 0) return [];
     const { data, error } = await getSupabase()
       .from('ratings')
-      .select('user_id, score, tiebreak, items (id, type, title, artist, art_url, release_year, genres)')
+      .select('user_id, score, tiebreak, created_at, items (id, type, title, artist, art_url, release_year, genres)')
       .in('user_id', userIds);
     if (error) throw new RecommendationsError(error.message);
 
@@ -27,7 +28,7 @@ export class SupabaseRecommendationsBackend implements RecommendationsBackend {
     for (const row of (data ?? []) as unknown as FriendRow[]) {
       if (!row.items) continue;
       const list = byUser.get(row.user_id) ?? { userId: row.user_id, ratings: [] };
-      list.ratings.push(fromRatingRow(row));
+      list.ratings.push({ ...fromRatingRow(row), ratedAt: row.created_at });
       byUser.set(row.user_id, list);
     }
     return [...byUser.values()];

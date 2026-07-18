@@ -96,7 +96,10 @@ export default function PrivacyScreen() {
               search sends your search terms to Apple’s iTunes Search API, and metadata is enriched
               via Last.fm and Deezer; these requests include your search text but not your account
               identity. Venue search sends what you type to Photon, an OpenStreetMap geocoding
-              service, on the same basis. If you choose to connect Spotify, Jelli reads your
+              service, on the same basis. The Browse tab&apos;s new-releases list is read from
+              Apple&apos;s public music charts; that request carries no search text and no account
+              identity (on the web it is proxied through our own host, so it does not reach Apple
+              from your connection at all). If you choose to connect Spotify, Jelli reads your
               recently played tracks with your permission — you can disconnect at any time in
               Settings, and imported plays are never logged without your explicit action.
             </Paragraph>

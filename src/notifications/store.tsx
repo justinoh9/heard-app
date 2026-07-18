@@ -12,10 +12,15 @@ import { useAuth } from '@/auth/store';
 import { useRatings } from '@/data/store';
 import { hideBlocked } from '@/moderation/filter';
 import { useModeration } from '@/moderation/store';
+import { recommendationsBackend } from '@/recommendations/provider';
+import type { FriendRatingList } from '@/recommendations/types';
+import { compatibility } from '@/social/compatibility';
+import { useSocial } from '@/social/store';
 
-import { unreadCount } from './merge';
+import { mergeNotifications, unreadCount } from './merge';
 import { notificationsBackend } from './provider';
 import { getLastSeen, markSeen } from './seen';
+import { tasteTwinNotifications } from './taste-twin';
 import type { AppNotification } from './types';
 
 export interface NotificationsApi {
@@ -34,11 +39,50 @@ export function useNotificationsState(): NotificationsApi {
   const { user } = useAuth();
   const { ranked } = useRatings();
   const { blockedIds } = useModeration();
+  const { followingIds, people } = useSocial();
   const userId = user?.id ?? null;
 
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(false);
   const [lastSeen, setLastSeen] = useState<string | null>(null);
+
+  // The taste-twin source (see taste-twin.ts): fetched once per follow set —
+  // the same raw material and cadence as useRecommendations — then folded
+  // locally so a new rating of ours drops its ping instantly.
+  const [friendLists, setFriendLists] = useState<FriendRatingList[]>([]);
+  const followKey = useMemo(() => [...followingIds].sort().join(','), [followingIds]);
+
+  useEffect(() => {
+    if (!userId || followKey === '') {
+      setFriendLists([]);
+      return;
+    }
+    let live = true;
+    recommendationsBackend
+      .friendLists(followKey.split(','))
+      .then((res) => {
+        if (live) setFriendLists(res);
+      })
+      .catch((e: unknown) => {
+        console.warn('[notifications] twin source failed:', e);
+        if (live) setFriendLists([]);
+      });
+    return () => {
+      live = false;
+    };
+  }, [userId, followKey]);
+
+  const twinNotifs = useMemo(() => {
+    if (friendLists.length === 0) return [];
+    const nameOf = new Map(people.map((p) => [p.userId, p.displayName]));
+    const friends = friendLists.map((l) => ({
+      userId: l.userId,
+      userName: nameOf.get(l.userId) ?? 'A friend',
+      compatibility: compatibility(ranked, l.ratings).percent,
+      ratings: l.ratings,
+    }));
+    return tasteTwinNotifications(friends, new Set(ranked.map((r) => r.item.id)), new Date());
+  }, [friendLists, people, ranked]);
 
   // Rated item ids scope the "comment on your music" source. Kept in a ref so
   // refresh() doesn't get a new identity on every rating (the badge tolerates
@@ -64,11 +108,11 @@ export function useNotificationsState(): NotificationsApi {
 
   useEffect(refresh, [refresh]);
 
-  // A blocked user must not be able to ping you — their follow/comment/tag is
-  // dropped before it can reach the list *or* the bell's unread count.
+  // A blocked user must not be able to ping you — their follow/comment/tag/twin
+  // is dropped before it can reach the list *or* the bell's unread count.
   const visible = useMemo(
-    () => hideBlocked(notifications, blockedIds, (n) => [n.actorId]),
-    [notifications, blockedIds],
+    () => hideBlocked(mergeNotifications(notifications, twinNotifs), blockedIds, (n) => [n.actorId]),
+    [notifications, twinNotifs, blockedIds],
   );
 
   return useMemo<NotificationsApi>(

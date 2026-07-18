@@ -1,17 +1,20 @@
 /**
- * The branded share card (ROADMAP Phase 3). A fixed-size, screenshot-ready
- * summary of a profile's taste — wordmark, their #1, and headline stats — that
- * `src/share/export.ts` rasterizes to a PNG. Rendered by `app/share-card.tsx`.
+ * The branded share cards (ROADMAP Phase 3). Fixed-size, screenshot-ready
+ * summaries of a profile's taste that `src/share/export.ts` rasterizes to a
+ * PNG — three variants (Wrapped, Top 4, spotlight) over one shell so every
+ * export carries the wordmark + myjelli.site footer. Rendered and picked in
+ * `app/share-card.tsx`; variant data comes from pure `src/share/cards.ts`.
  *
  * forwardRef so the capture can target the outer card view. Deliberately fixed
  * width (not responsive) so the exported image is consistent everywhere.
  */
 
-import { forwardRef } from 'react';
+import { forwardRef, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Spacing } from '@/constants/theme';
 import { useDisplayFont, useTheme } from '@/hooks/use-theme';
+import type { CardMedia, SpotlightData } from '@/share/cards';
 
 import { AlbumCover } from './album-cover';
 import { ThemedText } from './themed-text';
@@ -26,29 +29,51 @@ export interface ShareCardData {
   highest?: { title: string; artist: string; artUrl?: string; score: number };
 }
 
+/** Who the card belongs to — the shell's header line. */
+export interface CardOwner {
+  name: string;
+  handle?: string;
+}
+
 export const CARD_WIDTH = 340;
+
+const CardShell = forwardRef<View, { owner: CardOwner; children: ReactNode }>(
+  function CardShell({ owner, children }, ref) {
+    const theme = useTheme();
+    const displayFont = useDisplayFont();
+    return (
+      <View
+        ref={ref}
+        collapsable={false}
+        style={[
+          styles.card,
+          { backgroundColor: theme.background, borderColor: theme.backgroundElement },
+        ]}>
+        <View style={styles.header}>
+          <ThemedText style={[styles.wordmark, { fontFamily: displayFont, color: theme.text }]}>
+            jelli
+          </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            {owner.handle ? `@${owner.handle}` : owner.name}
+          </ThemedText>
+        </View>
+        {children}
+        <ThemedText type="small" style={[styles.footer, { color: theme.accent }]}>
+          myjelli.site
+        </ThemedText>
+      </View>
+    );
+  },
+);
 
 export const ShareCard = forwardRef<View, { data: ShareCardData }>(function ShareCard(
   { data },
   ref,
 ) {
   const theme = useTheme();
-  const displayFont = useDisplayFont();
 
   return (
-    <View
-      ref={ref}
-      collapsable={false}
-      style={[styles.card, { backgroundColor: theme.background, borderColor: theme.backgroundElement }]}>
-      <View style={styles.header}>
-        <ThemedText style={[styles.wordmark, { fontFamily: displayFont, color: theme.text }]}>
-          jelli
-        </ThemedText>
-        <ThemedText type="small" themeColor="textSecondary">
-          {data.handle ? `@${data.handle}` : data.name}
-        </ThemedText>
-      </View>
-
+    <CardShell ref={ref} owner={data}>
       {data.highest && (
         <View style={[styles.hero, { backgroundColor: theme.backgroundElement }]}>
           <ThemedText type="smallBold" style={{ color: theme.accent, letterSpacing: 1 }}>
@@ -80,13 +105,83 @@ export const ShareCard = forwardRef<View, { data: ShareCardData }>(function Shar
           Most rated: <ThemedText type="smallBold">{data.topArtist}</ThemedText>
         </ThemedText>
       )}
-
-      <ThemedText type="small" style={[styles.footer, { color: theme.accent }]}>
-        myjelli.site
-      </ThemedText>
-    </View>
+    </CardShell>
   );
 });
+
+/** The Top 4 showcase as a 2×2 grid — the profile's growth artifact, exportable. */
+export const Top4Card = forwardRef<View, { owner: CardOwner; items: CardMedia[] }>(
+  function Top4Card({ owner, items }, ref) {
+    const theme = useTheme();
+    return (
+      <CardShell ref={ref} owner={owner}>
+        <ThemedText
+          type="smallBold"
+          style={[styles.center, { color: theme.accent, letterSpacing: 1 }]}>
+          MY TOP 4
+        </ThemedText>
+        <View style={styles.grid}>
+          {items.slice(0, 4).map((m, i) => (
+            <View key={`${m.title}-${i}`} style={styles.cell}>
+              <AlbumCover uri={m.artUrl} fill radius={12} />
+              <View style={styles.cellCaption}>
+                <ThemedText type="smallBold" numberOfLines={1} style={{ flex: 1 }}>
+                  {i + 1}. {m.title}
+                </ThemedText>
+                <ThemedText type="smallBold" style={{ color: theme.accent }}>
+                  {m.score.toFixed(1)}
+                </ThemedText>
+              </View>
+              <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+                {m.artist}
+              </ThemedText>
+            </View>
+          ))}
+        </View>
+      </CardShell>
+    );
+  },
+);
+
+/** Per-artist / per-decade spotlight: eyebrow + headline + a cover grid. */
+export const SpotlightCard = forwardRef<View, { owner: CardOwner; data: SpotlightData }>(
+  function SpotlightCard({ owner, data }, ref) {
+    const theme = useTheme();
+    const displayFont = useDisplayFont();
+    return (
+      <CardShell ref={ref} owner={owner}>
+        <View style={styles.spotlightHead}>
+          <ThemedText type="smallBold" style={{ color: theme.accent, letterSpacing: 1 }}>
+            {data.label}
+          </ThemedText>
+          <ThemedText
+            numberOfLines={1}
+            style={[styles.spotlightTitle, { fontFamily: displayFont, color: theme.text }]}>
+            {data.title}
+          </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            {data.caption}
+          </ThemedText>
+        </View>
+        <View style={styles.grid}>
+          {data.items.slice(0, 4).map((m, i) => (
+            <View key={`${m.title}-${i}`} style={styles.cell}>
+              <AlbumCover uri={m.artUrl} fill radius={12} />
+              <View style={styles.cellCaption}>
+                <ThemedText type="small" numberOfLines={1} style={{ flex: 1 }}>
+                  {m.title}
+                </ThemedText>
+                <ThemedText type="smallBold" style={{ color: theme.accent }}>
+                  {m.score.toFixed(1)}
+                </ThemedText>
+              </View>
+            </View>
+          ))}
+        </View>
+      </CardShell>
+    );
+  },
+);
 
 function Stat({ value, label }: { value: string; label: string }) {
   return (
@@ -123,4 +218,9 @@ const styles = StyleSheet.create({
   stat: { alignItems: 'center', gap: 2 },
   center: { textAlign: 'center' },
   footer: { textAlign: 'center', fontWeight: '600' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+  cell: { flexBasis: '47%', flexGrow: 1, gap: 4 },
+  cellCaption: { flexDirection: 'row', alignItems: 'baseline', gap: Spacing.one },
+  spotlightHead: { alignItems: 'center', gap: 2 },
+  spotlightTitle: { fontSize: 30, lineHeight: 36 },
 });

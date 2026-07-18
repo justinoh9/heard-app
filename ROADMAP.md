@@ -253,14 +253,19 @@ follow) is entirely real.
       a self-intersecting draft painted the Mediterranean solid).
       *Follow-ups:* a public map on `/user/[id]`, backfilling coordinates for
       already-logged venues, and clustering if anyone logs hundreds of shows.
-- [~] **Share cards** — **shipped: a Wrapped/#1 share card.** A share action on
-      the Wrapped screen opens `src/app/share-card.tsx`, which renders a branded,
-      fixed-size `components/share-card.tsx` (wordmark, your #1, headline stats,
-      `myjelli.site`) and rasterizes it to a PNG via `src/share/export.ts`
-      (`react-native-view-shot` → native share sheet / web download). Every
-      exported image carries the wordmark, so each share is an acquisition
-      surface. *Remaining:* a dedicated Top-4 card variant and a per-artist /
-      per-decade card; a signed-in smoke test of the capture on device + web.
+- [x] **Share cards** — **all four variants shipped** (2026-07-18). The share
+      modal (`src/app/share-card.tsx`) now offers **Wrapped / Top 4 / Artist /
+      Decade** chips over one branded `CardShell` (wordmark + `myjelli.site`
+      footer, `components/share-card.tsx`): the original Wrapped/#1 card, the
+      Top 4 as a 2×2 cover grid, and artist/decade spotlights fed by pure,
+      unit-tested `src/share/cards.ts` (`artistSpotlight` / `decadeSpotlight` —
+      most-rated artist with ties by mean, most-rated decade with ties to the
+      newer). Variants with nothing to show don't offer their chip. Export path
+      unchanged (`src/share/export.ts`); the web capture was smoke-tested
+      signed-in (2026-07-18): all four variants rendered, the PNG download
+      fired, and the `shared` analytics event tracked with
+      `surface: '<variant>_card'`. *Remaining:* the same smoke test on a real
+      device once the native builds exist (G5).
 - [x] **Badges / achievements** — shipped 2026-07-14 (`src/badges/`,
       `src/app/badges.tsx`, a Badges card on the Profile). 16 badges across 6
       families (logging milestones, concert milestones, genre explorer, decade
@@ -302,10 +307,18 @@ follow) is entirely real.
       landing pages** — ten curated genres (`src/browse/genres.ts`) statically
       exported via `generateStaticParams` with unique intro copy each, linked
       from a "Browse by genre" section and listed in `sitemap.xml` (the
-      SEO/AdSense surface). *Remaining:* a new-releases section (needs an
-      external feed — e.g. Apple Marketing Tools RSS); and the Phase-4 move
-      from client-side tally to Postgres views/RPCs over
-      `ratings`/`feed_events` once the tables grow.
+      SEO/AdSense surface). **New releases shipped 2026-07-18:** Apple retired
+      the dedicated new-music RSS (v2 404s), so `src/music/apple-rss.ts` (pure,
+      unit-tested) reads the **most-played albums chart** — whose entries carry
+      `releaseDate` — and keeps the ≤90-day slice, newest first. The feed sends
+      no CORS headers (verified in-browser: iTunes search passes, this API
+      doesn't), so on web the transport (`apple-rss-request.ts`) fetches a
+      same-origin **Vercel rewrite** (`/feeds/new-releases-albums.json` in
+      `vercel.json`); native fetches Apple directly. On the dev server the
+      proxy path 404s and the section just doesn't render — same graceful
+      posture as a failed fetch. Album ids are iTunes collectionIds, so rows
+      open `/item/[id]` like any searched album. The Phase-4 move to Postgres
+      views/RPCs is done (0024).
 - [~] **(G3) Recommendations** — **shipped: a "For you" row** at the top of the
       Browse tab for signed-in users. `src/recommendations/` — pure, unit-tested
       `recommend.ts` takes the followed friends' ranked lists (via a thin
@@ -314,9 +327,18 @@ follow) is entirely real.
       high ratings (≥8) on music the viewer hasn't logged — each pick attributed
       to the most-compatible friend who loved it ("Maya rated 9.2 · 88% match").
       `use-recommendations.ts` fetches once per follow-set and recomputes locally,
-      so rating something drops it from the list instantly. *Remaining:* the
-      recommendation-backed **notification type** ("your taste twin rated X"), and
-      a dedicated `/for-you` screen if the row wants to page.
+      so rating something drops it from the list instantly. **The taste-twin
+      notification shipped 2026-07-18:** pure, unit-tested
+      `src/notifications/taste-twin.ts` picks the twin (most-compatible
+      followee, ≥50% floor — below that "taste twin" would be a lie) and pings
+      their ≤14-day ratings ≥8 on music the viewer hasn't logged, capped at 3.
+      Derived at read time like every other notification source: the
+      notifications store fetches the same friend lists the recommender uses
+      (`friendLists` now returns each rating's `ratedAt` — Supabase
+      `created_at`; local snapshots have none and so never ping) and folds
+      locally, so rating something drops its ping instantly. Twin rows open
+      the item page; blocked users are filtered like every source.
+      *Remaining:* a dedicated `/for-you` screen if the row wants to page.
 
 ## Phase 4 — Launch readiness & scale
 
@@ -478,10 +500,10 @@ follow) is entirely real.
 Small, low-effort improvements that don't warrant a phase — pick them up
 between larger work.
 
-- [ ] **(F7) Vinyl covers face outward** — on the artist page's spinning-record
-      hero (`RecordPlayer` in `src/app/artist/[id].tsx`), rotate each rim album
-      cover radially so it faces away from the center instead of sitting
-      upright, so the disc reads like real objects on a turntable.
+- [x] **(F7) Vinyl covers face outward** — shipped (commit `b4a30a1`, this box
+      was stale): the rim covers in `RecordPlayer` (`src/app/artist/[id].tsx`)
+      rotate radially — `rotate(angle)` then `translateY(-orbit)` with no
+      counter-rotation, so each cover's top points away from the spindle.
 
 ---
 

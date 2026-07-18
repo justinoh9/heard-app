@@ -15,6 +15,8 @@ import { browseDecades, browseGenres, forDecade, forGenre, topRated, trending } 
 import { CURATED_GENRES } from '@/browse/genres';
 import { browseBackend } from '@/browse/provider';
 import type { BrowseItem } from '@/browse/types';
+import type { NewRelease } from '@/music/apple-rss';
+import { fetchNewReleases } from '@/music/apple-rss-request';
 import type { Item } from '@/ranking/types';
 import type { PopularPick } from '@/recommendations/popular';
 import { useRecommendations } from '@/recommendations/use-recommendations';
@@ -36,7 +38,16 @@ export default function BrowseScreen() {
   // One active filter across both chip rails — a pick on either rail replaces
   // the other (genre AND decade at once is a Phase-4 nicety, not v1).
   const [filter, setFilter] = useState<{ kind: 'genre' | 'decade'; value: string } | null>(null);
+  // Best-effort external feed: an empty list (failed fetch, dev server without
+  // the proxy rewrite, nothing recent on the chart) just hides the section.
+  const [releases, setReleases] = useState<NewRelease[]>([]);
   const { forYou, popular } = useRecommendations();
+
+  useEffect(() => {
+    fetchNewReleases()
+      .then(setReleases)
+      .catch((e: unknown) => console.warn('[browse] new releases unavailable:', e));
+  }, []);
 
   const load = useCallback(() => {
     setError(false);
@@ -230,6 +241,35 @@ export default function BrowseScreen() {
                 showRecent
               />
               <Section title="Top rated" items={topItems} onPick={openItem} />
+
+              {releases.length > 0 && (
+                <View style={styles.section}>
+                  <ThemedText type="subtitle" style={styles.sectionHeader}>
+                    New releases
+                  </ThemedText>
+                  {releases.map((r, i) => (
+                    <NewReleaseRow
+                      key={r.id}
+                      rank={i + 1}
+                      release={r}
+                      onPress={() =>
+                        router.push({
+                          pathname: '/item/[id]',
+                          params: {
+                            id: r.id,
+                            type: 'album',
+                            title: r.title,
+                            artist: r.artist,
+                            artUrl: r.artUrl ?? '',
+                            year: r.releaseDate.slice(0, 4),
+                            genre: r.genre ?? '',
+                          },
+                        })
+                      }
+                    />
+                  ))}
+                </View>
+              )}
             </>
           )}
 
@@ -343,6 +383,45 @@ function BrowseRow({
       <View style={[styles.scorePill, { backgroundColor: theme.accent }]}>
         <ThemedText type="smallBold" style={{ color: theme.onAccent }}>
           {item.avgScore.toFixed(1)}
+        </ThemedText>
+      </View>
+    </Pressable>
+  );
+}
+
+function NewReleaseRow({
+  rank,
+  release,
+  onPress,
+}: {
+  rank: number;
+  release: NewRelease;
+  onPress: () => void;
+}) {
+  const theme = useTheme();
+  const out = new Date(release.releaseDate);
+  const outLabel = Number.isNaN(out.getTime())
+    ? release.releaseDate
+    : out.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.row, { opacity: pressed ? 0.6 : 1 }]}>
+      <ThemedText type="smallBold" themeColor="textSecondary" style={styles.rank}>
+        {rank}
+      </ThemedText>
+      <AlbumCover uri={release.artUrl} size={52} radius={8} />
+      <View style={styles.rowText}>
+        <ThemedText type="smallBold" numberOfLines={1}>
+          {release.title}
+        </ThemedText>
+        <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+          {release.artist} · out {outLabel}
+        </ThemedText>
+      </View>
+      <View style={[styles.scorePill, { backgroundColor: theme.accentSoft }]}>
+        <ThemedText type="smallBold" style={{ color: theme.accent }}>
+          NEW
         </ThemedText>
       </View>
     </Pressable>

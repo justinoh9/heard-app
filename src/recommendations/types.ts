@@ -7,10 +7,18 @@
 
 import type { RankedItem } from '@/ranking/types';
 
+/**
+ * A friend's rating with when they logged it. `ratedAt` feeds the taste-twin
+ * notification's recency window; it's optional because the local backend's
+ * snapshots don't record timestamps — a rating without one simply never
+ * counts as "recent".
+ */
+export type FriendRating = RankedItem & { ratedAt?: string };
+
 /** One followed friend's full ranked list. */
 export interface FriendRatingList {
   userId: string;
-  ratings: RankedItem[];
+  ratings: FriendRating[];
 }
 
 /** Thrown for expected persistence failures — UI-safe message. */
