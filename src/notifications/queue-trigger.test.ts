@@ -20,6 +20,9 @@ const friend = (userId: string, ratings: FriendRating[]): QueueTriggerFriend => 
   ratings,
 });
 
+/** Queue map where every bookmark predates the ratings (the common case). */
+const queuedAt = (...ids: string[]) => new Map(ids.map((id) => [id, '2026-07-01T00:00:00Z']));
+
 test('pings recent friend ratings of queued items, newest first', () => {
   const out = queueTriggerNotifications(
     [
@@ -30,7 +33,7 @@ test('pings recent friend ratings of queued items, newest first', () => {
       ]),
       friend('devon', [rating('queued-b', 8, '2026-07-17T10:00:00Z')]),
     ],
-    new Set(['queued-a', 'queued-b', 'queued-old']),
+    queuedAt('queued-a', 'queued-b', 'queued-old'),
     NOW,
   );
   assert.deepEqual(out.map((n) => n.subject), ['queued-b', 'queued-a']);
@@ -43,7 +46,7 @@ test('pings recent friend ratings of queued items, newest first', () => {
 test('any score pings — a queued item is pre-declared interest, not a taste bar', () => {
   const out = queueTriggerNotifications(
     [friend('maya', [rating('q', 3.1, '2026-07-16T10:00:00Z')])],
-    new Set(['q']),
+    queuedAt('q'),
     NOW,
   );
   assert.equal(out.length, 1);
@@ -55,7 +58,7 @@ test('one ping per item — the freshest friend rating wins', () => {
       friend('maya', [rating('q', 7, '2026-07-15T00:00:00Z')]),
       friend('devon', [rating('q', 9, '2026-07-16T00:00:00Z')]),
     ],
-    new Set(['q']),
+    queuedAt('q'),
     NOW,
   );
   assert.equal(out.length, 1);
@@ -66,17 +69,38 @@ test('caps the list and drops undated ratings', () => {
   const ratings = [1, 2, 3, 4, 5].map((n) => rating(`q${n}`, 8, `2026-07-1${n}T00:00:00Z`));
   const out = queueTriggerNotifications(
     [friend('maya', [...ratings, rating('q-undated', 9)])],
-    new Set(['q1', 'q2', 'q3', 'q4', 'q5', 'q-undated']),
+    queuedAt('q1', 'q2', 'q3', 'q4', 'q5', 'q-undated'),
     NOW,
   );
   assert.equal(out.length, 3);
   assert.equal(out[0].subject, 'q5');
 });
 
+test('queueing AFTER the friend rated stamps the ping at the bookmark, not born-read', () => {
+  // Friend rated on the 14th; the viewer bookmarked it on the 17th. The ping's
+  // createdAt must be the bookmark — the moment it became eligible — so an
+  // unread comparison against a last-seen of the 15th still lights the bell.
+  const out = queueTriggerNotifications(
+    [friend('maya', [rating('q', 9, '2026-07-14T00:00:00Z')])],
+    new Map([['q', '2026-07-17T00:00:00Z']]),
+    NOW,
+  );
+  assert.equal(out.length, 1);
+  assert.equal(out[0].createdAt, '2026-07-17T00:00:00Z');
+
+  // The common direction (rating after bookmark) keeps the rating time.
+  const usual = queueTriggerNotifications(
+    [friend('maya', [rating('q', 9, '2026-07-16T00:00:00Z')])],
+    new Map([['q', '2026-07-01T00:00:00Z']]),
+    NOW,
+  );
+  assert.equal(usual[0].createdAt, '2026-07-16T00:00:00Z');
+});
+
 test('an empty queue produces nothing', () => {
   const out = queueTriggerNotifications(
     [friend('maya', [rating('a', 9, '2026-07-16T00:00:00Z')])],
-    new Set(),
+    new Map(),
     NOW,
   );
   assert.deepEqual(out, []);

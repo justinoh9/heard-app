@@ -55,6 +55,12 @@ export function tasteTwin(
  * Notifications for the twin's recent high ratings on music the viewer hasn't
  * logged, newest first. Ratings without a `ratedAt` (local snapshots) can't
  * prove recency, so they never ping.
+ *
+ * Known limit: `createdAt` is the rating time, so following a NEW twin whose
+ * qualifying ratings predate your last bell visit surfaces them already-read
+ * (in the list, no badge). Unlike the queue trigger there's no timestamp for
+ * "when this person became your twin" to clamp against; the common case — an
+ * established twin rates something new — lights the bell correctly.
  */
 export function tasteTwinNotifications(
   friends: TwinFriend[],

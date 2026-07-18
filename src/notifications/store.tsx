@@ -90,7 +90,7 @@ export function useNotificationsState(): NotificationsApi {
     // item the twin one is dropped.
     const queueNotifs = queueTriggerNotifications(
       friends,
-      new Set(queueItems.map((q) => q.itemId)),
+      new Map(queueItems.map((q) => [q.itemId, q.createdAt])),
       now,
     );
     const queuedItemIds = new Set(queueNotifs.map((n) => n.itemId));

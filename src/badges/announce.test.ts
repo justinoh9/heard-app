@@ -43,6 +43,22 @@ test('announcements cap per pass but everything is marked seen', () => {
   assert.equal(plan.seen.length, 5); // the overflow never announces later either
 });
 
+test('an unsettled pass never shrinks the baseline (late-hydrating store)', () => {
+  // Device knows b1..b3; at effect time the playlists store hasn't hydrated,
+  // so only b1 computes as earned. The stored set must keep all three…
+  const plan = planAnnouncements(['b1', 'b2', 'b3'], [badge('b1', true)], false);
+  assert.deepEqual(plan.announce, []);
+  assert.deepEqual(plan.seen.sort(), ['b1', 'b2', 'b3']);
+
+  // …so that when the store catches up after settling, nothing re-announces.
+  const later = planAnnouncements(
+    plan.seen,
+    ['b1', 'b2', 'b3'].map((id) => badge(id, true)),
+    true,
+  );
+  assert.deepEqual(later.announce, []);
+});
+
 test('a seen badge whose metric dipped stays seen and never re-announces', () => {
   // Earned queue badge, then the user emptied their queue…
   const dipped = planAnnouncements(['q'], [badge('q', false)], true);

@@ -55,7 +55,9 @@ interface MatchParams {
 function parseMatchParams(params: Record<string, string | string[] | undefined>): MatchParams | null {
   const percent = Number(params.matchPercent);
   const name = typeof params.matchName === 'string' ? params.matchName : '';
-  if (!Number.isFinite(percent) || percent < 0 || !name) return null;
+  // A compatibility percent is 0–100 by construction; a deep link claiming
+  // otherwise is fabricating a number onto an exportable branded card.
+  if (!Number.isFinite(percent) || percent < 0 || percent > 100 || !name) return null;
   let shared: MatchShared[] = [];
   if (typeof params.matchShared === 'string' && params.matchShared) {
     try {

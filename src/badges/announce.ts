@@ -38,18 +38,21 @@ export function planAnnouncements(
 ): AnnouncePlan {
   const earned = badges.filter((b) => b.earned);
   const earnedIds = earned.map((b) => b.id);
+  // Union, not replacement — in EVERY branch. A replacement would let a
+  // not-yet-hydrated store (playlists on a slow cold start) shrink the stored
+  // baseline during the settle window, and the missing ids would re-announce
+  // as "new" once the store caught up. Same reason a badge whose metric later
+  // dips (list deleted, queue emptied) stays seen: badges never un-earn, so
+  // they must never re-announce.
+  const union = seenIds === null ? earnedIds : [...new Set([...seenIds, ...earnedIds])];
 
   if (seenIds === null || !settled) {
-    return { announce: [], seen: earnedIds };
+    return { announce: [], seen: union };
   }
 
   const seen = new Set(seenIds);
-  const fresh = earned.filter((b) => !seen.has(b.id));
   return {
-    announce: fresh.slice(0, cap),
-    // Union, not replacement: a badge whose metric later dips (list deleted,
-    // queue emptied) stays seen — badges never un-earn, so they must never
-    // re-announce either.
-    seen: [...new Set([...seenIds, ...earnedIds])],
+    announce: earned.filter((b) => !seen.has(b.id)).slice(0, cap),
+    seen: union,
   };
 }
