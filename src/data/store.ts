@@ -13,6 +13,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 import { analyticsBackend } from '@/analytics/provider';
 import { useAuth } from '@/auth/store';
+import { useToast } from '@/components/toast';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { RatingTiebreakEngine, type RankingEngine } from '@/ranking/engine';
 import type { ComparisonEvent, Item, RankedItem } from '@/ranking/types';
@@ -68,6 +69,7 @@ export function useRatingsState(): RatingsApi {
   const [loading, setLoading] = useState(true);
   const streaks = useStreaks();
   const social = useSocial();
+  const toast = useToast();
 
   useEffect(() => {
     if (!userId) {
@@ -110,6 +112,10 @@ export function useRatingsState(): RatingsApi {
       comparisonLog,
       ratingFor: (itemId) => sorted.find((r) => r.item.id === itemId),
       commitPlacement: (list, events, rated) => {
+        // Captured before the optimistic write so a failed save can put the
+        // ranked list back exactly as it was.
+        const previousList = ranked;
+        const previousLog = comparisonLog;
         // Optimistic: the UI settles immediately; the backend syncs behind it.
         setRanked(list);
         if (events.length) setComparisonLog((log) => [...log, ...events]);
@@ -152,22 +158,33 @@ export function useRatingsState(): RatingsApi {
           }
         }
         if (userId) {
+          // Was `.catch(console.warn)` with a comment claiming the rating was
+          // "kept locally for this session" — it wasn't. Nothing is written to
+          // local storage; the list only lives in React state. A failed save
+          // looked saved until the next reload, when the rating vanished along
+          // with the profile count and badges that had counted it.
           backend.commit(userId, list, events).catch((e: unknown) => {
-            console.warn('[ratings] sync failed (kept locally for this session):', e);
+            console.warn('[ratings] sync failed:', e);
+            setRanked(previousList);
+            setComparisonLog(previousLog);
+            toast("Couldn't save that rating — check your connection.", '⚠️');
           });
         }
       },
       removeRating: (itemId) => {
         // Optimistic, like commits. No feed event — removals are housekeeping.
+        const previousList = ranked;
         setRanked((prev) => prev.filter((r) => r.item.id !== itemId));
         if (userId) {
           backend.remove(userId, itemId).catch((e: unknown) => {
-            console.warn('[ratings] remove failed (kept locally for this session):', e);
+            console.warn('[ratings] remove failed:', e);
+            setRanked(previousList);
+            toast("Couldn't remove that rating — check your connection.", '⚠️');
           });
         }
       },
     };
-  }, [engine, backend, ranked, loading, comparisonLog, streaks, social, userId]);
+  }, [engine, backend, ranked, loading, comparisonLog, streaks, social, userId, toast]);
 }
 
 export function useRatings(): RatingsApi {

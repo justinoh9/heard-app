@@ -160,11 +160,15 @@ export class SupabaseCommentsBackend implements CommentsBackend {
   }
 
   async remove(id: string, userId: string): Promise<void> {
-    const { error } = await getSupabase()
+    // `.select()` so an RLS refusal is distinguishable from a real delete —
+    // PostgREST reports success either way. See src/likes/supabase-backend.ts.
+    const { data, error } = await getSupabase()
       .from('comments')
       .delete()
       .eq('id', id)
-      .eq('user_id', userId);
+      .eq('user_id', userId)
+      .select('id');
     if (error) throw new CommentsError(error.message);
+    if (!data?.length) throw new CommentsError('That comment could not be deleted.');
   }
 }

@@ -78,34 +78,52 @@ export class SupabaseConcertsBackend implements ConcertsBackend {
     );
   }
 
+  /**
+   * `.select()` on every write below is load-bearing, not decoration. RLS
+   * refusing a row is not an error — PostgREST returns success having changed
+   * nothing — so `if (error)` alone cannot tell a real write from a no-op, and
+   * the store's optimistic update would keep showing a change the database
+   * never took. Same lesson as likes' delete; see 0032's header.
+   */
   async markAttended(concertId: string): Promise<void> {
-    const { error } = await getSupabase()
+    const { data, error } = await getSupabase()
       .from('concerts')
       .update({ status: 'attended' })
-      .eq('id', concertId);
+      .eq('id', concertId)
+      .select('id');
     if (error) throw new ConcertsError(error.message);
+    if (!data?.length) throw new ConcertsError('That show could not be updated.');
   }
 
   async remove(concertId: string): Promise<void> {
-    const { error } = await getSupabase().from('concerts').delete().eq('id', concertId);
+    const { data, error } = await getSupabase()
+      .from('concerts')
+      .delete()
+      .eq('id', concertId)
+      .select('id');
     if (error) throw new ConcertsError(error.message);
+    if (!data?.length) throw new ConcertsError('That show could not be removed.');
   }
 
   async confirmTag(concertId: string, userId: string): Promise<void> {
-    const { error } = await getSupabase()
+    const { data, error } = await getSupabase()
       .from('concert_tags')
       .update({ status: 'confirmed' })
       .eq('concert_id', concertId)
-      .eq('user_id', userId);
+      .eq('user_id', userId)
+      .select('concert_id');
     if (error) throw new ConcertsError(error.message);
+    if (!data?.length) throw new ConcertsError('That invite could not be confirmed.');
   }
 
   async declineTag(concertId: string, userId: string): Promise<void> {
-    const { error } = await getSupabase()
+    const { data, error } = await getSupabase()
       .from('concert_tags')
       .delete()
       .eq('concert_id', concertId)
-      .eq('user_id', userId);
+      .eq('user_id', userId)
+      .select('concert_id');
     if (error) throw new ConcertsError(error.message);
+    if (!data?.length) throw new ConcertsError('That invite could not be declined.');
   }
 }

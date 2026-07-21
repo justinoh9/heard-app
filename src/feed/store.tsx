@@ -14,6 +14,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 import { useAuth } from '@/auth/store';
+import { useToast } from '@/components/toast';
 import { useSocial } from '@/social/store';
 import { useStreaks } from '@/streaks/store';
 
@@ -40,6 +41,7 @@ export function useFeedState(): FeedApi {
   const [myDrop, setMyDrop] = useState<DailyDrop | null>(null);
   const streaks = useStreaks();
   const social = useSocial();
+  const toast = useToast();
 
   // Hydrate the viewer's active drop on sign-in; clear it on sign-out. An
   // expired drop comes back null from the backend, so the card self-heals.
@@ -73,6 +75,7 @@ export function useFeedState(): FeedApi {
           caption: trimmed,
           createdAt: new Date().toISOString(),
         };
+        const previous = myDrop;
         setMyDrop(optimistic);
         streaks.recordActivity();
         // Every log path emits a feed event (blueprint §1.3).
@@ -87,16 +90,28 @@ export function useFeedState(): FeedApi {
         dropsBackend
           .post(userId, { item, caption: trimmed })
           .then((stored) => setMyDrop(stored))
-          .catch((e: unknown) => console.warn('[feed] drop post failed:', e));
+          .catch((e: unknown) => {
+            console.warn('[feed] drop post failed:', e);
+            // The 'drop' feed event above already went out, so leaving the card
+            // up would show a live 24h drop backed by no row at all.
+            setMyDrop(previous);
+            toast("Couldn't post your drop — check your connection.", '⚠️');
+          });
       },
       clearDrop: () => {
+        const previous = myDrop;
         setMyDrop(null);
         if (userId) {
-          dropsBackend.clear(userId).catch((e: unknown) => console.warn('[feed] drop clear failed:', e));
+          dropsBackend.clear(userId).catch((e: unknown) => {
+            console.warn('[feed] drop clear failed:', e);
+            // Otherwise the user believes they took it down and it is still live.
+            setMyDrop(previous);
+            toast("Couldn't take that drop down — check your connection.", '⚠️');
+          });
         }
       },
     }),
-    [myDrop, streaks, social, userId],
+    [myDrop, streaks, social, userId, toast],
   );
 }
 

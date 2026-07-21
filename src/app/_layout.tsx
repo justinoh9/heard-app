@@ -59,6 +59,11 @@ export default function RootLayout() {
   return (
     <AppThemeBridge>
       <PreviewBridge>
+        {/* Above every store, because the stores are what need it: a write that
+            fails has to say so, and it used to be mounted below them — which is
+            why ten write paths settled for console.warn and left the UI showing
+            a change the database never took. It only depends on the theme. */}
+        <ToastProvider>
         <AuthProvider>
         {/* Directly under auth: it only needs the viewer's id, and mounting it
             high is what lets `app_opened` fire once per session rather than
@@ -81,9 +86,7 @@ export default function RootLayout() {
                             new badge is earned. Below every store it reads. */}
                         <BadgeAnnouncer />
                         <NavThemeProvider>
-                          <ToastProvider>
-                            <RootNavigator />
-                          </ToastProvider>
+                          <RootNavigator />
                         </NavThemeProvider>
                       </NotificationsBridge>
                     </QueueBridge>
@@ -96,6 +99,7 @@ export default function RootLayout() {
         </StreaksBridge>
         </AnalyticsBridge>
         </AuthProvider>
+        </ToastProvider>
       </PreviewBridge>
     </AppThemeBridge>
   );

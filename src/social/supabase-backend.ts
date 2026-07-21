@@ -107,21 +107,33 @@ export class SupabaseSocialBackend implements SocialBackend {
     if (patch.bio !== undefined) row.bio = patch.bio;
     if (patch.avatarUrl !== undefined) row.avatar_url = patch.avatarUrl;
     if (Object.keys(row).length === 0) return;
-    const { error } = await getSupabase().from('profiles').update(row).eq('user_id', userId);
+    const { data, error } = await getSupabase()
+      .from('profiles')
+      .update(row)
+      .eq('user_id', userId)
+      .select('user_id');
     if (error) {
       // 23505 = unique_violation on profiles_handle_lower_idx.
       if (error.code === '23505') throw new HandleTakenError('That handle is already taken.');
       throw new SocialError(error.message);
     }
+    // No row updated: the sign-in upsert failed (offline, rate-limited) and
+    // there is nothing to edit. Without this the screen toasted "Profile
+    // updated ✨" and showed the new handle for the rest of the session.
+    if (!data?.length) throw new SocialError('Your profile could not be saved.');
   }
 
   async setFavorites(userId: string, itemIds: string[]): Promise<void> {
-    // The profile row always exists by now (upserted at sign-in).
-    const { error } = await getSupabase()
+    // NOT "the profile row always exists by now" — that was the old comment
+    // here, and it is exactly the assumption that fails when the sign-in
+    // upsert didn't land. Ask what changed, don't assume.
+    const { data, error } = await getSupabase()
       .from('profiles')
       .update({ favorites: itemIds.slice(0, 4) })
-      .eq('user_id', userId);
+      .eq('user_id', userId)
+      .select('user_id');
     if (error) throw new SocialError(error.message);
+    if (!data?.length) throw new SocialError('Your Top 4 could not be saved.');
   }
 
   async following(userId: string): Promise<string[]> {

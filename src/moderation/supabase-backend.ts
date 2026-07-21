@@ -135,8 +135,15 @@ export class SupabaseModerationBackend implements ModerationBackend {
     // for that one column, so adding fields here would start failing rather than
     // silently letting a reviewer edit the evidence. reviewed_by/reviewed_at are
     // stamped by a trigger from the JWT.
-    const { error } = await getSupabase().from('reports').update({ status }).eq('id', id);
+    // A zero-row update is not an error to PostgREST — and the column grant
+    // (0023) means only a *forbidden column* raises. Ask what changed.
+    const { data, error } = await getSupabase()
+      .from('reports')
+      .update({ status })
+      .eq('id', id)
+      .select('id');
     if (error) throw new ModerationError(error.message);
+    if (!data?.length) throw new ModerationError('That report could not be updated.');
   }
 
   async deleteReportedContent(targetType: ReportTargetType, targetId: string): Promise<void> {
@@ -144,7 +151,15 @@ export class SupabaseModerationBackend implements ModerationBackend {
     if (!table) {
       throw new ModerationError(`${targetType} content can't be removed from here.`);
     }
-    const { error } = await getSupabase().from(table).delete().eq('id', targetId);
+    // Without `.select()` an RLS refusal looks identical to a successful
+    // delete, so the triage screen would close the reports and leave the
+    // reported content live — the worst possible direction for this to fail.
+    const { data, error } = await getSupabase()
+      .from(table)
+      .delete()
+      .eq('id', targetId)
+      .select('id');
     if (error) throw new ModerationError(error.message);
+    if (!data?.length) throw new ModerationError('That content could not be removed.');
   }
 }

@@ -13,6 +13,7 @@ import * as Crypto from 'expo-crypto';
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 import { useAuth } from '@/auth/store';
+import { useToast } from '@/components/toast';
 import { useSocial } from '@/social/store';
 
 import { removeSongById, upsertSong } from './helpers';
@@ -31,15 +32,28 @@ export interface PlaylistsApi {
 
 export const PlaylistsContext = createContext<PlaylistsApi | null>(null);
 
-/** Fire a backend write, logging (not throwing) on failure — writes are optimistic. */
-function sync(op: keyof ListsBackend, promise: Promise<unknown>) {
-  promise.catch((e: unknown) => console.warn(`[lists] ${op} failed:`, e));
+/**
+ * Fire an optimistic backend write. On failure, put the local state back and
+ * say so — this used to only `console.warn`, so a failed `create` left the user
+ * inside a playlist that did not exist, with a `made_list` feed event already
+ * advertising it to their followers.
+ */
+function sync(
+  op: keyof ListsBackend,
+  promise: Promise<unknown>,
+  onFailure: () => void,
+) {
+  promise.catch((e: unknown) => {
+    console.warn(`[lists] ${op} failed:`, e);
+    onFailure();
+  });
 }
 
 export function usePlaylistsState(): PlaylistsApi {
   const { user } = useAuth();
   const userId = user?.id ?? null;
   const social = useSocial();
+  const toast = useToast();
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
 
   // Hydrate the viewer's lists on sign-in; clear on sign-out.
@@ -74,15 +88,23 @@ export function usePlaylistsState(): PlaylistsApi {
         };
         setPlaylists((prev) => [list, ...prev]);
         if (userId) {
-          sync('create', listsBackend.create(list));
+          sync('create', listsBackend.create(list), () => {
+            setPlaylists((prev) => prev.filter((p) => p.id !== list.id));
+            toast("Couldn't save that playlist — check your connection.", '⚠️');
+          });
           // Lists ride the feed (blueprint §1.3) — Letterboxd's virality engine.
           social.publish('made_list', { title: list.name });
         }
         return list;
       },
       deletePlaylist: (id) => {
+        const previous = playlists;
         setPlaylists((prev) => prev.filter((p) => p.id !== id));
-        if (userId) sync('remove', listsBackend.remove(id));
+        if (userId)
+          sync('remove', listsBackend.remove(id), () => {
+            setPlaylists(previous);
+            toast("Couldn't delete that playlist — check your connection.", '⚠️');
+          });
       },
       addSong: (playlistId, song) => {
         // Position = append index, captured before the optimistic state update.
@@ -90,16 +112,29 @@ export function usePlaylistsState(): PlaylistsApi {
         setPlaylists((prev) =>
           prev.map((p) => (p.id === playlistId ? { ...p, songs: upsertSong(p.songs, song) } : p)),
         );
-        if (userId) sync('addSong', listsBackend.addSong(playlistId, song, position));
+        if (userId)
+          sync('addSong', listsBackend.addSong(playlistId, song, position), () => {
+            setPlaylists((prev) =>
+              prev.map((p) =>
+                p.id === playlistId ? { ...p, songs: removeSongById(p.songs, song.id) } : p,
+              ),
+            );
+            toast("Couldn't add that song — check your connection.", '⚠️');
+          });
       },
       removeSong: (playlistId, songId) => {
+        const previous = playlists;
         setPlaylists((prev) =>
           prev.map((p) => (p.id === playlistId ? { ...p, songs: removeSongById(p.songs, songId) } : p)),
         );
-        if (userId) sync('removeSong', listsBackend.removeSong(playlistId, songId));
+        if (userId)
+          sync('removeSong', listsBackend.removeSong(playlistId, songId), () => {
+            setPlaylists(previous);
+            toast("Couldn't remove that song — check your connection.", '⚠️');
+          });
       },
     }),
-    [playlists, userId, social],
+    [playlists, userId, social, toast],
   );
 }
 

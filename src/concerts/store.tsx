@@ -8,6 +8,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 import { analyticsBackend } from '@/analytics/provider';
 import { useAuth } from '@/auth/store';
+import { useToast } from '@/components/toast';
 import { useSocial } from '@/social/store';
 import { useStreaks } from '@/streaks/store';
 
@@ -42,6 +43,7 @@ export function useConcertsState(): ConcertsApi {
   const [concerts, setConcerts] = useState<Concert[]>([]);
   const [loading, setLoading] = useState(true);
   const social = useSocial();
+  const toast = useToast();
   const streaks = useStreaks();
 
   useEffect(() => {
@@ -120,6 +122,7 @@ export function useConcertsState(): ConcertsApi {
       },
       markAttended: (concertId) => {
         if (!userId) return;
+        const previous = concerts;
         setConcerts((prev) =>
           prev.map((c) => (c.id === concertId ? { ...c, status: 'attended' } : c)),
         );
@@ -133,18 +136,26 @@ export function useConcertsState(): ConcertsApi {
             score: show.score,
           });
         }
+        // The feed event above is already public, so a silent failure here left
+        // followers looking at a show the user's own app says they never attended.
         concertsBackend.markAttended(concertId).catch((e: unknown) => {
           console.warn('[concerts] markAttended failed:', e);
+          setConcerts(previous);
+          toast("Couldn't mark that show attended — check your connection.", '⚠️');
         });
       },
       removeConcert: (concertId) => {
+        const previous = concerts;
         setConcerts((prev) => prev.filter((c) => c.id !== concertId));
         concertsBackend.remove(concertId).catch((e: unknown) => {
           console.warn('[concerts] remove failed:', e);
+          setConcerts(previous);
+          toast("Couldn't remove that show — check your connection.", '⚠️');
         });
       },
       confirmTag: (concertId) => {
         if (!userId) return;
+        const previous = concerts;
         setConcerts((prev) =>
           prev.map((c) =>
             c.id === concertId
@@ -159,10 +170,13 @@ export function useConcertsState(): ConcertsApi {
         );
         concertsBackend.confirmTag(concertId, userId).catch((e: unknown) => {
           console.warn('[concerts] confirmTag failed:', e);
+          setConcerts(previous);
+          toast("Couldn't confirm that tag — check your connection.", '⚠️');
         });
       },
       declineTag: (concertId) => {
         if (!userId) return;
+        const previous = concerts;
         setConcerts((prev) =>
           prev.map((c) =>
             c.id === concertId
@@ -172,10 +186,12 @@ export function useConcertsState(): ConcertsApi {
         );
         concertsBackend.declineTag(concertId, userId).catch((e: unknown) => {
           console.warn('[concerts] declineTag failed:', e);
+          setConcerts(previous);
+          toast("Couldn't decline that tag — check your connection.", '⚠️');
         });
       },
     }),
-    [concerts, loading, userId, social, streaks],
+    [concerts, loading, userId, social, streaks, toast],
   );
 }
 
