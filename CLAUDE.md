@@ -613,6 +613,44 @@ first.** Backends `select *` and omit new columns when unset (`toConcertRow` sin
 and fall back to the pre-migration shape (`SupabaseCommentsBackend
 .listForItemPre0016`). Run `check:live` before assuming a feature is live.
 
+## Ask what a write changed, not whether it errored
+
+A Supabase `update`/`delete` that RLS refuses is **not an error**. PostgREST
+returns success having changed nothing, so `if (error)` cannot tell a real write
+from a no-op. Every such call must `.select()` and treat zero rows as a failure.
+
+This has bitten twice in one day. Unliking decremented a counter on faith while
+the row survived (the count reached **-13**), and separately `setFavorites`
+carried the comment *"the profile row always exists by now (upserted at
+sign-in)"* — but that upsert is itself a `.catch(console.warn)`, so sign in
+offline and every profile edit afterwards toasted "Profile updated ✨" and wrote
+nothing. Admin remove-content was the worst shape: it closed the reports and left
+the reported content live.
+
+The paired rule: **an optimistic update owns its failure.** `.catch(console.warn)`
+under a UI that has already committed is a silent lie — ten write paths had it,
+and `commitPlacement`'s comment even claimed the rating was "kept locally for
+this session" when nothing was written anywhere. Revert and toast (`ToastProvider`
+is mounted above every store precisely so they can). Note the two halves are
+useless apart: reverting only helps if the backend actually *reports* the refusal.
+
+Related shapes worth grepping for when touching a store:
+- **No in-flight guard on a tappable control.** No `Pressable` in this app sets
+  `disabled`, so a double-tap fires two concurrent writes; where the pair is
+  add-then-remove, whichever wins the race decides the truth and the icon can end
+  up disagreeing with the database permanently.
+- **A load with no generation guard.** A stale response clobbers a newer one —
+  and because the stores live in the root layout and never unmount, one issued as
+  user A can resolve into user B's session (`src/social/store.tsx` did). The
+  pattern to copy is `refreshSeq` there, or the `requestId` ref in
+  `src/app/people.tsx`.
+- **A bare `JSON.parse` on AsyncStorage.** An app killed mid-write leaves
+  truncated JSON; if the throw lands somewhere that skips `setState`, the feature
+  reads empty and the *next* write persists that emptiness over real history.
+  That destroyed streaks (`src/streaks/logic.ts` → `parseStreakState`), and the
+  same async gap means a write before hydration finishes can erase a good value
+  with a placeholder on a perfectly healthy device.
+
 ### The avatar is deleted by the client, not by `delete_own_account()`
 Supabase guards its storage tables with a **statement-level** `storage.protect_delete()`
 trigger that rejects direct DML (*"Use the Storage API instead"*). From 0020 until
