@@ -161,6 +161,44 @@ export function parseTracks(json: ITunesResponse): SearchResult[] {
 }
 
 /**
+ * A credit string naming more than this many people is a compilation credit
+ * ("Tek No, Maximal Machine, Two City Orchestra, … & Jeff Violla"), not an
+ * artist anyone wants to open. Four keeps real bands — "Earth, Wind & Fire",
+ * "Crosby, Stills, Nash & Young" — which is why the cutoff isn't lower.
+ */
+const MAX_CREDITED_NAMES = 4;
+
+/** How many frequency-ranked artists to keep when none match the query by name. */
+const UNMATCHED_ARTIST_LIMIT = 3;
+
+function normalizeName(s: string): string {
+  return s.toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+/** Pure: the query's search tokens, lowercased. */
+function queryTokens(query: string): string[] {
+  return normalizeName(query).split(' ').filter(Boolean);
+}
+
+/** Pure: how many separately-credited names a credit string carries. */
+export function creditedNameCount(name: string): number {
+  return name.split(/[,&]/).filter((part) => part.trim()).length;
+}
+
+/**
+ * Pure: does this artist name plausibly answer the query? Substring rather than
+ * whole-word so a half-typed "radioh" still matches Radiohead; every token must
+ * appear, so "malcolm todd" doesn't match a compilation that merely contains a
+ * Todd.
+ */
+export function artistMatchesQuery(name: string, query: string): boolean {
+  const tokens = queryTokens(query);
+  if (tokens.length === 0) return false;
+  const normalized = normalizeName(name);
+  return tokens.every((t) => normalized.includes(t));
+}
+
+/**
  * Pure: unique artist rows derived from any entities that carry an artistId.
  * iTunes' mixed search doesn't return standalone artist objects with art, so we
  * synthesize navigable artist rows from the albums/tracks a query surfaced —
@@ -171,8 +209,20 @@ export function parseTracks(json: ITunesResponse): SearchResult[] {
  * user meant recurs across their catalog, while an incidental collaborator or
  * same-titled release shows up once — this keeps the intended artist on top
  * (and thus in the "Top result" slot) instead of whatever the API returned first.
+ *
+ * Frequency alone was not enough. iTunes matches a query against track and album
+ * titles too, so "malcolm todd" returned albums by Sing2Guitar (a karaoke cover),
+ * Oxford University Press Music, and the BBC Philharmonic — each contributing a
+ * junk artist row. The Artists section was mostly noise, which reads as a broken
+ * search even though every album and song below it was correct.
+ *
+ * So a derived artist must also earn its place: its NAME has to match the query.
+ * When nothing does — searching a song title, where the artist's name never
+ * appears in the query — we keep the top few by frequency, because surfacing who
+ * made the track you searched for is the useful answer. The cap is what kills the
+ * long tail either way.
  */
-export function deriveArtists(entities: ITunesEntity[]): SearchResult[] {
+export function deriveArtists(entities: ITunesEntity[], query = ''): SearchResult[] {
   const acc = new Map<string, { entity: ITunesEntity; count: number; order: number }>();
   let order = 0;
   for (const e of entities) {
@@ -182,9 +232,16 @@ export function deriveArtists(entities: ITunesEntity[]): SearchResult[] {
     if (existing) existing.count += 1;
     else acc.set(id, { entity: e, count: 1, order: order++ });
   }
-  return [...acc.values()]
+  const ranked = [...acc.values()]
     .sort((a, b) => b.count - a.count || a.order - b.order) // ties keep first-seen order
-    .map(({ entity }) => artistToResult(entity));
+    .map(({ entity }) => artistToResult(entity))
+    .filter((a) => creditedNameCount(a.title) <= MAX_CREDITED_NAMES);
+
+  // No query to judge against (callers that just want the rows) — leave as-is.
+  if (queryTokens(query).length === 0) return ranked;
+
+  const matched = ranked.filter((a) => artistMatchesQuery(a.title, query));
+  return matched.length > 0 ? matched : ranked.slice(0, UNMATCHED_ARTIST_LIMIT);
 }
 
 /**
@@ -268,7 +325,7 @@ export class ITunesCatalog implements MusicCatalog {
       this.get(`/search?term=${encodeURIComponent(q)}&media=music&entity=album&limit=${limit}`, opts.signal),
       this.get(`/search?term=${encodeURIComponent(q)}&media=music&entity=song&limit=${limit}`, opts.signal),
     ]);
-    const artists = deriveArtists([...(albumJson.results ?? []), ...(songJson.results ?? [])]);
+    const artists = deriveArtists([...(albumJson.results ?? []), ...(songJson.results ?? [])], q);
     const albums = parseAlbums(albumJson);
     const songs = await this.rank(parseTracks(songJson), q, opts);
     return [...artists, ...albums, ...songs];

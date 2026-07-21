@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import {
   ITunesCatalog,
   albumToResult,
+  artistMatchesQuery,
   deriveArtists,
   parseAlbumTracks,
   parseAlbums,
@@ -298,4 +299,93 @@ test('an AbortError propagates (not wrapped) so the search hook can ignore it', 
     throw e;
   });
   await assert.rejects(() => cat.searchTracks('x'), (e: Error) => e.name === 'AbortError');
+});
+
+// --- derived-artist relevance (the "search looks broken" bug) ----------------
+
+test('deriveArtists drops artists whose name has nothing to do with the query', () => {
+  // Real noise from a production search for "malcolm todd": iTunes matches album
+  // and track titles too, so a karaoke cover and a choral compilation each
+  // contributed an artist row. Every album/song below them was correct — it was
+  // the Artists section that made search look broken.
+  const artists = deriveArtists(
+    [
+      albumEntity({ artistId: 1, artistName: 'Sing2Guitar', collectionId: 91 }),
+      albumEntity({ artistId: 2, artistName: 'Oxford University Press Music', collectionId: 92 }),
+      albumEntity({ artistId: 3, artistName: 'Rumon Gamba & BBC Philharmonic', collectionId: 93 }),
+      songEntity({ artistId: 4, artistName: 'Malcolm Todd', trackId: 94 }),
+    ],
+    'malcolm todd',
+  );
+  assert.deepEqual(
+    artists.map((a) => a.title),
+    ['Malcolm Todd'],
+  );
+});
+
+test('deriveArtists rejects a compilation credit listing a crowd of names', () => {
+  // This single "artist" really came back for "malcolm todd" — it contains both
+  // a Will Todd and a Malcolm Darion, so a name match alone would let it in.
+  const crowd =
+    'Tek No, Maximal Machine, Two City Orchestra, Bimbo Club, Will Todd, ' +
+    'Karl Xxl, Malcolm Darion, House Group, Dennis Zak & Jeff Violla';
+  const artists = deriveArtists(
+    [
+      albumEntity({ artistId: 1, artistName: crowd, collectionId: 91 }),
+      songEntity({ artistId: 2, artistName: 'Malcolm Todd', trackId: 92 }),
+    ],
+    'malcolm todd',
+  );
+  assert.deepEqual(
+    artists.map((a) => a.title),
+    ['Malcolm Todd'],
+  );
+});
+
+test('deriveArtists keeps real bands that use commas and ampersands', () => {
+  const artists = deriveArtists(
+    [albumEntity({ artistId: 1, artistName: 'Earth, Wind & Fire', collectionId: 91 })],
+    'earth wind',
+  );
+  assert.deepEqual(
+    artists.map((a) => a.title),
+    ['Earth, Wind & Fire'],
+  );
+});
+
+test('deriveArtists matches a half-typed query so results appear while typing', () => {
+  const artists = deriveArtists(
+    [albumEntity({ artistId: 1, artistName: 'Radiohead', collectionId: 91 })],
+    'radioh',
+  );
+  assert.deepEqual(
+    artists.map((a) => a.title),
+    ['Radiohead'],
+  );
+});
+
+test('deriveArtists falls back to the top few when the query is a song title', () => {
+  // Searching "chest pain" names no artist, but whoever made it is still the
+  // useful answer — we just refuse to list twenty of them.
+  const artists = deriveArtists(
+    [
+      songEntity({ artistId: 1, artistName: 'Malcolm Todd', trackId: 91 }),
+      songEntity({ artistId: 1, artistName: 'Malcolm Todd', trackId: 92 }),
+      songEntity({ artistId: 2, artistName: 'Cover Band A', trackId: 93 }),
+      songEntity({ artistId: 3, artistName: 'Cover Band B', trackId: 94 }),
+      songEntity({ artistId: 4, artistName: 'Cover Band C', trackId: 95 }),
+      songEntity({ artistId: 5, artistName: 'Cover Band D', trackId: 96 }),
+    ],
+    'chest pain',
+  );
+  assert.deepEqual(
+    artists.map((a) => a.title),
+    ['Malcolm Todd', 'Cover Band A', 'Cover Band B'],
+  );
+});
+
+test('artistMatchesQuery needs every token, not just one', () => {
+  assert.equal(artistMatchesQuery('Malcolm Todd', 'malcolm todd'), true);
+  assert.equal(artistMatchesQuery('Will Todd', 'malcolm todd'), false);
+  assert.equal(artistMatchesQuery('Malcolm Todd', ''), false);
 });
