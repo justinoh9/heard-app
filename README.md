@@ -1,56 +1,77 @@
-# Welcome to your Expo app 👋
+# Jelli
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+**A social music-rating app — Letterboxd for albums.** Live at
+**[myjelli.site](https://myjelli.site)**; the same codebase builds for iOS and
+Android.
 
-## Get started
+Rating an album 1–10 cold is hard, and the numbers drift until your own list stops
+meaning anything. So Jelli never asks for a score in isolation: you give a rough
+rating, then the app shows you something you already rated similarly and asks
+which you prefer. A few comparisons place the album precisely inside your ranking.
+The score does the coarse sort; the head-to-heads break ties.
 
-1. Install dependencies
+📄 **[Read the case study →](CASE_STUDY.md)** — the problem, the architecture, and
+a security bug that every test I had said didn't exist.
 
-   ```bash
-   npm install
-   ```
+---
 
-2. Start the app
+## Stack
 
-   ```bash
-   npx expo start
-   ```
+| | |
+|---|---|
+| **Client** | Expo SDK 56, React Native 0.85, React 19, TypeScript (strict), expo-router |
+| **Backend** | Supabase — Postgres + row-level security, PostgREST, Auth, Storage |
+| **Music data** | iTunes Search API (catalog), Last.fm (popularity), Deezer (artist art), Photon (venue geocoding) |
+| **Testing** | `node:test` via `tsx`; a Docker harness that replays every migration into a throwaway Postgres |
+| **Deploy** | Vercel (static Expo web export) |
 
-In the output, you'll find options to open the app in a
+There is no custom server. Rules that must not be client-enforced live in SQL as
+RLS policies, `SECURITY DEFINER` functions, and rate-limit triggers.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Running it
 
 ```bash
-npm run reset-project
+npm install
+npm run web          # browser (easiest local check)
+npm start            # Expo dev server — scan the QR with Expo Go for a phone
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+It runs with **no configuration**: without Supabase credentials every feature
+falls back to on-device storage. To run against a real backend, copy
+`.env.example` to `.env`, fill in `EXPO_PUBLIC_SUPABASE_URL` and
+`EXPO_PUBLIC_SUPABASE_ANON_KEY`, and apply `supabase/migrations/` in order.
 
-### Other setup steps
+## Commands
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+```bash
+npm test                 # 430 unit tests (pure logic — no network, no React)
+npx tsc --noEmit         # typecheck
+npm run test:migrations  # replay all 32 migrations into a throwaway Postgres (needs Docker)
+npm run check:live       # ask the LIVE project which migrations actually landed
+```
 
-## Learn more
+The last two answer different questions, and the difference caused a real
+incident: `test:migrations` proves the SQL is **correct**, `check:live` proves
+production actually **has** it. See [CASE_STUDY.md](CASE_STUDY.md).
 
-To learn more about developing your project with Expo, look at the following resources:
+## Architecture in one diagram
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```
+Screens  ──►  Stores (React context)  ──►  Backend seam (interface)
+                                              ├── Supabase impl  ──► PostgREST ──► Postgres + RLS
+                                              └── AsyncStorage impl (offline / zero-config)
+```
 
-## Join the community
+Screens never import Supabase. Pure logic (ranking math, feed folding, streak
+transitions, search parsing) lives in its own files with no React and no network,
+which is why the whole suite runs in about three seconds.
 
-Join our community of developers creating universal apps.
+## Docs
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+| File | What's in it |
+|---|---|
+| [CASE_STUDY.md](CASE_STUDY.md) | Problem, audience, architecture, hardest bug, what I'd improve |
+| [CLAUDE.md](CLAUDE.md) | Engineering notes — conventions, and the scar tissue behind them |
+| [SPEC.md](SPEC.md) | Product spec and rationale |
+| [PRODUCT_BLUEPRINT.md](PRODUCT_BLUEPRINT.md) | Mechanics and data models |
+| [ROADMAP.md](ROADMAP.md) | Sequenced plan and what's shipped |
