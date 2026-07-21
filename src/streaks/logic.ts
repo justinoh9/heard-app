@@ -52,4 +52,33 @@ export function displayStreak(state: StreakState, key: string): number {
   return dayGap(state.lastActiveDate, key) <= 1 ? state.current : 0;
 }
 
+/**
+ * Pure: a stored blob → usable streak state, tolerating anything AsyncStorage
+ * hands back. An app killed mid-write leaves truncated JSON, and the old reader
+ * let that throw inside a `.then` — which skipped `setState`, left the streak
+ * reading 0, and then let the next activity write that empty state back over
+ * the key. A display bug turned into permanent, silent loss of the history.
+ *
+ * Field-by-field rather than a cast, because a value that parses is not
+ * necessarily the shape we stored.
+ */
+export function parseStreakState(raw: string | null): StreakState {
+  if (!raw) return EMPTY_STREAK_STATE;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return EMPTY_STREAK_STATE;
+    const s = parsed as Partial<StreakState>;
+    return {
+      current: typeof s.current === 'number' && s.current >= 0 ? s.current : 0,
+      longest: typeof s.longest === 'number' && s.longest >= 0 ? s.longest : 0,
+      lastActiveDate: typeof s.lastActiveDate === 'string' ? s.lastActiveDate : null,
+      activeDates: Array.isArray(s.activeDates)
+        ? s.activeDates.filter((d): d is string => typeof d === 'string')
+        : [],
+    };
+  } catch {
+    return EMPTY_STREAK_STATE;
+  }
+}
+
 export { EMPTY_STREAK_STATE };

@@ -8,7 +8,7 @@
  * event (§1.3).
  */
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 import { analyticsBackend } from '@/analytics/provider';
 import { useAuth } from '@/auth/store';
@@ -80,7 +80,23 @@ export function useSocialState(): SocialApi {
   const [myFavorites, setMyFavorites] = useState<string[]>([]);
   const [myProfile, setMyProfile] = useState<Profile | null>(null);
 
+  /**
+   * Generation counter for `refresh`. Every toggleFollow triggers a refresh, and
+   * refresh awaits `feedFor` in the middle, so two of them routinely finish out
+   * of order — follow-then-unfollow could land the *first* reload last and put
+   * the follow back, untouched. The same staleness leaks across accounts:
+   * `useSocialState` lives in the root layout and never unmounts, so a refresh
+   * issued as one user could resolve into the next user's session and render
+   * their feed, Top 4, and profile. Changing `userId` re-runs the mount effect,
+   * which bumps this, so both cases collapse to "only the newest may write".
+   */
+  const refreshSeq = useRef(0);
+  /** Follow toggles awaiting their write, keyed by target — one tap, one write. */
+  const followInFlight = useRef(new Set<string>());
+
   const refresh = useCallback(() => {
+    const seq = ++refreshSeq.current;
+    const current = () => seq === refreshSeq.current;
     setFeedLoading(true);
     // The people directory is public, so it loads for guests too; the follow
     // graph and personalized feed need a viewer, so they stay empty signed-out.
@@ -89,18 +105,22 @@ export function useSocialState(): SocialApi {
       userId ? socialBackend.following(userId) : Promise.resolve([] as string[]),
     ])
       .then(async ([profiles, ids]) => {
+        if (!current()) return;
         setFollowingIds(new Set(ids));
         setPeople(profiles.filter((p) => p.userId !== userId));
         const own = userId ? profiles.find((p) => p.userId === userId) ?? null : null;
         setMyProfile(own);
         setMyFavorites(own?.favorites ?? []);
         const page = userId ? await socialBackend.feedFor([userId, ...ids], FEED_PAGE_SIZE) : [];
+        if (!current()) return; // re-checked: the await above is the slow part
         setFeed(page);
         // A full page implies there may be older events to page into.
         setFeedHasMore(page.length === FEED_PAGE_SIZE);
       })
       .catch((e: unknown) => console.warn('[social] refresh failed:', e))
-      .finally(() => setFeedLoading(false));
+      .finally(() => {
+        if (current()) setFeedLoading(false);
+      });
   }, [userId]);
 
   useEffect(() => {
@@ -188,6 +208,11 @@ export function useSocialState(): SocialApi {
       },
       toggleFollow: (targetId) => {
         if (!userId || targetId === userId) return;
+        // No Follow button carries `disabled`, and follow/unfollow is a
+        // read-then-write pair — without this, tapping Follow then Unfollow
+        // fires both writes concurrently and whichever reload lands last wins.
+        if (followInFlight.current.has(targetId)) return;
+        followInFlight.current.add(targetId);
         const willFollow = !followingIds.has(targetId);
         // Optimistic: flip the set now, reconcile the feed after the write.
         setFollowingIds((prev) => {
@@ -213,7 +238,8 @@ export function useSocialState(): SocialApi {
               else next.add(targetId);
               return next;
             });
-          });
+          })
+          .finally(() => followInFlight.current.delete(targetId));
       },
       publish: (type, payload) => {
         if (!userId) return;

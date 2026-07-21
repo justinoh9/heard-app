@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { displayStreak, recordActivity, todayKey } from './logic';
+import { displayStreak, parseStreakState, recordActivity, todayKey } from './logic';
 import { EMPTY_STREAK_STATE } from './types';
 
 test('recordActivity starts a streak at 1 from empty state', () => {
@@ -65,4 +65,44 @@ test('displayStreak reports 0 for a fresh state', () => {
 test('todayKey formats a fixed instant as YYYY-MM-DD in local time', () => {
   const noon = new Date(2026, 5, 15, 12, 0, 0).getTime(); // June 15, 2026, local noon
   assert.equal(todayKey(noon), '2026-06-15');
+});
+
+// --- parseStreakState: storage is not to be trusted ---------------------------
+
+test('parseStreakState reads back what we stored', () => {
+  const stored = { current: 4, longest: 9, lastActiveDate: '2026-07-21', activeDates: ['2026-07-20', '2026-07-21'] };
+  assert.deepEqual(parseStreakState(JSON.stringify(stored)), stored);
+});
+
+test('parseStreakState treats a missing value as a new user', () => {
+  assert.deepEqual(parseStreakState(null), EMPTY_STREAK_STATE);
+});
+
+test('parseStreakState survives JSON truncated by an app kill', () => {
+  // What a process killed mid-setItem actually leaves behind. This used to
+  // throw inside a .then, which skipped setState and left the streak at 0 —
+  // and the next activity then wrote that 0 back over the real history.
+  assert.deepEqual(parseStreakState('{"current":4,"longest":9,"activeDa'), EMPTY_STREAK_STATE);
+});
+
+test('parseStreakState rejects values of the wrong shape', () => {
+  assert.deepEqual(parseStreakState('"a string"'), EMPTY_STREAK_STATE);
+  assert.deepEqual(parseStreakState('null'), EMPTY_STREAK_STATE);
+  assert.deepEqual(parseStreakState('{"current":"4","activeDates":"nope"}'), EMPTY_STREAK_STATE);
+});
+
+test('parseStreakState drops non-string entries from activeDates', () => {
+  const parsed = parseStreakState('{"current":1,"longest":1,"lastActiveDate":"2026-07-21","activeDates":["2026-07-21",null,7]}');
+  assert.deepEqual(parsed.activeDates, ['2026-07-21']);
+});
+
+test('a recovered-from-corrupt state still records activity normally', () => {
+  // The recovery path must leave a usable state, not a poisoned one.
+  const recovered = parseStreakState('{{{not json');
+  assert.deepEqual(recordActivity(recovered, '2026-07-21'), {
+    current: 1,
+    longest: 1,
+    lastActiveDate: '2026-07-21',
+    activeDates: ['2026-07-21'],
+  });
 });
